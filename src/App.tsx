@@ -1,7 +1,7 @@
 // src/App.tsx
 import "./index.css";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import PrivateRoute from "./routes/PrivateRoute";
+// import PrivateRoute from "./routes/PrivateRoute";
 import Login from "./modules/user/auth/pages/Login";
 import SellerRoute from "./routes/SellerRoute";
 import Register from "./modules/user/auth/pages/Register";
