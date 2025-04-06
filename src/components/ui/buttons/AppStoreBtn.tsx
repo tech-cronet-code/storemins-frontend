@@ -2,7 +2,7 @@ const AppStoreBtn = () => {
   return (
     <button
       type="button"
-      className="flex items-center justify-center w-48 text-white bg-black h-14 rounded-xl cursor-pointer"
+      className="flex items-center justify-center h-13 w-40 md:h-14 md:w-48 text-white bg-black  rounded-xl cursor-pointer"
     >
       <div className="mr-3">
         <svg viewBox="0 0 384 512" width="30">
@@ -14,7 +14,9 @@ const AppStoreBtn = () => {
       </div>
       <div>
         <div className="text-xs">Download on the</div>
-        <div className="-mt-1 font-sans text-xl font-semibold">App Store</div>
+        <div className="-mt-1 font-sans text-md md:text-xl font-semibold">
+          App Store
+        </div>
       </div>
     </button>
   );
