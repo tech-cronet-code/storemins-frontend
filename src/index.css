@@ -7,6 +7,23 @@
   --color-04: #2c3647;
   --color-05: #e5dfff;
 }
+/* global.css or tailwind config @apply */
+/* .form-input {
+  @apply w-full px-4 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#7F56D9];
+} */
+
+ /* e.g., in global.css or as custom Tailwind plugin */
+.form-input-style {
+  @apply w-full px-4 py-3 border border-gray-300 rounded-md text-sm;
+}
+.btn-primary {
+  @apply w-full bg-[#7F56D9] text-white py-3 rounded-md text-sm hover:bg-[#6845c4] transition;
+}
+.social-icon {
+  @apply p-2 w-10 h-10 border border-gray-300 rounded-full flex items-center justify-center hover:bg-gray-100 text-lg;
+}
+
+
 
 /* :root {
   font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;

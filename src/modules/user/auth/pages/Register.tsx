@@ -1,133 +1,81 @@
-import AppStoreBtn from "../../../../components/ui/buttons/AppStoreBtn";
-import PlayStoreBtn from "../../../../components/ui/buttons/PlayStoreBtn";
-import svg from "../../../../assets/icons/svg";
-import img1 from "../../../../assets/icons/App Logo Inspiraton 106.png";
-import img2 from "../../../../assets/icons/App Logo Inspiraton 137.png";
-import img3 from "../../../../assets/icons/App Logo Inspiraton 164.png";
-import img4 from "../../../../assets/icons/App Logo Inspiraton 21.png";
-import img5 from "../../../../assets/icons/App Logo Inspiraton 92.png";
-import img6 from "../../../../assets/icons/Logo Shapes 21.png";
-import img7 from "../../../../assets/icons/App Logo Inspiraton 42.png";
-import adImg from "../../../../assets/images/adImg.png";
+import { useState } from "react";
+import { IoEyeOutline, IoEyeOffOutline } from "react-icons/io5";
+import { FaGoogle, FaFacebookF, FaXTwitter, FaApple } from "react-icons/fa6";
 
-// src/modules/auth/pages/Register.tsx
-const Register = () => {
+const RegisterForm = ({ onSwitch }: { onSwitch: () => void }) => {
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
+
   return (
-    <div className="Main-Div  w-screen flex flex-row items-center justify-center">
-      <div className="Register-Ad-div flex flex-col items-center justify-center w-full">
-        <div
-          className="w-full flex flex-col gap-6 p-10"
-          style={{ backgroundColor: "#e4e4e5" }}
-        >
-          <div className="text-4xl w-full text-center">
-            Show the best of your business
-          </div>
-          <div className="w-11/12 flex flex-row justify-center items-center">
-            <div className="flex flex-col gap-10">
-              <span className="text-4xl font-bold" style={{ color: "#0B132A" }}>
-                We Provide Many <br /> Features You Can Use
-              </span>
-              <span className="text-2xl" style={{ color: "#4F5665" }}>
-                You can explore the features that we
-                <br /> provide with fun and have their own
-                <br /> functions each feature.
-              </span>
-              <div className="flex flex-col gap-3">
-                <div className="flex flex-row gap-2 items-center justify-center">
-                  <span className="w-12">{svg.greenTick}</span>
-                  <span style={{ color: "#4F5665" }} className="text-lg">
-                    Powerfull online protection.
-                  </span>
-                </div>
-                <div className="flex flex-row gap-2 items-center justify-center">
-                  <span className="w-12">{svg.greenTick}</span>
-                  <span style={{ color: "#4F5665" }} className="text-lg">
-                    Powerfull online protection.
-                  </span>
-                </div>
-                <div className="flex flex-row gap-2 items-center justify-center">
-                  <span className="w-12">{svg.greenTick}</span>
-                  <span style={{ color: "#4F5665" }} className="text-lg">
-                    Powerfull online protection.
-                  </span>
-                </div>
-              </div>
-            </div>
-            <div className="w-4/12">
-              <img src={adImg} alt="wasd" className="w-full" />
-            </div>
-          </div>
+    <>
+      <form className="space-y-4">
+        <input type="text" placeholder="Name" className="form-input-style" />
+        <input type="text" placeholder="Mobile number" className="form-input-style" />
+        <div className="relative">
+          <input
+            type={showPassword ? "text" : "password"}
+            placeholder="Password"
+            className="form-input-style pr-10"
+          />
+          <button
+            type="button"
+            className="absolute top-3 right-3 text-gray-500"
+            onClick={() => setShowPassword(!showPassword)}
+          >
+            {showPassword ? <IoEyeOutline size={18} /> : <IoEyeOffOutline size={18} />}
+          </button>
         </div>
-        <div
-          className="lg:w-3/12  text-md md:text-xl flex flex-col gap-4 p-3"
-          // style={{ border: "2px solid red" }}
-        >
-          <span>Trusted by more than 100+ businessess</span>
-          <div className="flex flex-row  items-center gap-3">
-            <img src={img4} alt="img" />
-            <img src={img7} alt="img" />
-            <img src={img5} alt="img" />
-            <img src={img1} alt="img" />
-            <img src={img2} alt="img" />
-            <img src={img3} alt="img" />
-            <img src={img6} alt="img" />
-          </div>
+        <div className="relative">
+          <input
+            type={showConfirm ? "text" : "password"}
+            placeholder="Confirm password"
+            className="form-input-style pr-10"
+          />
+          <button
+            type="button"
+            className="absolute top-3 right-3 text-gray-500"
+            onClick={() => setShowConfirm(!showConfirm)}
+          >
+            {showConfirm ? <IoEyeOutline size={18} /> : <IoEyeOffOutline size={18} />}
+          </button>
         </div>
-        <div className="bg-01 w-screen flex flex-col p-3 md:p-10">
-          <div className="w-full flex flex-col items-center justify-center gap-7">
-            <div className="lg:w-8/12 text-white text-md md:text-lg flex items-start justify-center">
-              <span>
-                Create a free account and get full access to all features for 30
-                days. No credit card needed. Trusted by over 4,000
-                professionals.
-              </span>
-              <div className="">{svg.BlinkStar}</div>
-            </div>
-            <div className="w-full lg:w-6/12 flex flex-row items-center justify-center gap-3">
-              <div className="mt-3 p-1 flex -space-x-2 overflow-hidden h-14"></div>
-              <div className="flex flex-col items-start justify-center">
-                <div className="flex items-center">
-                  {svg.RatingActiveStar}
-                  {svg.RatingActiveStar}
-                  {svg.RatingActiveStar}
-                  {svg.RatingActiveStar}
-                  {svg.RatingNotActiveStar}
-                  <p className="ms-1 text-sm font-medium text-gray-500 dark:text-gray-400">
-                    4.0
-                  </p>
-                </div>
+        <label className="flex items-start gap-2 text-sm text-gray-600">
+          <input type="checkbox" className="mt-1" />
+          <span>
+            I agree with <a href="#" className="text-blue-600 underline">Terms</a> and <a href="#" className="text-blue-600 underline">Privacy policy</a>.
+          </span>
+        </label>
+        <button type="submit" className="btn-primary w-full">Register</button>
+      </form>
 
-                <div className="mt-3 text-sm font-medium">
-                  <a href="#" className="text-white">
-                    From 200+ Reviews
-                  </a>
-                </div>
-              </div>
-            </div>
-            <div className="lg:w-6/12 flex flex-row items-center justify-center gap-4 md:gap-10">
-              <PlayStoreBtn />
-              <AppStoreBtn />
-            </div>
-          </div>
-        </div>
+      <div className="flex items-center justify-center mt-6">
+        <hr className="border-t border-gray-200 w-full" />
+        <span className="px-3 text-sm text-gray-500">Or register with</span>
+        <hr className="border-t border-gray-200 w-full" />
       </div>
-      <div className="Register-form-div w-full"></div>
-    </div>
-    // <div className="w-screen flex flex-row">
-    //   <div className="w-full" style={{ border: "2px solid red" }}>
-    //     w
-    //   </div>
-    //   <div className="w-full" style={{ border: "2px solid green" }}>
-    //     e
-    //   </div>
-    // </div>
-    // <div className="flex justify-center items-center h-screen bg-gray-100">
-    //   <div className="bg-white p-8 rounded shadow-md w-96">
-    //     <h1 className="text-2xl font-bold mb-6 text-center">Register</h1>
-    //     {/* Add registration form here */}
-    //   </div>
-    // </div>
+      <div className="flex justify-center gap-4 mt-4">
+        <button className="w-10 h-10 flex items-center justify-center border border-gray-300 rounded-lg hover:bg-gray-100 transition">
+          <FaGoogle className="text-lg" />
+        </button>
+        <button className="w-10 h-10 flex items-center justify-center border border-gray-300 rounded-lg hover:bg-gray-100 transition text-blue-600">
+          <FaFacebookF className="text-lg" />
+        </button>
+        <button className="w-10 h-10 flex items-center justify-center border border-gray-300 rounded-lg hover:bg-gray-100 transition">
+          <FaXTwitter className="text-lg" />
+        </button>
+        <button className="w-10 h-10 flex items-center justify-center border border-gray-300 rounded-lg hover:bg-gray-100 transition">
+          <FaApple className="text-lg" />
+        </button>
+      </div>
+
+      <p className="text-center text-sm mt-4">
+        Already have an account?{" "}
+        <button type="button" onClick={onSwitch} className="text-[#7F56D9] underline">
+          Login
+        </button>
+      </p>
+    </>
   );
 };
 
-export default Register;
+export default RegisterForm;

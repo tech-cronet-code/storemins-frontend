@@ -4,7 +4,8 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 // import PrivateRoute from "./routes/PrivateRoute";
 import Login from "./modules/user/auth/pages/Login";
 import SellerRoute from "./routes/SellerRoute";
-import Register from "./modules/user/auth/pages/Register";
+// import Register from "./modules/user/auth/pages/Register";
+import AuthForm from "./modules/user/auth/pages/AuthForm";
 import UserProfile from "./modules/user/auth/components/ui/UserProfile";
 import AdminRoute from "./routes/AdminRoute";
 import SellerDashboard from "./modules/dashboard/pages/SellerDashboard";
@@ -15,7 +16,7 @@ const App = () => {
       <Routes>
         {/* Public Routes */}
         <Route path="/login" element={<Login />} />
-        <Route path="/register" element={<Register />} />
+        <Route path="/register" element={<AuthForm />} />
 
         {/* Protected Routes */}
         {/* <Route element={<PrivateRoute />}> */}
