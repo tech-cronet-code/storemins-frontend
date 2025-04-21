@@ -1,63 +1,46 @@
-import { createContext, useContext, ReactNode, useEffect } from "react";
-import { useDispatch, useSelector } from "react-redux";
-import { RootState, AppDispatch } from "../../../../common/state/store";
-import {
-  loginStart,
-  loginSuccess,
-  loginFailure,
-  logout,
-  setUser,
-} from "../../../../common/state/slices/authSlice";
-import {
-  useGetUserDetailsQuery,
-  useLoginMutation,
-} from "../../../../common/services/apiClient";
-import { User } from "../../../../common/types/user";
+// ✅ Updated AuthContext to use separated login/register hooks
 
-type AuthContextType = {
+import { createContext, ReactNode, useContext, useEffect } from "react";
+import { useDispatch, useSelector } from "react-redux";
+import { useGetUserDetailsQuery } from "../../../../common/services/apiClient";
+import { logout, setUser } from "../../../../common/state/slices/authSlice";
+import { AppDispatch, RootState } from "../../../../common/state/store";
+import { User } from "../../../../common/types/user";
+import { UserRoleName } from "../constants/userRoles";
+import { useLogin } from "../hooks/useLogin";
+import { useRegister } from "../hooks/useRegister";
+
+interface AuthContextType {
   user: User | null;
   login: (email: string, password: string) => Promise<void>;
+  register: (payload: {
+    name: string;
+    mobile: string;
+    pass_hash: string;
+    role: UserRoleName;
+    isTermAndPrivarcyEnable: boolean;
+  }) => Promise<void>;
   logout: () => void;
   loading: boolean;
   error: string | null;
-};
+}
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const dispatch = useDispatch<AppDispatch>();
-  const { user, loading, error } = useSelector(
-    (state: RootState) => state.auth
-  );
-  const [loginApi] = useLoginMutation();
+  const { user, loading, error } = useSelector((state: RootState) => state.auth);
+
+  const { login } = useLogin();
+  const { register } = useRegister();
 
   const { data: userDetails } = useGetUserDetailsQuery();
 
-  // Fetch user details on app load
   useEffect(() => {
     if (userDetails) {
       dispatch(setUser(userDetails));
     }
   }, [userDetails, dispatch]);
-
-  const handleLogin = async (email: string, password: string) => {
-    dispatch(loginStart());
-    try {
-      const response = await loginApi({ email, password }).unwrap();
-      // response now contains both user and token
-      dispatch(loginSuccess({ user: response.user, token: response.token }));
-    } catch (err) {
-      console.log(err, "err");
-      // Handle the 'unknown' type error
-      let errorMessage = "Login failed";
-      if (typeof err === "object" && err !== null && "data" in err) {
-        errorMessage = (err as { data: { message: string } }).data.message;
-      } else if (err instanceof Error) {
-        errorMessage = err.message;
-      }
-      dispatch(loginFailure(errorMessage));
-    }
-  };
 
   const handleLogout = () => {
     dispatch(logout());
@@ -65,7 +48,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   return (
     <AuthContext.Provider
-      value={{ user, login: handleLogin, logout: handleLogout, loading, error }}
+      value={{
+        user,
+        login,
+        register,
+        logout: handleLogout,
+        loading,
+        error,
+      }}
     >
       {children}
     </AuthContext.Provider>

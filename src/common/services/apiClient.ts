@@ -1,6 +1,28 @@
+//  apiClient.ts for REGISTER
+
 import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
-import { User } from "../types/user";
+import { UserRoleName } from "../../modules/user/auth/constants/userRoles";
 import { RootState } from "../state/store";
+import { User } from "../types/user";
+
+export interface RegisterPayload {
+  name: string;
+  mobile: string;
+  pass_hash: string;
+  role: UserRoleName;
+  isTermAndPrivarcyEnable: boolean;
+}
+
+export interface RegisterResponse {
+  id: string;
+  message?: string;
+  needs_confirm_otp_code: boolean;
+  quickRegisterInfo?: {
+    id: string;
+    mobile: string;
+    mobile_confirmed: boolean;
+  };
+}
 
 export const apiClient = createApi({
   baseQuery: fetchBaseQuery({
@@ -22,10 +44,23 @@ export const apiClient = createApi({
         body: credentials,
       }),
     }),
+
+    register: builder.mutation<RegisterResponse, RegisterPayload>({
+      query: (body) => ({
+        url: "/register",
+        method: "POST",
+        body,
+      }),
+    }),
+
     getUserDetails: builder.query<User, void>({
       query: () => "/user",
     }),
   }),
 });
 
-export const { useLoginMutation, useGetUserDetailsQuery } = apiClient;
+export const {
+  useLoginMutation,
+  useRegisterMutation,
+  useGetUserDetailsQuery,
+} = apiClient;

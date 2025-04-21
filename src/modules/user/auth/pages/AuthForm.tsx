@@ -11,7 +11,7 @@ import adImg from "../../../../assets/images/adImg.png";
 import AppStoreBtn from "../../../../components/ui/buttons/AppStoreBtn";
 import PlayStoreBtn from "../../../../components/ui/buttons/PlayStoreBtn";
 import LoginForm from "./Login";
-import RegisterForm from "./Register";
+import RegisterPage from "./Register";
 const logos = [img4, img7, img5, img1, img2, img3, img6];
 
 const AuthForm = () => {
@@ -94,7 +94,7 @@ const AuthForm = () => {
               {isRegister ? "Enter your details to register" : "Login with mobile number"}
             </p>
           </div>
-          {isRegister ? <RegisterForm onSwitch={() => setIsRegister(false)} /> : <LoginForm />}
+          {isRegister ? <RegisterPage onSwitch={() => setIsRegister(false)} /> : <LoginForm />}
         </div>
       </div>
     </div>

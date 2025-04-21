@@ -6,7 +6,7 @@ import Login from "./modules/user/auth/pages/Login";
 import SellerRoute from "./routes/SellerRoute";
 // import Register from "./modules/user/auth/pages/Register";
 import AuthForm from "./modules/user/auth/pages/AuthForm";
-import UserProfile from "./modules/user/auth/components/ui/UserProfile";
+// import UserProfile from "./modules/user/auth/components/ui/UserProfile";
 import AdminRoute from "./routes/AdminRoute";
 import SellerDashboard from "./modules/dashboard/pages/SellerDashboard";
 import AdminDashboard from "./modules/dashboard/pages/AdminDashboard";
@@ -20,7 +20,7 @@ const App = () => {
 
         {/* Protected Routes */}
         {/* <Route element={<PrivateRoute />}> */}
-        <Route
+        {/* <Route
           path="/profile"
           element={
             <div>
@@ -28,7 +28,7 @@ const App = () => {
               <UserProfile />
             </div>
           }
-        />
+        /> */}
         {/* <Route path="/products" element={<ProductList />} /> */}
         <Route element={<SellerRoute />}>
           <Route path="/seller/*" element={<SellerDashboard />} />

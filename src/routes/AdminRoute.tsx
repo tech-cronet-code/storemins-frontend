@@ -4,7 +4,7 @@ import { Navigate, Outlet } from "react-router-dom";
 
 const AdminRoute = () => {
   const { user } = useAuth();
-  return user?.role === "admin" ? <Outlet /> : <Navigate to="/" />;
+  return user?.role === "SUPERADMIN" ? <Outlet /> : <Navigate to="/" />;
 };
 
 export default AdminRoute;
