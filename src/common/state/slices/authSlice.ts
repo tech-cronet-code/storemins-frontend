@@ -1,17 +1,18 @@
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
 import { User } from "../../types/user";
+const tokenFromStorage = localStorage.getItem("auth_token");
 
 interface AuthState {
   user: User | null;
   token: string | null;
   loading: boolean;
   error: string | null;
-  needsOtp?: boolean; // Optional: for OTP step tracking
+  needsOtp?: boolean;
 }
 
 const initialState: AuthState = {
   user: null,
-  token: null,
+  token: tokenFromStorage ?? null,
   loading: false,
   error: null,
   needsOtp: false,
@@ -31,7 +32,11 @@ const authSlice = createSlice({
       state.token = action.payload.token;
       state.error = null;
       state.needsOtp = false;
+    
+      // ✅ Optional: store token for persistence across page reloads
+      localStorage.setItem("auth_token", action.payload.token);
     },
+    
     loginFailure(state, action: PayloadAction<string>) {
       state.loading = false;
       state.error = action.payload;
@@ -42,12 +47,11 @@ const authSlice = createSlice({
       state.loading = false;
       state.error = null;
       state.needsOtp = false;
+      localStorage.removeItem("auth_token"); // clear
     },
     setUser(state, action: PayloadAction<User>) {
       state.user = action.payload;
     },
-
-    // ✅ New for Register
     registerSuccess(state, action: PayloadAction<{
       user: User;
       token?: string;
@@ -68,7 +72,7 @@ export const {
   loginFailure,
   logout,
   setUser,
-  registerSuccess, // Export this
+  registerSuccess,
 } = authSlice.actions;
 
 export default authSlice.reducer;

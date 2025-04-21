@@ -1,7 +1,11 @@
 // src/common/state/store.ts
-import { configureStore } from '@reduxjs/toolkit';
-import authReducer from './slices/authSlice';
-import { apiClient } from '../services/apiClient';
+import { configureStore } from "@reduxjs/toolkit";
+import authReducer from "./slices/authSlice";
+import { apiClient } from "../services/apiClient";
+
+
+
+
 
 export const store = configureStore({
   reducer: {
@@ -9,8 +13,21 @@ export const store = configureStore({
     [apiClient.reducerPath]: apiClient.reducer,
   },
   middleware: (getDefaultMiddleware) =>
-    getDefaultMiddleware().concat(apiClient.middleware),
+    getDefaultMiddleware({
+      serializableCheck: {
+        // ✅ Avoid false warnings when using Date, class instances, etc.
+        ignoredActions: [
+          "auth/loginSuccess",
+          "auth/registerSuccess",
+          "persist/PERSIST",
+        ],
+        ignoredPaths: ["auth.user"], // if storing non-serializable user info
+      },
+      immutableCheck: true,
+    }).concat(apiClient.middleware),
+  devTools: import.meta.env.MODE === "development", // 🔒 disable Redux DevTools in production
 });
 
+// Typings
 export type RootState = ReturnType<typeof store.getState>;
 export type AppDispatch = typeof store.dispatch;

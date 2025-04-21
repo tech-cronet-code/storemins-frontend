@@ -24,26 +24,49 @@ export interface RegisterResponse {
   };
 }
 
+
+export interface LoginResponse {
+  quickLoginInfo: {
+    id: string;
+    name?: string;
+    mobile: string;
+    role?: UserRoleName; // ✅ It's an array based on your backend
+    permissions?: string[];
+    access_token: string;
+    refresh_token: string;
+    tenentId?: string | null;
+    mobile_confirmed: boolean;
+  };
+  needs_confirm_otp_code: boolean;
+}
+
+interface LoginPayload {
+  mobile: string;
+  password: string;
+}
+
+
 export const apiClient = createApi({
   baseQuery: fetchBaseQuery({
     baseUrl: import.meta.env.VITE_PUBLIC_API_URL_RUNTIME + "/auth",
     prepareHeaders: (headers, { getState }) => {
       const token = (getState() as RootState).auth.token;
-      if (token) headers.set("authorization", `Bearer ${token}`);
+      if (token) {
+        headers.set("Authorization", `Bearer ${token}`);
+      }
       return headers;
     },
   }),
   endpoints: (builder) => ({
-    login: builder.mutation<
-      { user: User; token: string },
-      { email: string; password: string }
-    >({
-      query: (credentials) => ({
+    login: builder.mutation<LoginResponse, LoginPayload>({
+      query: (body) => ({
         url: "/login",
         method: "POST",
-        body: credentials,
+        body,
       }),
+      transformResponse: (response: { data: LoginResponse }) => response.data,
     }),
+
 
     register: builder.mutation<RegisterResponse, RegisterPayload>({
       query: (body) => ({
@@ -54,7 +77,9 @@ export const apiClient = createApi({
     }),
 
     getUserDetails: builder.query<User, void>({
-      query: () => "/user",
+      query: () => "/my-profile",
+      transformResponse: (response: { data: User }) => response.data,
+
     }),
   }),
 });

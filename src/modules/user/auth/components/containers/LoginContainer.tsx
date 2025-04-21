@@ -1,18 +1,18 @@
 import { useAuth } from "../../context/AuthContext";
-import LoginForm from "../ui/LoginForm";
+import LoginForm, { LoginFormData } from "../ui/LoginForm";
 
-export const LoginContainer = () => {
+const LoginContainer = () => {
   const { login, loading, error } = useAuth();
 
-  const handleLogin = async (data: { mobile: string; password: string }) => {
-    await login(data.mobile, data.password); // 🔄 call global login
+  const handleLogin = async (data: LoginFormData) => {
+    await login(data.mobile, data.password);
   };
 
   return (
     <div>
       <LoginForm onSubmit={handleLogin} />
-      {loading && <p className="text-gray-500 text-sm">Logging in...</p>}
-      {error && <p className="text-red-500 text-sm">{error}</p>}
+      {loading && <p className="text-gray-500 text-sm mt-2">Logging in...</p>}
+      {/* {error && <p className="text-red-500 text-sm mt-2">{error}</p>} */}
     </div>
   );
 };
