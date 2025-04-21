@@ -26,7 +26,7 @@ export interface RegisterResponse {
 
 export const apiClient = createApi({
   baseQuery: fetchBaseQuery({
-    baseUrl: import.meta.env.VITE_PUBLIC_API_URL_RUNTIME + "/api",
+    baseUrl: import.meta.env.VITE_PUBLIC_API_URL_RUNTIME + "/auth",
     prepareHeaders: (headers, { getState }) => {
       const token = (getState() as RootState).auth.token;
       if (token) headers.set("authorization", `Bearer ${token}`);
