@@ -1,10 +1,21 @@
-// src/routes/SellerRoute.tsx
-import { useAuth } from "../modules/user/auth/context/AuthContext";
 import { Navigate, Outlet } from "react-router-dom";
+import { UserRoleName } from "../modules/user/auth/constants/userRoles";
+import { useAuth } from "../modules/user/auth/context/AuthContext";
 
 const SellerRoute = () => {
-  const { user } = useAuth();
-  return user?.role === "SELLER" ? <Outlet /> : <Navigate to="/" />;
+  const { user, loading } = useAuth();
+
+  // useEffect(() => {
+  //   console.log(user, "useruser");
+  // }, [user]);
+
+  if (loading) return <div>Loading...</div>;
+
+  if (Array.isArray(user?.role) && user.role.includes(UserRoleName.SELLER)) {
+    return <Outlet />;
+  }
+
+  return <Navigate to="/" />;
 };
 
 export default SellerRoute;

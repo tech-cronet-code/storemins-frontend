@@ -40,7 +40,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const dispatch = useDispatch<AppDispatch>();
   const { user, token, loading, error } = useSelector(
     (state: RootState) => state.auth
-  );
+  );  
 
   const loginHook = useLogin();
   const registerHook = useRegister();
@@ -50,10 +50,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   });
 
   useEffect(() => {
-    if (token && userDetails && user?.id !== userDetails.id) {
+    if (token && userDetails && (!user || user.id !== userDetails.id)) {
       dispatch(setUser(userDetails));
     }
-  }, [token, userDetails, user, dispatch]);
+  }, [token, userDetails?.id, user?.id, dispatch]);
+
 
   const handleLogout = () => {
     dispatch(logout());
