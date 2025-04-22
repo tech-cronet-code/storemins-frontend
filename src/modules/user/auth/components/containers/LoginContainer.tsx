@@ -2,7 +2,7 @@ import { useAuth } from "../../context/AuthContext";
 import LoginForm, { LoginFormData } from "../ui/LoginForm";
 
 const LoginContainer = () => {
-  const { login, loading, error } = useAuth();
+  const { login, loading } = useAuth();
 
   const handleLogin = async (data: LoginFormData) => {
     await login(data.mobile, data.password);

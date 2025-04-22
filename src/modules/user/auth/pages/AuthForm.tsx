@@ -15,7 +15,7 @@ import RegisterPage from "./Register";
 const logos = [img4, img7, img5, img1, img2, img3, img6];
 
 const AuthForm = () => {
-  const [isRegister, setIsRegister] = useState(true);
+  const [isRegister, setIsRegister] = useState(false);
 
   return (
     <div className="min-h-screen w-full flex flex-col lg:flex-row bg-[#F9FAFB]">

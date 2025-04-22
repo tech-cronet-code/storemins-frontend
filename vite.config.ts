@@ -8,4 +8,9 @@ export default defineConfig({
   server: {
     host: true,
   },
+  build: {
+    sourcemap: false,      // ❌ Prevent generation of `.map` files
+    minify: 'esbuild',     // ✅ Ensures JS is minified
+    outDir: 'dist',        // optional, default output folder
+  },
 });

@@ -1,22 +1,28 @@
 // src/App.tsx
+import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import "./index.css";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 // import PrivateRoute from "./routes/PrivateRoute";
-import Login from "./modules/user/auth/pages/Login";
 import SellerRoute from "./routes/SellerRoute";
 // import Register from "./modules/user/auth/pages/Register";
 import AuthForm from "./modules/user/auth/pages/AuthForm";
 // import UserProfile from "./modules/user/auth/components/ui/UserProfile";
-import AdminRoute from "./routes/AdminRoute";
-import SellerDashboard from "./modules/dashboard/pages/SellerDashboard";
 import AdminDashboard from "./modules/dashboard/pages/AdminDashboard";
+import SellerDashboard from "./modules/dashboard/pages/SellerDashboard";
+import Login from "./modules/user/auth/pages/Login";
+import RegisterPage from "./modules/user/auth/pages/Register";
+import AdminRoute from "./routes/AdminRoute";
+
 const App = () => {
   return (
     <BrowserRouter>
       <Routes>
         {/* Public Routes */}
         <Route path="/login" element={<Login />} />
-        <Route path="/register" element={<AuthForm />} />
+        <Route path="/register" element={<RegisterPage onSwitch={function (): void {
+          throw new Error("Function not implemented.");
+        }} />} />
+
+        <Route path="/home" element={<AuthForm />} />
 
         {/* Protected Routes */}
         {/* <Route element={<PrivateRoute />}> */}
@@ -39,7 +45,7 @@ const App = () => {
         {/* </Route> */}
 
         {/* Fallback Route */}
-        <Route path="*" element={<Navigate to="/login" />} />
+        <Route path="*" element={<Navigate to="/home" />} />
       </Routes>
     </BrowserRouter>
   );
