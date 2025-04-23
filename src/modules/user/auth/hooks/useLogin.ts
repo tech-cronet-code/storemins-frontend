@@ -1,5 +1,5 @@
 import { useDispatch } from "react-redux";
-import { useLoginMutation } from "../../../../common/services/apiClient";
+import { LoginResponse, useLoginMutation } from "../../../../common/services/apiClient";
 import {
   loginFailure,
   loginStart,
@@ -7,10 +7,10 @@ import {
 } from "../../../../common/state/slices/authSlice";
 import { AppDispatch } from "../../../../common/state/store";
 import { showToast } from "../../../../common/utils/showToast";
-import { UserRoleName } from "../constants/userRoles";
-import { LoginResponse } from "../../../../common/services/apiClient";
+import { castToUserRoles } from "../../../../common/utils/common";
 
 export const useLogin = () => {
+
   const dispatch = useDispatch<AppDispatch>();
   const [loginApi, { isLoading }] = useLoginMutation();
 
@@ -20,10 +20,10 @@ export const useLogin = () => {
     try {
       const apiResponse: LoginResponse = await loginApi({ mobile, password }).unwrap();
 
-      const info = apiResponse?.quickLoginInfo;
+      const info = apiResponse?.data?.quickLoginInfo;
 
       console.log(info, "infoinfoinfoinfo");
-      
+
 
       if (!info) {
         throw new Error("Login response missing user info");
@@ -35,17 +35,18 @@ export const useLogin = () => {
             id: info.id,
             name: info.name || "",
             mobile: info.mobile,
-            role: info.role || UserRoleName.GUEST,
+            role: castToUserRoles(info.role),
             permissions: info.permissions || [],
             tenantId: info.tenentId,
           },
           token: info.access_token,
+          refreshToken: info.refresh_token,
         })
       );
 
       // showToast({ message: "Login successful", type: "success" });
 
-      if (apiResponse.needs_confirm_otp_code) {
+      if (apiResponse?.data?.needs_confirm_otp_code) {
         showToast({
           message: "OTP verification required. Please check your phone.",
           type: "info",

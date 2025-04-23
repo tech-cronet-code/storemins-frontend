@@ -5,6 +5,11 @@ import { useAuth } from "../modules/user/auth/context/AuthContext";
 const SellerRoute = () => {
   const { user, loading } = useAuth();
 
+  console.log(user, "userSelllerRoute");
+  console.log(Array.isArray(user?.role) && user.role.includes(UserRoleName.SELLER), "userSelllerRoute condi");
+
+  
+
   // useEffect(() => {
   //   console.log(user, "useruser");
   // }, [user]);

@@ -10,6 +10,8 @@ export type User = {
   createdAt?: string;
   updatedAt?: string;
   tenantId?: string | null;
-  role?: UserRoleName;
+  role?: UserRoleName[]; // ✅ changed from UserRoleName to UserRoleName[]
   permissions?: string[];
+  refresh_token?: string;
+  mobile_confirmed?: boolean; // ✅ Add this
 };

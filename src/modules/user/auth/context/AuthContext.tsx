@@ -41,16 +41,23 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const { user, token, loading, error } = useSelector(
     (state: RootState) => state.auth
   );  
+  console.log(user, "user");
+  console.log(token, "token");
+
+  
 
   const loginHook = useLogin();
   const registerHook = useRegister();
 
-  const { data: userDetails } = useGetUserDetailsQuery(undefined, {
-    skip: !token,
-  });
+  // const { data: userDetails } = useGetUserDetailsQuery(undefined, {
+  //   skip: !token,
+  // });
+
+  const { data: userDetails } = useGetUserDetailsQuery(); // ← REMOVE skip: !token
+
 
   useEffect(() => {
-    if (token && userDetails && (!user || user.id !== userDetails.id)) {
+    if (token && userDetails && userDetails.id && (!user || user.id !== userDetails.id)) {
       dispatch(setUser(userDetails));
     }
   }, [token, userDetails?.id, user?.id, dispatch]);

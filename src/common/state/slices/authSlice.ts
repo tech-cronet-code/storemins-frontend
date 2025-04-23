@@ -1,20 +1,24 @@
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
 import { User } from "../../types/user";
-const tokenFromStorage = localStorage.getItem("auth_token");
+// const tokenFromStorage = localStorage.getItem("auth_token");
 const userFromStorage = localStorage.getItem("auth_user");
+// const refreshTokenFromStorage = localStorage.getItem("auth_refresh");
 
 
 interface AuthState {
   user: User | null;
-  token: string | null;
+  token: string | null; // access_token
+  refreshToken: string | null; // ⚠️ optional now, move to cookies later
   loading: boolean;
   error: string | null;
   needsOtp?: boolean;
 }
 
+
 const initialState: AuthState = {
   user: userFromStorage ? JSON.parse(userFromStorage) : null,
-  token: tokenFromStorage ?? null,
+  token: null,
+  refreshToken: null,
   loading: false,
   error: null,
   needsOtp: false,
@@ -28,22 +32,25 @@ const authSlice = createSlice({
       state.loading = true;
       state.error = null;
     },
-    loginSuccess(state, action: PayloadAction<{ user: User; token: string }>) {
+    loginSuccess(state, action: PayloadAction<{ user: User; token: string; refreshToken: string }>) {
       state.loading = false;
       state.user = action.payload.user;
       state.token = action.payload.token;
+      state.refreshToken = action.payload.refreshToken;
       state.error = null;
       state.needsOtp = false;
-
-      // ✅ Optional: store token for persistence across page reloads
-      localStorage.setItem("auth_token", action.payload.token);
+    
+      // Store securely (will move to cookies or HTTP-only storage in future)
+      // localStorage.setItem("auth_token", action.payload.token);
       localStorage.setItem("auth_user", JSON.stringify({
         id: action.payload.user.id,
         name: action.payload.user.name,
         role: action.payload.user.role,
         permissions: action.payload.user.permissions,
-      })); // ✅ Store user
+      }));
     },
+    
+    
 
     loginFailure(state, action: PayloadAction<string>) {
       state.loading = false;
@@ -55,8 +62,9 @@ const authSlice = createSlice({
       state.loading = false;
       state.error = null;
       state.needsOtp = false;
-      localStorage.removeItem("auth_token"); // clear
+      // localStorage.removeItem("auth_token"); // clear
       localStorage.removeItem("auth_user"); // ✅ Clear user
+      // localStorage.removeItem("auth_refresh");
     },
     setUser(state, action: PayloadAction<User>) {
       state.user = action.payload;
