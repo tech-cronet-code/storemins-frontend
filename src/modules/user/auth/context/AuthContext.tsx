@@ -22,7 +22,7 @@ import { useRegister } from "../hooks/useRegister";
 
 interface AuthContextType {
   user: User | null;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<{ needsOtp: boolean }>;
   register: (payload: {
     name: string;
     mobile: string;

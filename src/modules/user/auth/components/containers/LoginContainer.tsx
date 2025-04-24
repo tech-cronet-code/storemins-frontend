@@ -1,13 +1,20 @@
+import { useNavigate } from "react-router-dom";
 import { hashPassword } from "../../../../../common/utils/hashPassword";
 import { useAuth } from "../../context/AuthContext";
 import LoginForm, { LoginFormData } from "../ui/LoginForm";
 
 const LoginContainer = () => {
   const { login, loading } = useAuth();
+  const navigate = useNavigate(); // ✅ Safe now
 
   const handleLogin = async (data: LoginFormData) => {
     const hashedPassword = await hashPassword(data.password); // 👈 hash it
-    await login(data.mobile, hashedPassword);
+    const { needsOtp } = await login(data.mobile, hashedPassword);
+    if (needsOtp) {
+      navigate("/otp-verify");
+    } else {
+      navigate("/seller"); // or wherever needed
+    }
   };
 
   return (
