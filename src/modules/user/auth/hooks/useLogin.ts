@@ -6,8 +6,8 @@ import {
   loginSuccess,
 } from "../../../../common/state/slices/authSlice";
 import { AppDispatch } from "../../../../common/state/store";
-import { showToast } from "../../../../common/utils/showToast";
 import { castToUserRoles } from "../../../../common/utils/common";
+import { showToast } from "../../../../common/utils/showToast";
 
 export const useLogin = () => {
 
@@ -28,6 +28,7 @@ export const useLogin = () => {
       if (!info) {
         throw new Error("Login response missing user info");
       }
+      console.log(" access_token from login:", info.access_token);
 
       dispatch(
         loginSuccess({
@@ -39,11 +40,15 @@ export const useLogin = () => {
             permissions: info.permissions || [],
             tenantId: info.tenentId,
           },
-          token: info.access_token,
-          refreshToken: info.refresh_token,
+          token: info.access_token, // ✅ Confirm this is not undefined
+          refreshToken: "",         // ❌ This is now in cookie, but you still pass it
         })
       );
-
+      
+      // setTimeout(() => {
+      //   console.log("Redux state token:", store.getState().auth.token);
+      // }, 500);
+      
       // showToast({ message: "Login successful", type: "success" });
 
       if (apiResponse?.data?.needs_confirm_otp_code) {

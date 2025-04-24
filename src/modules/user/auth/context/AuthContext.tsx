@@ -40,11 +40,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const dispatch = useDispatch<AppDispatch>();
   const { user, token, loading, error } = useSelector(
     (state: RootState) => state.auth
-  );  
+  );
   console.log(user, "user");
   console.log(token, "token");
 
-  
+
 
   const loginHook = useLogin();
   const registerHook = useRegister();
@@ -53,14 +53,33 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   //   skip: !token,
   // });
 
-  const { data: userDetails } = useGetUserDetailsQuery(); // ← REMOVE skip: !token
+  // const { data: userDetails } = useGetUserDetailsQuery(); // ← REMOVE skip: !token
 
+
+  // useEffect(() => {
+  //   if (token && userDetails && userDetails.id && (!user || user.id !== userDetails.id)) {
+  //     dispatch(setUser(userDetails));
+  //   }
+  // }, [token, userDetails?.id, user?.id, dispatch]);
+
+
+  //  Only run query *after* token is set
+  const { data: userDetails, refetch } = useGetUserDetailsQuery(undefined, {
+    skip: !token,
+  });
+
+  //  Watch token changes and refetch manually
+  useEffect(() => {
+    if (token) {
+      refetch(); // 🔁 Trigger /my-profile again after token is refreshed
+    }
+  }, [token, refetch]);
 
   useEffect(() => {
-    if (token && userDetails && userDetails.id && (!user || user.id !== userDetails.id)) {
+    if (token && userDetails) {
       dispatch(setUser(userDetails));
     }
-  }, [token, userDetails?.id, user?.id, dispatch]);
+  }, [token, userDetails?.id]);
 
 
   const handleLogout = () => {

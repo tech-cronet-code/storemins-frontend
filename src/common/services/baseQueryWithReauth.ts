@@ -91,7 +91,7 @@ export const baseQueryWithReauth: typeof baseQuery = async (args, api, extraOpti
                 // localStorage.setItem("auth_refresh", refresh_token); ❌
 
                 // ✅ (Optional) keep lightweight user info in localStorage
-                localStorage.setItem("auth_user", JSON.stringify(user));
+                // localStorage.setItem("auth_user", JSON.stringify(user));
 
                 // 🔁 Retry the original failed request
                 result = await baseQueryWithReauth(args, api, extraOptions);

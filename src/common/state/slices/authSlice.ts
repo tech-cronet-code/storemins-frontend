@@ -3,6 +3,7 @@ import { User } from "../../types/user";
 // const tokenFromStorage = localStorage.getItem("auth_token");
 const userFromStorage = localStorage.getItem("auth_user");
 // const refreshTokenFromStorage = localStorage.getItem("auth_refresh");
+const tokenFromStorage = localStorage.getItem("auth_token"); // ✅ Load token
 
 
 interface AuthState {
@@ -17,7 +18,7 @@ interface AuthState {
 
 const initialState: AuthState = {
   user: userFromStorage ? JSON.parse(userFromStorage) : null,
-  token: null,
+  token: tokenFromStorage ?? null,
   refreshToken: null,
   loading: false,
   error: null,
@@ -42,6 +43,7 @@ const authSlice = createSlice({
     
       // Store securely (will move to cookies or HTTP-only storage in future)
       // localStorage.setItem("auth_token", action.payload.token);
+      localStorage.setItem("auth_token", action.payload.token); // ✅ Save token
       localStorage.setItem("auth_user", JSON.stringify({
         id: action.payload.user.id,
         name: action.payload.user.name,
@@ -64,6 +66,8 @@ const authSlice = createSlice({
       state.needsOtp = false;
       // localStorage.removeItem("auth_token"); // clear
       localStorage.removeItem("auth_user"); // ✅ Clear user
+      localStorage.removeItem("auth_token"); // ✅ Clear token on logout
+
       // localStorage.removeItem("auth_refresh");
     },
     setUser(state, action: PayloadAction<User>) {
