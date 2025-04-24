@@ -1,3 +1,4 @@
+import { hashPassword } from "../../../../../common/utils/hashPassword";
 import { useAuth } from "../../context/AuthContext";
 import LoginForm, { LoginFormData } from "../ui/LoginForm";
 
@@ -5,7 +6,8 @@ const LoginContainer = () => {
   const { login, loading } = useAuth();
 
   const handleLogin = async (data: LoginFormData) => {
-    await login(data.mobile, data.password);
+    const hashedPassword = await hashPassword(data.password); // 👈 hash it
+    await login(data.mobile, hashedPassword);
   };
 
   return (

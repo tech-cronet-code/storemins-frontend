@@ -34,12 +34,17 @@ export const baseQueryWithReauth: typeof baseQuery = async (args, api, extraOpti
     const errorData = result.error?.data as { statusCode?: number } | undefined;
     console.log(errorData, "errorData");
 
-    if (result.error && errorData?.statusCode === 401) {
+    const requestUrl = typeof args === "string" ? args : args.url;
+
+    // 🚫 Don't try refreshing if it's login or register endpoint
+    const skipRefresh = ["/login", "/register"].includes(requestUrl);
+
+    if (result.error && errorData?.statusCode === 401 && !skipRefresh) {
         const retried = (extraOptions as any)?.__isRetryAttempt;
         if (retried) {
             console.warn("❌ Refresh retry already attempted, logging out.");
             api.dispatch(logout());
-             // 🔁 Optional: Reload page if refresh token failed
+            // 🔁 Optional: Reload page if refresh token failed
             //  showToast({ type: "error", message: "Session expired. Reloading..." });
             //  setTimeout(() => {
             //      window.location.reload(); // full app reload

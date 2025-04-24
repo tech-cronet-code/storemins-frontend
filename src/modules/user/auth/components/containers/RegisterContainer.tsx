@@ -1,5 +1,6 @@
 // src/modules/user/auth/components/containers/RegisterContainer.tsx
 
+import { hashPassword } from "../../../../../common/utils/hashPassword";
 import { showToast } from "../../../../../common/utils/showToast";
 import { useAuth } from "../../context/AuthContext";
 import RegisterForm, { RegisterFormData } from "../ui/RegisterForm";
@@ -8,11 +9,12 @@ const RegisterContainer = ({ onSwitch }: { onSwitch: () => void }) => {
     const { register, loading, error } = useAuth();
 
     const handleSubmit = async (data: RegisterFormData) => {
+        const hashedPassword = await hashPassword(data.pass_hash); // 👈 hash here
         try {
             await register({
                 name: data.name,
                 mobile: data.mobile,
-                pass_hash: data.pass_hash,
+                pass_hash: hashedPassword,
                 role: data.role, // Adjust as needed
                 isTermAndPrivarcyEnable: data.isTermAndPrivarcyEnable,
             });
