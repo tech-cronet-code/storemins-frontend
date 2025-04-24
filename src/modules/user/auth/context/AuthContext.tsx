@@ -1,5 +1,6 @@
 // ✅ Updated AuthContext to use separated login/register hooks with memoized login/register
 
+import { jwtDecode } from "jwt-decode"; // ✅ Make sure this is at the top
 import {
   createContext,
   ReactNode,
@@ -67,6 +68,31 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const { data: userDetails, refetch } = useGetUserDetailsQuery(undefined, {
     skip: !token,
   });
+
+  useEffect(() => {
+    if (token) {
+      try {
+        const decoded: any = jwtDecode(token);
+        const now = Date.now() / 1000;
+
+        if (decoded.exp && decoded.exp < now) {
+          console.warn("Access token expired, logging out...");
+          dispatch(logout());
+            //  showToast({ type: "error", message: "Session expired. Reloading..." });
+            //  setTimeout(() => {
+            //      window.location.reload(); // full app reload
+            //  }, 100);
+        }
+      } catch (err) {
+        console.error("Invalid token format or decode failed. Logging out...");
+        dispatch(logout());
+          //  showToast({ type: "error", message: "Session expired. Reloading..." });
+          //    setTimeout(() => {
+          //        window.location.reload(); // full app reload
+          //    }, 100);
+      }
+    }
+  }, [token, dispatch]);
 
   //  Watch token changes and refetch manually
   useEffect(() => {

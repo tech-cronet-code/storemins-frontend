@@ -7,8 +7,8 @@ const SellerRoute = () => {
 
   if (loading) return <div>Loading...</div>;
 
-  if (!user || !Array.isArray(user.role)) {
-    return <Navigate to="/home" replace />;
+  if (!user || !Array.isArray(user.role) || !user.role.includes(UserRoleName.SELLER)) {
+    return <Navigate to="/home" />;
   }
 
   if (user.role.includes(UserRoleName.SELLER)) {
