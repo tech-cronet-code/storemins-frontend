@@ -38,10 +38,13 @@ export type RegisterFormData = z.infer<typeof registerSchema>;
 
 interface RegisterFormProps {
   onSubmit: (data: RegisterFormData) => void;
-  onSwitch: () => void;
+  // onSwitch: () => void;
 }
 
-const RegisterForm = ({ onSubmit, onSwitch }: RegisterFormProps) => {
+const RegisterForm = ({
+  onSubmit,
+}: // onSwitch,
+RegisterFormProps) => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
 
@@ -56,8 +59,8 @@ const RegisterForm = ({ onSubmit, onSwitch }: RegisterFormProps) => {
   return (
     <>
       <form className="space-y-4" onSubmit={handleSubmit(onSubmit)}>
-         {/* 👇 Hidden Default Role */}
-         <input type="hidden" value="SELLER" {...register("role")} />
+        {/* 👇 Hidden Default Role */}
+        <input type="hidden" value="SELLER" {...register("role")} />
         <div>
           <input
             {...register("name")}
@@ -92,7 +95,11 @@ const RegisterForm = ({ onSubmit, onSwitch }: RegisterFormProps) => {
             className="absolute top-3 right-3 text-gray-500"
             onClick={() => setShowPassword((prev) => !prev)}
           >
-            {showPassword ? <IoEyeOutline size={18} /> : <IoEyeOffOutline size={18} />}
+            {showPassword ? (
+              <IoEyeOutline size={18} />
+            ) : (
+              <IoEyeOffOutline size={18} />
+            )}
           </button>
           {errors.pass_hash && (
             <p className="text-red-500 text-sm">{errors.pass_hash.message}</p>
@@ -111,10 +118,16 @@ const RegisterForm = ({ onSubmit, onSwitch }: RegisterFormProps) => {
             className="absolute top-3 right-3 text-gray-500"
             onClick={() => setShowConfirm((prev) => !prev)}
           >
-            {showConfirm ? <IoEyeOutline size={18} /> : <IoEyeOffOutline size={18} />}
+            {showConfirm ? (
+              <IoEyeOutline size={18} />
+            ) : (
+              <IoEyeOffOutline size={18} />
+            )}
           </button>
           {errors.confirmPassword && (
-            <p className="text-red-500 text-sm">{errors.confirmPassword.message}</p>
+            <p className="text-red-500 text-sm">
+              {errors.confirmPassword.message}
+            </p>
           )}
         </div>
 
@@ -170,7 +183,11 @@ const RegisterForm = ({ onSubmit, onSwitch }: RegisterFormProps) => {
 
       <p className="text-center text-sm mt-4">
         Already have an account?{" "}
-        <button type="button" onClick={onSwitch} className="text-[#7F56D9] underline">
+        <button
+          type="button"
+          // onClick={onSwitch}
+          className="text-[#7F56D9] underline"
+        >
           Login
         </button>
       </p>

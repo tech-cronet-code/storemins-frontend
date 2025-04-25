@@ -10,12 +10,12 @@ const AuthFormPage = () => {
     <div className="min-h-screen w-full flex flex-col lg:flex-row bg-[#F9FAFB]">
       {/* LEFT SIDE */}
       {/* Start LEFT SIDE Add Form*/}
-      <AdFormPage/>
-        {/* END LEFT SIDE Add Form*/}
+      <AdFormPage />
+      {/* END LEFT SIDE Add Form*/}
 
       {/* Start RIGHT SIDE */}
       <div className="w-full lg:w-1/2 flex items-center justify-center bg-white px-6 py-10">
-        <div className="w-full max-w-md mx-auto space-y-6">
+        <div className="w-full mx-auto space-y-6">
           <div className="text-center">
             <h1 className="text-4xl font-bold text-[#0B132A] mb-3">
               StoreMins
@@ -49,13 +49,15 @@ const AuthFormPage = () => {
             </p>
           </div>
           {isRegister ? (
-            <RegisterPage onSwitch={() => setIsRegister(false)} />
+            <RegisterPage
+            // onSwitch={() => setIsRegister(false)}
+            />
           ) : (
             <LoginForm />
           )}
         </div>
       </div>
-       {/* END RIGHT SIDE */}
+      {/* END RIGHT SIDE */}
     </div>
   );
 };

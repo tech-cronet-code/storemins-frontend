@@ -24,10 +24,11 @@ const App = () => {
         {/* ✅ Public Routes */}
         <Route element={<PublicRoute />}>
           <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<RegisterPage onSwitch={function (): void {
+          <Route path="/register" element={<RegisterPage />} />
+          {/* <Route path="/register" element={<RegisterPage onSwitch={function (): void {
             throw new Error("Function not implemented.");
           }} />} />
-          <Route path="/home" element={<AuthFormPage />} />
+          <Route path="/home" element={<AuthFormPage />} /> */}
         </Route>
 
         <Route path="/otp-verify" element={<OtpRoute />}>
