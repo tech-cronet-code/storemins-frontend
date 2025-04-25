@@ -1,24 +1,16 @@
-import { UserRoleName } from "../modules/user/auth/constants/userRoles";
-import { useAuth } from "../modules/user/auth/context/AuthContext";
 import { Navigate, Outlet } from "react-router-dom";
+import { useAuth } from "../modules/user/auth/context/AuthContext";
 
 const PrivateRoute = () => {
   const { user, loading } = useAuth();
 
   if (loading) return <div>Loading...</div>;
+  console.log("PrivateRoute loaded", user);
 
-  if (!user || !user.role) {
-    return <Navigate to="/home" replace />;
-  }
+  if (!user) return <Navigate to="/home" replace />;
 
-  // ✅ Ensure user.role is treated as an array
-  const roles = Array.isArray(user.role) ? user.role : [user.role];
-
-  // ✅ Check if user has at least one role that is NOT GUEST
-  const hasNonGuestRole = roles.some(role => role !== UserRoleName.GUEST);
-
-  if (!hasNonGuestRole) {
-    return <Navigate to="/home" replace />;
+  if (user.mobile_confirmed  === false) {
+    return <Navigate to="/otp-verify" replace />;
   }
 
   return <Outlet />;

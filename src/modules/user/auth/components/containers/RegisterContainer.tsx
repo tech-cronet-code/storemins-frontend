@@ -4,14 +4,17 @@ import { hashPassword } from "../../../../../common/utils/hashPassword";
 import { showToast } from "../../../../../common/utils/showToast";
 import { useAuth } from "../../context/AuthContext";
 import RegisterForm, { RegisterFormData } from "../ui/RegisterForm";
+import { useNavigate } from "react-router-dom";
+
+
 
 const RegisterContainer = ({ onSwitch }: { onSwitch: () => void }) => {
     const { register, loading, error } = useAuth();
-
+    const navigate = useNavigate(); // ✅ Safe now
     const handleSubmit = async (data: RegisterFormData) => {
         const hashedPassword = await hashPassword(data.pass_hash); // 👈 hash here
         try {
-            await register({
+            const { needsOtp } = await register({
                 name: data.name,
                 mobile: data.mobile,
                 pass_hash: hashedPassword,
@@ -20,6 +23,10 @@ const RegisterContainer = ({ onSwitch }: { onSwitch: () => void }) => {
             });
             // showToast({ message: 'Registration successful. Please verify OTP.', type: 'success' });
 
+            console.log(needsOtp, "RegisterContainer - needsOtp");
+            if (needsOtp) {
+                navigate("/otp-verify");
+              } 
         } catch (err) {
             showToast({ message: 'Registration failed. Please try again.', type: 'error', showClose: true });
             //   showToast({ message: 'Something went wrong', type: 'error', showClose: false });

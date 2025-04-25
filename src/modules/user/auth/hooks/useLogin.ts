@@ -8,13 +8,14 @@ import {
 import { AppDispatch } from "../../../../common/state/store";
 import { castToUserRoles } from "../../../../common/utils/common";
 import { showToast } from "../../../../common/utils/showToast";
+import { UserRoleName } from "../constants/userRoles";
 
 export const useLogin = () => {
 
   const dispatch = useDispatch<AppDispatch>();
   const [loginApi, { isLoading }] = useLoginMutation();
 
-  const login = async (mobile: string, password: string): Promise<{ needsOtp: boolean }> => {
+  const login = async (mobile: string, password: string): Promise<{ needsOtp: boolean, role: UserRoleName[] | UserRoleName  }> => {
     dispatch(loginStart());
 
     try {
@@ -39,6 +40,7 @@ export const useLogin = () => {
             role: castToUserRoles(info.role),
             permissions: info.permissions || [],
             tenantId: info.tenentId,
+            mobile_confirmed: info.mobile_confirmed
           },
           token: info.access_token, // ✅ Confirm this is not undefined
           refreshToken: "",         // ❌ This is now in cookie, but you still pass it
@@ -51,13 +53,15 @@ export const useLogin = () => {
 
       // showToast({ message: "Login successful", type: "success" });
       const needsOtp = apiResponse?.data?.needs_confirm_otp_code ?? false;
+      const role = castToUserRoles(apiResponse?.data?.quickLoginInfo.role) ?? UserRoleName.GUEST;
+
       if (needsOtp) {
         showToast({
           message: "OTP verification required. Please check your phone.",
           type: "info",
         });
       }
-      return { needsOtp }; // ✅ Return value here
+      return { needsOtp, role }; // ✅ Return value here
 
     } catch (error) {
       let errorMessage = "Login failed";
@@ -72,8 +76,8 @@ export const useLogin = () => {
       showToast({ message: errorMessage, type: "error" });
 
 
-        // ❌ Still need to return in case of error to satisfy function type
-        return { needsOtp: false };
+      // ❌ Still need to return in case of error to satisfy function type
+      return { needsOtp: false, role: UserRoleName.GUEST };
     }
   };
 

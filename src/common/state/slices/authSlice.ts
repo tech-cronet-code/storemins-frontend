@@ -40,7 +40,7 @@ const authSlice = createSlice({
       state.refreshToken = action.payload.refreshToken;
       state.error = null;
       state.needsOtp = false;
-    
+
       // Store securely (will move to cookies or HTTP-only storage in future)
       // localStorage.setItem("auth_token", action.payload.token);
       localStorage.setItem("auth_token", action.payload.token); // ✅ Save token
@@ -49,10 +49,11 @@ const authSlice = createSlice({
         name: action.payload.user.name,
         role: action.payload.user.role,
         permissions: action.payload.user.permissions,
+        mobile_confirmed: action.payload.user.mobile_confirmed,
       }));
     },
-    
-    
+
+
 
     loginFailure(state, action: PayloadAction<string>) {
       state.loading = false;
@@ -64,11 +65,9 @@ const authSlice = createSlice({
       state.loading = false;
       state.error = null;
       state.needsOtp = false;
-      // localStorage.removeItem("auth_token"); // clear
       localStorage.removeItem("auth_user"); // ✅ Clear user
       localStorage.removeItem("auth_token"); // ✅ Clear token on logout
 
-      // localStorage.removeItem("auth_refresh");
     },
     setUser(state, action: PayloadAction<User>) {
       state.user = action.payload;

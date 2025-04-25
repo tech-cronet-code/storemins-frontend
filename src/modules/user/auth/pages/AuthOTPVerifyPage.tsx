@@ -2,6 +2,8 @@ import OTPVerifyContainer from "../components/containers/OTPVerifyContainer";
 import AdFormPage from "./AdForm";
 
 const AuthOTPVerifyPage = () => {
+  console.log("OTPVerifyContainer loaded");
+
   return (
     <div className="min-h-screen w-full flex flex-col lg:flex-row bg-[#F9FAFB]">
       {/* Left section */}

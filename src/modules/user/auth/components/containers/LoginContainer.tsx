@@ -9,11 +9,26 @@ const LoginContainer = () => {
 
   const handleLogin = async (data: LoginFormData) => {
     const hashedPassword = await hashPassword(data.password); // 👈 hash it
-    const { needsOtp } = await login(data.mobile, hashedPassword);
+    const { needsOtp, role } = await login(data.mobile, hashedPassword);
+    console.log(needsOtp, "LoginContainer - needsOtp");
+    console.log(role, "LoginContainer - role");
+
+    
     if (needsOtp) {
       navigate("/otp-verify");
     } else {
-      navigate("/seller"); // or wherever needed
+      // 👇 Route based on role
+      const firstRole = role?.[0];
+      switch (firstRole) {
+        case "ADMIN":
+          navigate("/admin");
+          break;
+        case "SELLER":
+          navigate("/seller");
+          break;
+        default:
+          navigate("/home");
+      }
     }
   };
 

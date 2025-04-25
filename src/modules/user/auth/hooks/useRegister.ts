@@ -9,7 +9,7 @@ export const useRegister = () => {
     const dispatch = useDispatch<AppDispatch>();
     const [registerApi, { isLoading }] = useRegisterMutation();
 
-    const register = async (payload: RegisterPayload): Promise<void> => {
+    const register = async (payload: RegisterPayload): Promise<{ needsOtp: boolean }> => {
         dispatch(loginStart());
 
         try {
@@ -30,15 +30,16 @@ export const useRegister = () => {
                     })
                 );
 
-                showToast({
-                    type: "success",
-                    message: response.message || "We have sent a new OTP to your mobile number. Please verify the OTP to complete your registration."
-                    ,
-                    showClose: true,
-                });
-
-                // You can redirect to OTP verification page here if needed
-                return;
+                const needsOtp = response.needs_confirm_otp_code ?? false;
+                if (needsOtp) {
+                    showToast({
+                        type: "success",
+                        message: response.message || "We have sent a new OTP to your mobile number. Please verify the OTP to complete your registration."
+                        ,
+                        showClose: true,
+                    });
+                }
+                return { needsOtp }; // ✅ Return value here
             }
 
             showToast({
@@ -63,6 +64,8 @@ export const useRegister = () => {
                 showClose: true,
             });
         }
+        // ❌ Still need to return in case of error to satisfy function type
+        return { needsOtp: false };
     };
 
     return {
