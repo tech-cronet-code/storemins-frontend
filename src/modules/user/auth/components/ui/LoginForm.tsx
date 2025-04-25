@@ -15,9 +15,10 @@ export type LoginFormData = z.infer<typeof loginSchema>;
 const LoginForm = ({
   onSubmit,
 }: {
-  onSubmit: (data: LoginFormData) => void;
+  onSubmit: (data: LoginFormData) => Promise<void>; // Ensure onSubmit returns a Promise
 }) => {
   const [showPassword, setShowPassword] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false); // Track submission state
 
   const {
     register,
@@ -27,9 +28,21 @@ const LoginForm = ({
     resolver: zodResolver(loginSchema),
   });
 
+  const handleFormSubmit = (data: LoginFormData) => {
+    // Prevent form submission if already submitting
+    if (isSubmitting) return;
+
+    setIsSubmitting(true); // Set loading state
+
+    onSubmit(data)
+      .finally(() => {
+        setIsSubmitting(false); // Reset loading state after submission
+      });
+  };
+
   return (
     <>
-      <form className="space-y-4" onSubmit={handleSubmit(onSubmit)}>
+      <form className="space-y-4" onSubmit={handleSubmit(handleFormSubmit)}>
         <div className="flex items-center gap-2">
           <div className="relative w-[100px]">
             <select
@@ -79,8 +92,12 @@ const LoginForm = ({
           )}
         </div>
 
-        <button type="submit" className="btn-primary w-full">
-          Send OTP
+        <button
+          type="submit"
+          className="btn-primary w-full"
+          disabled={isSubmitting} // Disable the button while submitting
+        >
+          {isSubmitting ? "Logging in..." : "Login"} {/* Show loading text */}
         </button>
         <p className="text-center text-sm text-[#7F56D9] font-medium cursor-pointer">
           Try another way
