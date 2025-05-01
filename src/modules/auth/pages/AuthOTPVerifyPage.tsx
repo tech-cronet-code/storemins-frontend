@@ -1,21 +1,23 @@
+import AdFormContainer from "../containers/AdFormContainer";
 import OTPVerifyContainer from "../containers/OTPVerifyContainer";
-import AdForm from "../components/AdForm";
 
 const AuthOTPVerifyPage = () => {
   console.log("OTPVerifyContainer loaded");
 
   return (
     <div className="min-h-screen w-full flex flex-col lg:flex-row bg-[#F9FAFB]">
-      {/* Left section */}
-      <AdForm />
+      {/* LEFT SIDE */}
+      {/* Start LEFT SIDE Add Form*/}
+      <AdFormContainer />
+      {/* END LEFT SIDE Add Form*/}
 
-      {/* Right section */}
-      <div className="flex items-center justify-center w-full lg:w-1/2 px-4 py-10 bg-white">
-        <div className="w-full max-w-sm">
+      {/* Start RIGHT SIDE */}
+      <div className="lg:w-full md:w-3xl flex items-center justify-center bg-[#FFF] lg:px-10 md:mx-auto overflow-hidden">
+        {/* <div className="flex"> */}
           <OTPVerifyContainer />
         </div>
       </div>
-    </div>
+    // </div>
   );
 };
 
