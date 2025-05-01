@@ -1,7 +1,7 @@
 // src/routes/AdminRoute.tsx
 import { Outlet } from "react-router-dom";
-import { UserRoleName } from "../modules/user/auth/constants/userRoles";
-import { useAuth } from "../modules/user/auth/context/AuthContext";
+import { useAuth } from "../modules/auth/contexts/AuthContext";
+import { UserRoleName } from "../modules/auth/constants/userRoles";
 
 const AdminRoute = () => {
   const { user,loading } = useAuth();

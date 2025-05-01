@@ -1,4 +1,4 @@
-import { UserRoleName } from "../../modules/user/auth/constants/userRoles";
+import { UserRoleName } from "../../modules/auth/constants/userRoles";
 
   // Helper function to map string[] to UserRoleName[]
   export const castToUserRoles = (roles: string[] = []): UserRoleName[] => {

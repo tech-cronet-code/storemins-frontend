@@ -3,19 +3,20 @@ import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import "./index.css";
 
 // Routes
-import SellerRoute from "./routes/SellerRoute";
 import AdminRoute from "./routes/AdminRoute";
 import PrivateRoute from "./routes/PrivateRoute";
 import PublicRoute from "./routes/PublicRoute";
+import SellerRoute from "./routes/SellerRoute";
 
 // Pages
-import Login from "./modules/user/auth/pages/Login";
-import RegisterPage from "./modules/user/auth/pages/Register";
-import AuthFormPage from "./modules/user/auth/pages/AuthForm";
-import AuthOTPVerifyPage from "./modules/user/auth/pages/AuthOTPVerifyPage";
-import SellerDashboard from "./modules/dashboard/pages/SellerDashboard";
+import AuthOTPVerifyPage from "./modules/auth/pages/AuthOTPVerifyPage";
 import AdminDashboard from "./modules/dashboard/pages/AdminDashboard";
+import SellerDashboard from "./modules/dashboard/pages/SellerDashboard";
 import OtpRoute from "./routes/OtpRoute";
+import LoginPage from "./modules/auth/pages/LoginPage";
+import RegisterPage from "./modules/auth/pages/RegisterPage";
+import AuthFormPage from "./modules/auth/pages/AuthFormPage";
+// import AuthFormPage from "./modules/auth/pages/AuthForm";
 
 const App = () => {
   return (
@@ -23,13 +24,15 @@ const App = () => {
       <Routes>
         {/* ✅ Public Routes */}
         <Route element={<PublicRoute />}>
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<RegisterPage />} />
+          <Route path="/home" element={<AuthFormPage />} />
+          {/* <Route path="/login" element={<LoginPage />} />
+          <Route path="/register" element={<RegisterPage />} /> */}
           {/* <Route path="/register" element={<RegisterPage onSwitch={function (): void {
             throw new Error("Function not implemented.");
           }} />} />
-          <Route path="/home" element={<AuthFormPage />} /> */}
+           */}
         </Route>
+        {/* <Route path="/home" element={<AuthFormPage />} /> */}
 
         <Route path="/otp-verify" element={<OtpRoute />}>
           <Route index element={<AuthOTPVerifyPage />} />

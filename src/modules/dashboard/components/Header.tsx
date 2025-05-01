@@ -1,5 +1,6 @@
 // src/modules/dashboard/components/Header.tsx
-import { useAuth } from '../../user/auth/context/AuthContext';
+
+import { useAuth } from "../../auth/contexts/AuthContext";
 
 const Header = () => {
   const { user, logout } = useAuth();
