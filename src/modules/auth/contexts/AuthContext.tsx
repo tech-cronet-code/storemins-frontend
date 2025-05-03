@@ -14,6 +14,8 @@ import { AppDispatch, RootState } from "../../../common/state/store";
 import { User } from "../types/authTypes";
 import { logout, setUser } from "../slices/authSlice";
 import { useGetUserDetailsQuery } from "../services/authApi";
+import { useConfirmOtp } from "../hooks/useConfirmOtp";
+
 
 interface AuthContextType {
   user: User | null;
@@ -28,6 +30,7 @@ interface AuthContextType {
     role: UserRoleName;
     isTermAndPrivarcyEnable: boolean;
   }) => Promise<{ needsOtp: boolean }>;
+  confirmOtp: (code: string) => Promise<void>;
   logout: () => void;
   loading: boolean;
   error: string | null;
@@ -43,6 +46,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const loginHook = useLogin();
   const registerHook = useRegister();
+  const confirmOtpHook = useConfirmOtp();
 
   const { data: userDetails, refetch } = useGetUserDetailsQuery(undefined, {
     skip: !token,
@@ -74,7 +78,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, [token, refetch]);
 
   useEffect(() => {
-    if (token && userDetails && userDetails.id && (!user || user.id !== userDetails.id)) {
+    if (
+      token &&
+      userDetails &&
+      userDetails.id &&
+      (!user || user.id !== userDetails.id)
+    ) {
       dispatch(setUser(userDetails));
     }
   }, [token, userDetails, user, dispatch]);
@@ -89,11 +98,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       user,
       login: loginHook.login,
       register: registerHook.register,
+      confirmOtp: confirmOtpHook.confirm,
       logout: handleLogout,
       loading,
       error,
     }),
-    [user, loginHook.login, registerHook.register, handleLogout, loading, error]
+    [user?.id, loginHook.login, registerHook.register, confirmOtpHook.confirm, handleLogout, loading, error]
   );
 
   return (

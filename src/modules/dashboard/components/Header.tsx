@@ -1,9 +1,10 @@
-// src/modules/dashboard/components/Header.tsx
-
+import React from "react";
 import { useAuth } from "../../auth/contexts/AuthContext";
 
 const Header = () => {
   const { user, logout } = useAuth();
+
+  console.log(user, "useruseruseruser");
 
   return (
     <div className="bg-white shadow p-4 flex justify-between items-center">
@@ -18,4 +19,4 @@ const Header = () => {
   );
 };
 
-export default Header;
+export default React.memo(Header);

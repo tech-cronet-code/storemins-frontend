@@ -50,6 +50,26 @@ interface LoginPayload {
   password: string;
 }
 
+// Add these imports at top
+interface ConfirmMobileOtpPayload {
+  mobile: string;
+  confirm_mobile_otp_code: string;
+}
+
+interface ConfirmMobileOtpResponse {
+  id: string;
+  mobile: string;
+  mobile_confirmed: boolean;
+  message?: string;
+}
+
+interface ResendMobileOtpPayload {
+  mobile: string;
+  userId?: string;
+}
+interface ResendMobileOtpResponse {
+  message: string;
+}
 
 export const apiClient = createApi({
   baseQuery: baseQueryWithReauth,
@@ -75,11 +95,29 @@ export const apiClient = createApi({
         method: "GET",
       }),
     }),
+    confirmOtp: builder.mutation<ConfirmMobileOtpResponse, ConfirmMobileOtpPayload>({
+      query: (body) => ({
+        url: "/confirm-mobile-otp",
+        method: "POST",
+        body,
+      }),
+    }),
+    resendOtp: builder.mutation<ResendMobileOtpResponse, ResendMobileOtpPayload>({
+      query: (body) => ({
+        url: "/resend-mobile-otp",
+        method: "POST",
+        body,
+      }),
+    }),
   }),
+
+  
 });
 
 export const {
   useLoginMutation,
   useRegisterMutation,
   useGetUserDetailsQuery,
+  useConfirmOtpMutation,
+  useResendOtpMutation,
 } = apiClient;

@@ -5,18 +5,17 @@ const AuthOTPVerifyPage = () => {
   console.log("OTPVerifyContainer loaded");
 
   return (
-    <div className="min-h-screen w-full flex flex-col lg:flex-row bg-[#F9FAFB]">
-      {/* LEFT SIDE */}
-      {/* Start LEFT SIDE Add Form*/}
-      <AdFormContainer />
-      {/* END LEFT SIDE Add Form*/}
+    <div className="min-h-screen w-full flex flex-col lg:flex-row">
+  {/* LEFT SIDE - 50% width */}
+  <div className="w-full lg:w-1/2">
+    <AdFormContainer />
+  </div>
 
-      {/* Start RIGHT SIDE */}
-      <div className="lg:w-full md:w-3xl flex items-center justify-center bg-[#FFF] lg:px-10 md:mx-auto overflow-hidden">
-        {/* <div className="flex"> */}
-          <OTPVerifyContainer />
-        </div>
-      </div>
+  {/* RIGHT SIDE - 50% width */}
+  <div className="w-full lg:w-1/2 lg:mb-50 mt-5 flex items-center justify-center">
+    <OTPVerifyContainer />
+  </div>
+</div>
     // </div>
   );
 };

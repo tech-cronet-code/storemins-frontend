@@ -50,6 +50,7 @@ const authSlice = createSlice({
         role: action.payload.user.role,
         permissions: action.payload.user.permissions,
         mobile_confirmed: action.payload.user.mobile_confirmed,
+        mobile: action.payload.user.mobile, // ✅ this must exist
       }));
     },
 
@@ -84,6 +85,21 @@ const authSlice = createSlice({
       state.loading = false;
       state.error = null;
     },
+
+    confirmOtpSuccess(state, action: PayloadAction<{ mobile_confirmed: boolean }>) {
+      if (state.user) {
+        state.user.mobile_confirmed = action.payload.mobile_confirmed;
+        state.needsOtp = !action.payload.mobile_confirmed;
+    
+        // ✅ Also update localStorage to reflect confirmed status
+        const storedUser = localStorage.getItem("auth_user");
+        if (storedUser) {
+          const parsed = JSON.parse(storedUser);
+          parsed.mobile_confirmed = action.payload.mobile_confirmed;
+          localStorage.setItem("auth_user", JSON.stringify(parsed));
+        }
+      }
+    }
   },
 });
 
@@ -94,6 +110,7 @@ export const {
   logout,
   setUser,
   registerSuccess,
+  confirmOtpSuccess,
 } = authSlice.actions;
 
 export default authSlice.reducer;
