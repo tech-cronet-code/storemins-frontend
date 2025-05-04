@@ -15,4 +15,14 @@ export type User = {
   refresh_token?: string;
   mobile_confirmed?: boolean; // ✅ Add this
   otpExpiresAt?: string; // ✅ add this
+  storeLinks?: object[];
 };
+
+// export type GetMyProfileDto = {
+//   id: string;
+//   name: string;
+//   mobile: string;
+//   tenantId: string | null;
+//   storeLinks: object[];
+//   role: string[];
+// }

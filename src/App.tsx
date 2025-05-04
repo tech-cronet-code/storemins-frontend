@@ -14,6 +14,7 @@ import AuthOTPVerifyPage from "./modules/auth/pages/AuthOTPVerifyPage";
 import AdminDashboard from "./modules/dashboard/pages/AdminDashboard";
 import SellerDashboard from "./modules/dashboard/pages/SellerDashboard";
 import OtpRoute from "./routes/OtpRoute";
+import SellerStoreDetailsPage from "./modules/auth/pages/SellerStoreDetailsPage";
 // import AuthFormPage from "./modules/auth/pages/AuthForm";
 
 const App = () => {
@@ -38,7 +39,11 @@ const App = () => {
         {/* ✅ Protected Routes */}
         <Route element={<PrivateRoute />}>
           <Route element={<SellerRoute />}>
-            <Route path="/seller/*" element={<SellerDashboard />} />
+            <Route path="/seller/" element={<SellerDashboard />} />
+            <Route
+              path="/seller/store-details"
+              element={<SellerStoreDetailsPage />}
+            />
           </Route>
           <Route element={<AdminRoute />}>
             <Route path="/admin/*" element={<AdminDashboard />} />

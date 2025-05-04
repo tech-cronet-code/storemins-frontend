@@ -14,7 +14,7 @@ const AuthFormPage = () => {
       {/* END LEFT SIDE Add Form*/}
 
       {/* Start RIGHT SIDE */}
-      <div className="lg:w-full md:w-3xl flex items-center justify-center bg-[#FFF] lg:px-10 md:mx-auto overflow-hidden xl:">
+      <div className="lg:w-full md:w-3xl flex items-center justify-center bg-[#FFF] lg:px-10 md:mx-auto overflow-hidden">
         <div className="flex flex-col gap-4 mx-auto sm:mx-10 my-auto sm:mt-10">
           <div className="text-center">
             <h1 className="text-4xl font-bold text-[#0B132A] mb-8">StoreMin</h1>

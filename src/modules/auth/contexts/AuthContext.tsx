@@ -7,19 +7,22 @@ import {
   useMemo,
 } from "react";
 import { useDispatch, useSelector } from "react-redux";
+import { AppDispatch, RootState } from "../../../common/state/store";
 import { UserRoleName } from "../constants/userRoles";
+import { useConfirmOtp } from "../hooks/useConfirmOtp";
 import { useLogin } from "../hooks/useLogin";
 import { useRegister } from "../hooks/useRegister";
-import { AppDispatch, RootState } from "../../../common/state/store";
-import { User } from "../types/authTypes";
-import { logout, setUser } from "../slices/authSlice";
 import { useGetUserDetailsQuery } from "../services/authApi";
-import { useConfirmOtp } from "../hooks/useConfirmOtp";
-
+import { logout, setUser } from "../slices/authSlice";
+import { User } from "../types/authTypes";
 
 interface AuthContextType {
   user: User | null;
-  login: (email: string, password: string) => Promise<{
+  userDetails: User | undefined;
+  login: (
+    email: string,
+    password: string
+  ) => Promise<{
     needsOtp: boolean;
     role: UserRoleName[] | UserRoleName;
   }>;
@@ -63,7 +66,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           console.warn("Access token expired. Logging out...");
           dispatch(logout());
         }
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
       } catch (err) {
         console.error("Failed to decode token. Logging out...");
         dispatch(logout());
@@ -96,6 +99,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const contextValue = useMemo<AuthContextType>(
     () => ({
       user,
+      userDetails: userDetails,
       login: loginHook.login,
       register: registerHook.register,
       confirmOtp: confirmOtpHook.confirm,
@@ -103,20 +107,26 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       loading,
       error,
     }),
-    [user, loginHook.login, registerHook.register, confirmOtpHook.confirm, handleLogout, loading, error]
+    [
+      user,
+      userDetails,
+      loginHook.login,
+      registerHook.register,
+      confirmOtpHook.confirm,
+      handleLogout,
+      loading,
+      error,
+    ]
   );
 
   return (
-    <AuthContext.Provider value={contextValue}>
-      {children}
-    </AuthContext.Provider>
+    <AuthContext.Provider value={contextValue}>{children}</AuthContext.Provider>
   );
 };
 
 // eslint-disable-next-line react-refresh/only-export-components
 export const useAuth = () => {
   const context = useContext(AuthContext);
-  if (!context)
-    throw new Error("useAuth must be used within an AuthProvider");
+  if (!context) throw new Error("useAuth must be used within an AuthProvider");
   return context;
 };
