@@ -25,13 +25,13 @@ const AdForm = () => {
       >
         <div className="w-full h-full space-y-1">
           {/* Top Content */}
-          <div className="bg-[#e4e4e5] hidden md:block p-6 lg:p-8 space-y-1">
-            <h2 className="text-3xl font-semibold text-center">
+          <div className="bg-[#e4e4e5] hidden md:block p-6 lg:p-8">
+            <h2 className="text-3xl font-bold text-center">
               Show the best of your business
             </h2>
             <div className="flex flex-col lg:flex-row justify-between items-center gap-4">
               <div className="space-y-3">
-                <h3 className="text-2xl font-bold text-[#0B132A] leading-tight">
+                <h3 className="text-2xl font-semibold text-[#0B132A] leading-tight">
                   We Provide Many <br /> Features You Can Use
                 </h3>
                 <p className="text-[#4F5665] leading-relaxed">

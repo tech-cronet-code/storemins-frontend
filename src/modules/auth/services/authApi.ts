@@ -41,9 +41,9 @@ export interface LoginResponse {
       mobile_confirmed: boolean;
     };
     needs_confirm_otp_code: boolean;
+    otpExpiresAt: string;
   };
 }
-
 
 interface LoginPayload {
   mobile: string;
@@ -69,6 +69,7 @@ interface ResendMobileOtpPayload {
 }
 interface ResendMobileOtpResponse {
   message: string;
+  expiresAt: string;
 }
 
 export const apiClient = createApi({
@@ -95,14 +96,20 @@ export const apiClient = createApi({
         method: "GET",
       }),
     }),
-    confirmOtp: builder.mutation<ConfirmMobileOtpResponse, ConfirmMobileOtpPayload>({
+    confirmOtp: builder.mutation<
+      ConfirmMobileOtpResponse,
+      ConfirmMobileOtpPayload
+    >({
       query: (body) => ({
         url: "/confirm-mobile-otp",
         method: "POST",
         body,
       }),
     }),
-    resendOtp: builder.mutation<ResendMobileOtpResponse, ResendMobileOtpPayload>({
+    resendOtp: builder.mutation<
+      ResendMobileOtpResponse,
+      ResendMobileOtpPayload
+    >({
       query: (body) => ({
         url: "/resend-mobile-otp",
         method: "POST",
@@ -110,8 +117,6 @@ export const apiClient = createApi({
       }),
     }),
   }),
-
-  
 });
 
 export const {

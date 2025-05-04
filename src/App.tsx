@@ -9,13 +9,11 @@ import PublicRoute from "./routes/PublicRoute";
 import SellerRoute from "./routes/SellerRoute";
 
 // Pages
+import AuthFormPage from "./modules/auth/pages/AuthFormPage";
 import AuthOTPVerifyPage from "./modules/auth/pages/AuthOTPVerifyPage";
 import AdminDashboard from "./modules/dashboard/pages/AdminDashboard";
 import SellerDashboard from "./modules/dashboard/pages/SellerDashboard";
 import OtpRoute from "./routes/OtpRoute";
-import LoginPage from "./modules/auth/pages/LoginPage";
-import RegisterPage from "./modules/auth/pages/RegisterPage";
-import AuthFormPage from "./modules/auth/pages/AuthFormPage";
 // import AuthFormPage from "./modules/auth/pages/AuthForm";
 
 const App = () => {

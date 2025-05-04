@@ -103,7 +103,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       loading,
       error,
     }),
-    [user?.id, loginHook.login, registerHook.register, confirmOtpHook.confirm, handleLogout, loading, error]
+    [user, loginHook.login, registerHook.register, confirmOtpHook.confirm, handleLogout, loading, error]
   );
 
   return (

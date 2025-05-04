@@ -14,4 +14,5 @@ export type User = {
   permissions?: string[];
   refresh_token?: string;
   mobile_confirmed?: boolean; // ✅ Add this
+  otpExpiresAt?: string; // ✅ add this
 };

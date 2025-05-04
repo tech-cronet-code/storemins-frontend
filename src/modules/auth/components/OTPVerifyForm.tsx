@@ -1,91 +1,88 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 
 interface Props {
   otp: string[];
   setOtp: (otp: string[]) => void;
   onSubmit: () => void;
   onResend: () => void;
-  startTimer?: (fn: (duration: number) => void) => void;
+  expiresAt?: string | null;
+  startTimer?: (fn: (duration: number) => void) => void; // ✅ Here
+  logout: () => void;
 }
 
-const OTPVerifyForm: React.FC<Props> = ({ otp, setOtp, onSubmit, onResend, startTimer }) => {
-  const [timer, setTimer] = React.useState(0);
+const OTPVerifyForm: React.FC<Props> = ({
+  otp,
+  setOtp,
+  onSubmit,
+  onResend,
+  expiresAt,
+  startTimer,
+  logout,
+}) => {
+  const [timer, setTimer] = useState(0);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
-  const isResendClickedRef = useRef(false);
-
-  // Start countdown from custom function
   const startCountdown = (duration: number) => {
-    setTimer(duration);
-    isResendClickedRef.current = true;
+    if (intervalRef.current) clearInterval(intervalRef.current);
+
+    console.log(duration, "durationdurationduration");
+
+    setTimer(duration); // ✅ Show countdown immediately
+
+    intervalRef.current = setInterval(() => {
+      setTimer((prev) => {
+        if (prev <= 1) {
+          clearInterval(intervalRef.current!);
+          intervalRef.current = null;
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
   };
 
-  // Expose startCountdown function to container via prop
+  // 🆕 Start countdown based on expiresAt prop on initial mount
   useEffect(() => {
     if (startTimer) startTimer(startCountdown);
-  }, [startTimer]);
 
-  // Initialize timer from URL
-  useEffect(() => {
-    const url = new URL(window.location.href);
-    const expiresAt = url.searchParams.get("expiresAt");
-  
-    const hasStarted = sessionStorage.getItem("otp_timer_started");
-  
-    if (expiresAt) {
-      const expiryTime = parseInt(expiresAt, 10);
-      const now = Date.now();
-      const remaining = Math.ceil((expiryTime - now) / 1000);
-      if (remaining > 0) {
-        startCountdown(remaining);
-      } else {
-        url.searchParams.delete("expiresAt");
-        window.history.replaceState({}, "", url.toString());
-      }
-    } else if (!hasStarted) {
-      const newExpiry = Date.now() + 30000;
-      url.searchParams.set("expiresAt", newExpiry.toString());
-      window.history.replaceState({}, "", url.toString());
-  
-      sessionStorage.setItem("otp_timer_started", "true");
-  
-      // ✅ Fix: countdown on first login
-      setTimer(30);
-      isResendClickedRef.current = true;
+    //  Don't do anything if expiresAt is null
+    if (!expiresAt) {
+      return;
     }
-  }, []);
-  
+    const expiryTime = new Date(expiresAt).getTime();
+    const isExpired = new Date(expiresAt).getTime() <= Date.now();
 
-  // Timer countdown
-  useEffect(() => {
-    if (timer > 0 && isResendClickedRef.current) {
-      intervalRef.current = setInterval(() => {
-        setTimer((prev) => {
-          if (prev === 1 && intervalRef.current) {
-            clearInterval(intervalRef.current);
-            intervalRef.current = null;
+    const now = Date.now();
 
-            const url = new URL(window.location.href);
-            url.searchParams.delete("expiresAt");
-            window.history.replaceState({}, "", url.toString());
-          }
-          return prev - 1;
-        });
-      }, 1000);
+    console.log("🕒 expiresAt:", expiresAt);
+    console.log("🕓 Now:", now);
+    console.log("🕓 isExpired:", isExpired);
+
+    const remaining = Math.floor((expiryTime - now) / 1000);
+
+    // console.log("🕒 Expiry Time:", expiryTime);
+    // console.log("⏳ Remaining Seconds:", remaining);
+
+    const isOtpStillValid = now < expiryTime;
+
+    if (remaining > 0 && isOtpStillValid) {
+      startCountdown(remaining);
+    } else {
+      setTimer(0);
+      console.log("⛔ OTP expired or invalid.");
     }
 
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
-  }, [timer]);
+    // ✅ Only rerun if expiresAt or startTimer function changes
+  }, [expiresAt, startTimer, timer]); // ❌ removed 'timer' from dependency
 
   const handleChange = (index: number, value: string) => {
     const char = value.toUpperCase();
     if (!/^[A-Z0-9]?$/.test(char)) return;
-
     const updatedOtp = [...otp];
     updatedOtp[index] = char;
     setOtp(updatedOtp);
-
     if (char && index < otp.length - 1) {
       document.getElementById(`otp-${index + 1}`)?.focus();
     }
@@ -152,8 +149,17 @@ const OTPVerifyForm: React.FC<Props> = ({ otp, setOtp, onSubmit, onResend, start
               </button>
             )}
           </p>
+
           <p className="text-sm text-green-600 mt-2">
             For Testing Purpose Use Code - AAAA
+          </p>
+          <p className="text-sm text-green-600 mt-2">
+            <button
+              onClick={logout}
+              className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
+            >
+              Logout
+            </button>
           </p>
         </div>
       </div>
