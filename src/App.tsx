@@ -11,6 +11,7 @@ import SellerRoute from "./routes/SellerRoute";
 // Pages
 import AuthFormPage from "./modules/auth/pages/AuthFormPage";
 import AuthOTPVerifyPage from "./modules/auth/pages/AuthOTPVerifyPage";
+import SellerUnlockStorePage from "./modules/auth/pages/SellerUnlockStorePage";
 import AdminDashboard from "./modules/dashboard/pages/AdminDashboard";
 import SellerDashboard from "./modules/dashboard/pages/SellerDashboard";
 import OtpRoute from "./routes/OtpRoute";
@@ -43,6 +44,14 @@ const App = () => {
             <Route
               path="/seller/store-details"
               element={<SellerStoreDetailsPage />}
+            />
+            {/* <Route
+              path="/seller/store-details"
+              element={<SellerStoreDetailsPage />}
+            /> */}
+             <Route
+              path="/seller/store-unlock"
+              element={<SellerUnlockStorePage />}
             />
           </Route>
           <Route element={<AdminRoute />}>

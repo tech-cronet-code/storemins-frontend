@@ -3,15 +3,15 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 
-const loginSchema = z.object({
+const sellerStoreDetailsSchema = z.object({
   mobile: z.string().min(10, "Mobile number is required"),
   password: z.string().min(6, "Password must be at least 6 characters"),
 });
 
-export type LoginFormData = z.infer<typeof loginSchema>;
+export type SellerStoreDetailsForm = z.infer<typeof sellerStoreDetailsSchema>;
 
 interface Props {
-  onSubmit: (data: LoginFormData) => Promise<void>;
+  onSubmit: (data: SellerStoreDetailsForm) => Promise<void>;
   logout: () => void;
 }
 
@@ -28,13 +28,12 @@ const SellerStoreDetailsForm: React.FC<Props> = ({ onSubmit, logout }) => {
   const {
     register,
     handleSubmit,
-    formState: { errors },
     setValue,
-  } = useForm<LoginFormData>({
-    resolver: zodResolver(loginSchema),
+  } = useForm<SellerStoreDetailsForm>({
+    resolver: zodResolver(sellerStoreDetailsSchema),
   });
 
-  const handleFormSubmit = (data: LoginFormData) => {
+  const handleFormSubmit = (data: SellerStoreDetailsForm) => {
     // Prevent form submission if already submitting
     if (isSubmitting) return;
 
@@ -133,9 +132,9 @@ const SellerStoreDetailsForm: React.FC<Props> = ({ onSubmit, logout }) => {
             className="form-input-style w-full"
           >
             <option value="">Select Type</option>
-            <option value="food">Indivitual</option>
-            <option value="retail">Private</option>
-            <option value="service">Other</option>
+            <option value="indivitual">Indivitual</option>
+            <option value="private">Private</option>
+            <option value="other">Other</option>
           </select>
           <p className="text-xs text-gray-500">
             you can always change it later!
@@ -154,11 +153,11 @@ const SellerStoreDetailsForm: React.FC<Props> = ({ onSubmit, logout }) => {
             What’s your site <span className="text-[#7F56D9]">primarily</span>{" "}
             about?
           </h3>
-          <p className="text-xs text-gray-500 mb-2">
+          <p className="text-xs text-gray-500 mb-3">
             You can always change it later!
           </p>
 
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-3">
             {/* Custom Category (if added) */}
             {customCategory && (
               <button
@@ -231,7 +230,7 @@ const SellerStoreDetailsForm: React.FC<Props> = ({ onSubmit, logout }) => {
         {/* Submit Button */}
         <button
           type="submit"
-          className="w-full py-2 rounded-md bg-[#7F56D9] text-white font-semibold hover:bg-[#6d45c8] transition"
+          className="w-full py-3 mt-1 rounded-md bg-[#7F56D9] text-white font-semibold hover:bg-[#6d45c8] transition"
           disabled={isSubmitting}
         >
           {isSubmitting ? "Nexting in..." : "Next"}

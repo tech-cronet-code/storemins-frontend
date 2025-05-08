@@ -7,14 +7,14 @@ const AuthFormPage = () => {
   const [isRegister, setIsRegister] = useState(false);
 
   return (
-    <div className="min-h-screen w-full flex flex-col lg:flex-row bg-[#F9FAFB]">
+    <div className="min-h-screen w-full flex flex-col lg:flex-row">
       {/* LEFT SIDE */}
       {/* Start LEFT SIDE Add Form*/}
       <AdFormContainer />
       {/* END LEFT SIDE Add Form*/}
 
       {/* Start RIGHT SIDE */}
-      <div className="lg:w-full md:w-3xl flex items-center justify-center bg-[#FFF] lg:px-10 md:mx-auto overflow-hidden">
+      <div className="lg:w-full md:w-3xl flex items-center justify-center lg:px-10 md:mx-auto overflow-hidden">
         <div className="flex flex-col gap-4 mx-auto sm:mx-10 my-auto sm:mt-10">
           <div className="text-center">
             <h1 className="text-4xl font-bold text-[#0B132A] mb-8">StoreMin</h1>
