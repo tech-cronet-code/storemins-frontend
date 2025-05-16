@@ -1,11 +1,20 @@
 // src/main.tsx
 import { createRoot } from "react-dom/client";
-import { Toaster } from 'react-hot-toast';
+import { Toaster } from "react-hot-toast";
 import { Provider } from "react-redux";
 import App from "./App.tsx";
 import { store } from "./common/state/store";
 import { StrictMode } from "react";
 import { AuthProvider } from "./modules/auth/contexts/AuthContext.tsx";
+
+if (import.meta.env.MODE === "production") {
+  console.log = () => {};
+  console.debug = () => {};
+  console.info = () => {};
+  // Optional: disable warnings and errors too
+  console.warn = () => {};
+  console.error = () => {};
+}
 
 // Optional: global error handler for uncaught app-level errors
 window.addEventListener("error", (e) => {
