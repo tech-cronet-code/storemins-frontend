@@ -54,7 +54,7 @@ const SellerUnlockStoreContainer: React.FC = () => {
     setSaving(true);
     const slug = data.businessName.trim().toLowerCase();
 
-    const businessId = userDetails?.data.storeLinks?.[0]?.businessId ?? "";
+    const businessId = userDetails?.storeLinks?.[0]?.businessId ?? "";
 
     try {
       if (!businessId) {

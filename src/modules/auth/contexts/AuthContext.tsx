@@ -65,8 +65,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const {
     createOrUpdate,
-    isLoading: savingBusiness,
-    error: businessError,
+    // isLoading: savingBusiness,
+    // error: businessError,
   } = useBusinessDetails();
 
   const loginHook = useLogin();
@@ -78,6 +78,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const { data: userDetails, refetch } = useGetUserDetailsQuery(undefined, {
     skip: !token,
   });
+  const userFromResponse = userDetails?.data;
 
   useEffect(() => {
     if (token) {
@@ -107,11 +108,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     if (
       token &&
-      userDetails &&
-      userDetails.id &&
-      (!user || user.id !== userDetails.id)
+      userFromResponse &&
+      userFromResponse.id &&
+      (!user || user.id !== userFromResponse.id)
     ) {
-      dispatch(setUser(userDetails));
+      dispatch(setUser(userFromResponse));
     }
   }, [token, userDetails, user, dispatch]);
 
@@ -123,7 +124,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const contextValue = useMemo<AuthContextType>(
     () => ({
       user,
-      userDetails: userDetails,
+      userDetails: userFromResponse,
       refetchUserDetails: refetch, // ✅ expose here
       login: loginHook.login,
       register: registerHook.register,
