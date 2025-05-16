@@ -2,8 +2,22 @@
 
 import { createApi } from "@reduxjs/toolkit/query/react";
 import { UserRoleName } from "../constants/userRoles";
-import { baseQueryWithReauth } from "./baseQueryWithReauth";
 import { User } from "../types/authTypes";
+import {
+  AddUpdateBusinessCategoryRequestDto,
+  AddUpdateBusinessCategoryResponseDto,
+  BusinessCategoryResponseDto,
+  BusinessDetailsRequestDto,
+  BusinessDetailsResponseDto,
+  BusinessTypeResponseDto,
+} from "../types/businessStoreTypes";
+import { baseQueryWithReauth } from "./baseQueryWithReauth";
+import {
+  DomainRequestDto,
+  DomainResponseDto,
+  ListDomainsParams,
+} from "../types/domainTypes";
+import { ApiResponse } from "../types/common";
 
 export interface RegisterPayload {
   name: string;
@@ -90,7 +104,7 @@ export const apiClient = createApi({
         body,
       }),
     }),
-    getUserDetails: builder.query<User, void>({
+    getUserDetails: builder.query<ApiResponse<User>, void>({
       query: () => ({
         url: "/my-profile",
         method: "GET",
@@ -116,6 +130,136 @@ export const apiClient = createApi({
         body,
       }),
     }),
+
+    // // ➊ list business types
+    // listBusinessTypes: builder.query<
+    //   { data: BusinessTypeResponseDto[]; total: number },
+    //   ListBusinessTypesParams
+    // >({
+    //   query: ({ page = 1, limit = 25, search }) => ({
+    //     url: "/super-admin/seller/business-types/list",
+    //     method: "GET",
+    //     params: { page, limit, search },
+    //   }),
+    // }),
+
+    // // ➋ list business categories
+    // listBusinessCategories: builder.query<
+    //   { data: BusinessCategoryResponseDto[]; total: number },
+    //   ListBusinessCategoriesParams
+    // >({
+    //   query: ({ page = 1, limit = 25, search }) => ({
+    //     url: "/super-admin/business-categories/list",
+    //     method: "GET",
+    //     params: { page, limit, search },
+    //   }),
+    // }),
+
+    // ───────────────────────────────────────────────
+    // ➊ list business types → returns the array directly
+    listBusinessTypes: builder.query<
+      BusinessTypeResponseDto[], // <-- now the hook returns an array
+      void
+    >({
+      query: () => ({
+        url: "/super-admin/seller/business-types/list",
+        method: "GET",
+      }),
+      transformResponse: (raw: {
+        success: boolean;
+        message: string;
+        statusCode: number;
+        data: { data: BusinessTypeResponseDto[]; total: number };
+      }) => {
+        return raw.data.data; // BusinessTypeResponseDto[]
+      },
+    }),
+
+    // ───────────────────────────────────────────────
+    // ➋ list business categories → returns the array directly
+    listBusinessCategories: builder.query<
+      BusinessCategoryResponseDto[], // <-- hook returns an array
+      void
+    >({
+      query: () => ({
+        url: "/super-admin/business-categories/list",
+        method: "GET",
+      }),
+      transformResponse: (raw: {
+        success: boolean;
+        message: string;
+        statusCode: number;
+        data: { data: BusinessCategoryResponseDto[]; total: number };
+      }) => {
+        return raw.data.data; // BusinessCategoryResponseDto[]
+      },
+    }),
+
+    // ➤ create or update a business category
+    createOrUpdateBusinessCategory: builder.mutation<
+      AddUpdateBusinessCategoryResponseDto,
+      AddUpdateBusinessCategoryRequestDto
+    >({
+      query: (body) => ({
+        url: "/super-admin/business-categories",
+        method: "POST",
+        body,
+      }),
+      transformResponse: (raw: {
+        message: string;
+        data: BusinessCategoryResponseDto | null;
+      }) => {
+        if (!raw.data) {
+          throw new Error("Category already exists");
+        }
+        return raw.data; // <-- unwrap the `data` field
+      },
+    }),
+
+    createOrUpdateBusinessDetails: builder.mutation<
+      { message: string; data: BusinessDetailsResponseDto },
+      BusinessDetailsRequestDto
+    >({
+      query: (body) => ({
+        url: "/seller/business/business-details",
+        method: "POST",
+        body,
+      }),
+    }),
+
+    // ── ➊ list/search domains ──
+    listDomains: builder.query<
+      { data: DomainResponseDto[]; total: number },
+      ListDomainsParams
+    >({
+      query: ({ search }) => ({
+        url: "/seller/business/domains/list",
+        method: "GET",
+        params: { search },
+      }),
+      transformResponse: (raw: {
+        message: string;
+        data: { data: DomainResponseDto[]; total: number };
+      }) => ({
+        data: raw.data.data,
+        total: raw.data.total,
+      }),
+    }),
+
+    // ── ➋ create or update a domain ──
+    createOrUpdateDomain: builder.mutation<DomainResponseDto, DomainRequestDto>(
+      {
+        query: (body) => ({
+          url: "/seller/business/domain",
+          method: "POST",
+          body,
+        }),
+        transformResponse: (raw: {
+          message: string;
+          data: DomainResponseDto;
+        }) => raw.data,
+      }
+    ),
   }),
 });
 
@@ -125,4 +269,11 @@ export const {
   useGetUserDetailsQuery,
   useConfirmOtpMutation,
   useResendOtpMutation,
+  useListBusinessTypesQuery,
+  useListBusinessCategoriesQuery,
+  useCreateOrUpdateBusinessCategoryMutation,
+  useCreateOrUpdateBusinessDetailsMutation,
+  useListDomainsQuery,
+  useLazyListDomainsQuery,
+  useCreateOrUpdateDomainMutation,
 } = apiClient;

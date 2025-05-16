@@ -49,7 +49,7 @@ const App = () => {
               path="/seller/store-details"
               element={<SellerStoreDetailsPage />}
             /> */}
-             <Route
+            <Route
               path="/seller/store-unlock"
               element={<SellerUnlockStorePage />}
             />

@@ -1,24 +1,16 @@
 // src/common/services/baseQueryWithReauth.ts
-import { fetchBaseQuery } from "@reduxjs/toolkit/query/react";
-import { UserRoleName } from "../constants/userRoles";
+
+import { fetchBaseQuery, FetchArgs } from "@reduxjs/toolkit/query/react";
 import { RootState } from "../../../common/state/store";
-import { castToUserRoles } from "../../../common/utils/common";
 import { loginSuccess, logout } from "../slices/authSlice";
-import { User } from "../types/authTypes";
+import { UserRoleName } from "../constants/userRoles";
+import { castToUserRoles } from "../../../common/utils/common";
 
-interface RefreshResponse {
-  access_token: string;
-  refresh_token: string;
-  id: string;
-  name?: string;
-  mobile: string;
-  role: UserRoleName[];
-  permissions: string[];
-  mobile_confirmed?: boolean;
-}
+const API_ROOT = import.meta.env.VITE_PUBLIC_API_URL_RUNTIME;
 
-const baseQuery = fetchBaseQuery({
-  baseUrl: import.meta.env.VITE_PUBLIC_API_URL_RUNTIME + "/auth",
+// ➊ “Auth” base (prefixes `/auth`, adds headers)
+const authBase = fetchBaseQuery({
+  baseUrl: `${API_ROOT}/auth`,
   credentials: "include",
   prepareHeaders: (headers, { getState }) => {
     const token = (getState() as RootState).auth.token;
@@ -27,84 +19,93 @@ const baseQuery = fetchBaseQuery({
   },
 });
 
-export const baseQueryWithReauth: typeof baseQuery = async (
+// ➋ “Admin” base (no `/auth` prefix, but still adds headers)
+const adminBase = fetchBaseQuery({
+  baseUrl: API_ROOT,
+  credentials: "include",
+  prepareHeaders: (headers, { getState }) => {
+    const token = (getState() as RootState).auth.token;
+    if (token) headers.set("Authorization", `Bearer ${token}`);
+    return headers;
+  },
+});
+
+// ➌ Which paths should use the “adminBase” instead of authBase?
+const isAdminEndpoint = (url: string) =>
+  url.startsWith("/super-admin/") || url.startsWith("/seller/business");
+
+// ➍ The wrapper
+export const baseQueryWithReauth: typeof authBase = async (
   args,
   api,
   extraOptions
 ) => {
-  let result = await baseQuery(args, api, extraOptions);
-  console.log(result, "result");
+  const url = typeof args === "string" ? args : args.url;
 
-  const errorData = result.error?.data as { statusCode?: number } | undefined;
-  console.log(errorData, "errorData");
+  // 1️⃣ If it’s an admin endpoint, use adminBase
+  if (isAdminEndpoint(url)) {
+    return adminBase(args as FetchArgs, api, extraOptions);
+  }
+
+  // 2️⃣ Otherwise use authBase + refresh logic
+  let result = await authBase(args, api, extraOptions);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const err = result.error as any;
+  const statusCode: number | undefined = err?.data?.statusCode;
 
   const requestUrl = typeof args === "string" ? args : args.url;
-
-  // 🚫 Don't try refreshing if it's login or register endpoint
   const skipRefresh = ["/login", "/register"].includes(requestUrl);
 
-  if (result.error && errorData?.statusCode === 401 && !skipRefresh) {
+  if (result.error && statusCode === 401 && !skipRefresh) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const retried = (extraOptions as any)?.__isRetryAttempt;
-    if (retried) {
-      console.warn("❌ Refresh retry already attempted, logging out.");
+    const alreadyRetried = (extraOptions as any)?.__isRetryAttempt;
+    if (alreadyRetried) {
       api.dispatch(logout());
-      // 🔁 Optional: Reload page if refresh token failed
-      //  showToast({ type: "error", message: "Session expired. Reloading..." });
-      //  setTimeout(() => {
-      //      window.location.reload(); // full app reload
-      //  }, 100);
       return result;
     }
 
-    const refreshResult = await baseQuery(
-      {
-        url: "/refresh-auth-token",
-        method: "POST",
-        credentials: "include",
-      },
+    // attempt token refresh
+    const refreshRes = await authBase(
+      { url: "/refresh-auth-token", method: "POST" },
       api,
       extraOptions
     );
 
-    const data = refreshResult.data as RefreshResponse;
-
-    if (data) {
-      const { access_token, refresh_token } = data;
-
-      const user: User = {
-        id: data.id,
-        name: data.name || "",
-        mobile: data.mobile,
-        role: castToUserRoles(data.role),
-        permissions: data.permissions,
-        mobile_confirmed: data.mobile_confirmed ?? false,
+    if (refreshRes.data) {
+      const data = refreshRes.data as {
+        access_token: string;
+        refresh_token: string;
+        id: string;
+        name?: string;
+        mobile: string;
+        role: UserRoleName[];
+        permissions: string[];
+        mobile_confirmed?: boolean;
       };
 
       api.dispatch(
         loginSuccess({
-          user,
-          token: access_token,
-          refreshToken: refresh_token,
+          user: {
+            id: data.id,
+            name: data.name || "",
+            mobile: data.mobile,
+            role: castToUserRoles(data.role),
+            permissions: data.permissions,
+            mobile_confirmed: data.mobile_confirmed ?? false,
+          },
+          token: data.access_token,
+          refreshToken: data.refresh_token,
         })
       );
 
-      // 🔁 Retry the original request once
-      result = await baseQuery(args, api, {
+      // retry original
+      result = await authBase(args, api, {
         ...extraOptions,
         __isRetryAttempt: true,
       });
     } else {
       api.dispatch(logout());
-
-      // // 🔁 Optional: Reload page if refresh token failed
-      // showToast({ type: "error", message: "Session expired. Reloading..." });
-      // setTimeout(() => {
-      //     window.location.reload(); // full app reload
-      // }, 100);
     }
-  } else if (errorData?.statusCode === 500) {
-    console.error("Server error");
   }
 
   return result;

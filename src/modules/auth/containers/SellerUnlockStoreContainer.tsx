@@ -1,45 +1,92 @@
+// src/containers/SellerUnlockStoreContainer.tsx
+import React, { useCallback, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { hashPassword } from "../../../common/utils/hashPassword";
-import { LoginFormData } from "../components/LoginForm";
 import SellerUnlockStoreForm from "../components/SellerUnlockStoreForm";
 import { useAuth } from "../contexts/AuthContext";
+import { SellerUnlockStoreFormValues } from "../schemas/sellerUnlockStoreSchema";
 
-const SellerUnlockStoreContainer = () => {
-  const { login, logout } = useAuth();
-  const navigate = useNavigate(); // ✅ Safe now
+const SellerUnlockStoreContainer: React.FC = () => {
+  const {
+    userDetails,
+    logout,
+    checkDomainAvailability,
+    saveDomain,
+    refetchUserDetails,
+  } = useAuth();
 
-  const handleLogin = async (data: LoginFormData) => {
-    const hashedPassword = await hashPassword(data.password); // 👈 hash it
-    const { needsOtp, role } = await login(data.mobile, hashedPassword);
-    console.log(needsOtp, "LoginContainer - needsOtp");
-    console.log(role, "LoginContainer - role");
+  const navigate = useNavigate();
+  const [saving, setSaving] = useState(false);
 
-    if (needsOtp) {
-      navigate("/otp-verify");
-    } else {
-      // 👇 Route based on role
-      const firstRole = role?.[0];
-      switch (firstRole) {
-        case "ADMIN":
-          navigate("/admin");
-          break;
-        case "SELLER":
-          navigate("/seller");
-          break;
-        default:
-          navigate("/home");
+  const memoizedCheckAvailability = useCallback(
+    (name: string) => checkDomainAvailability(name),
+    [checkDomainAvailability]
+  );
+
+  // const handleUnlock = async (data: SellerUnlockStoreFormValues) => {
+  //   console.log("👉 handleUnlock triggered with:", data);
+
+  //   setSaving(true);
+  //   const slug = data.businessName.trim().toLowerCase();
+
+  //   const userData = userDetails?.data;
+  //   const businessId = userData?.storeLinks?.[0]?.businessId ?? "";
+
+  //   try {
+  //     if (!businessId) {
+  //       throw new Error("No business ID available");
+  //     }
+
+  //     await saveDomain({
+  //       businessId,
+  //       domainUrl: slug,
+  //       domainType: "SUBDOMAIN",
+  //     });
+
+  //     navigate("/seller");
+  //   } catch (err) {
+  //     console.error("Failed to unlock store:", err);
+  //   } finally {
+  //     setSaving(false);
+  //   }
+  // };
+
+  const handleUnlock = async (data: SellerUnlockStoreFormValues) => {
+    setSaving(true);
+    const slug = data.businessName.trim().toLowerCase();
+
+    const businessId = userDetails?.data.storeLinks?.[0]?.businessId ?? "";
+
+    try {
+      if (!businessId) {
+        throw new Error("No business ID available");
       }
+
+      const saved = await saveDomain({
+        businessId,
+        domainUrl: slug,
+        domainType: "SUBDOMAIN",
+      });
+
+      if (saved) {
+        console.log("✅ Domain saved");
+        // 🔁 force refresh user profile from server
+        await refetchUserDetails(); // now works
+        navigate("/seller");
+      }
+    } catch (err) {
+      console.error("Failed to unlock store:", err);
+    } finally {
+      setSaving(false);
     }
   };
 
   return (
-    <>
-      <SellerUnlockStoreForm onSubmit={handleLogin} logout={logout} />
-      {/* 
-      {loading && <p className="text-gray-500 text-sm mt-2">Logging in...</p>}
-      {error && <p className="text-red-500 text-sm mt-2">{error}</p>} 
-      */}
-    </>
+    <SellerUnlockStoreForm
+      onSubmit={handleUnlock}
+      logout={logout}
+      checkAvailability={memoizedCheckAvailability}
+      isSubmitting={saving}
+    />
   );
 };
 

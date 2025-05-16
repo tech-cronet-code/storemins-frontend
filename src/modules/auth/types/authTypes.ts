@@ -15,9 +15,19 @@ export type User = {
   refresh_token?: string;
   mobile_confirmed?: boolean; // ✅ Add this
   otpExpiresAt?: string; // ✅ add this
-  storeLinks?: object[];
+  storeLinks?: StoreLink[];
+  isDomainLinked?: boolean;
 };
 
+export interface StoreLink {
+  id:          string;
+  userId:      string;
+  businessId:  string;
+  role:        string;
+  tenantId:    string;
+}
+
+  
 // export type GetMyProfileDto = {
 //   id: string;
 //   name: string;

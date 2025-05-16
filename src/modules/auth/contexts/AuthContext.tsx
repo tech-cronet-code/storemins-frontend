@@ -9,16 +9,25 @@ import {
 import { useDispatch, useSelector } from "react-redux";
 import { AppDispatch, RootState } from "../../../common/state/store";
 import { UserRoleName } from "../constants/userRoles";
+import { useBusinessDetails } from "../hooks/useBusinessStoreDetails";
 import { useConfirmOtp } from "../hooks/useConfirmOtp";
+import { useDomain } from "../hooks/useDomainOperations";
 import { useLogin } from "../hooks/useLogin";
 import { useRegister } from "../hooks/useRegister";
 import { useGetUserDetailsQuery } from "../services/authApi";
 import { logout, setUser } from "../slices/authSlice";
 import { User } from "../types/authTypes";
+import {
+  BusinessDetailsRequestDto,
+  BusinessDetailsResponseDto,
+} from "../types/businessStoreTypes";
+import { DomainRequestDto, DomainResponseDto } from "../types/domainTypes";
 
 interface AuthContextType {
   user: User | null;
   userDetails: User | undefined;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  refetchUserDetails: () => Promise<any>; // ✅ Add this line
   login: (
     email: string,
     password: string
@@ -37,6 +46,12 @@ interface AuthContextType {
   logout: () => void;
   loading: boolean;
   error: string | null;
+  createOrUpdateBusinessDetails: (
+    payload: BusinessDetailsRequestDto
+  ) => Promise<BusinessDetailsResponseDto>;
+
+  checkDomainAvailability: (slug: string) => Promise<"available" | "taken">;
+  saveDomain: (dto: DomainRequestDto) => Promise<DomainResponseDto>;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -47,9 +62,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     (state: RootState) => state.auth
   );
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const {
+    createOrUpdate,
+    isLoading: savingBusiness,
+    error: businessError,
+  } = useBusinessDetails();
+
   const loginHook = useLogin();
   const registerHook = useRegister();
   const confirmOtpHook = useConfirmOtp();
+  // ➊ pull in domain helpers
+  const { checkDomainAvailability, saveDomain } = useDomain();
 
   const { data: userDetails, refetch } = useGetUserDetailsQuery(undefined, {
     skip: !token,
@@ -100,22 +124,30 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     () => ({
       user,
       userDetails: userDetails,
+      refetchUserDetails: refetch, // ✅ expose here
       login: loginHook.login,
       register: registerHook.register,
       confirmOtp: confirmOtpHook.confirm,
       logout: handleLogout,
       loading,
       error,
+      createOrUpdateBusinessDetails: createOrUpdate,
+      checkDomainAvailability,
+      saveDomain,
     }),
     [
       user,
       userDetails,
+      refetch,
       loginHook.login,
       registerHook.register,
       confirmOtpHook.confirm,
       handleLogout,
       loading,
       error,
+      createOrUpdate,
+      checkDomainAvailability,
+      saveDomain,
     ]
   );
 
