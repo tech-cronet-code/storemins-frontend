@@ -1,5 +1,82 @@
 @import "tailwindcss";
 
+@theme {
+  --color-01: #020253;
+  --color-02: #0052b4;
+  --color-03: #f7f7fc;
+  --color-04: #2c3647;
+  --color-05: #e5dfff;
+}
+
+/* global.css or tailwind config @apply */
+/* .form-input {
+  @apply w-full px-4 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#7F56D9];
+} */
+
+/* e.g., in global.css or as custom Tailwind plugin */
+.form-input-style {
+  @apply w-full px-4 py-3 border border-gray-300 rounded-md text-sm;
+}
+
+.btn-primary {
+  @apply w-full bg-[#7F56D9] text-white py-3 rounded-md text-sm hover:bg-[#6845c4] transition;
+}
+
+.social-icon {
+  @apply p-2 w-10 h-10 border border-gray-300 rounded-full flex items-center justify-center hover:bg-gray-100 text-lg;
+}
+
+
+@keyframes enter {
+  from {
+    opacity: 0;
+    transform: translateY(-10px) scale(0.95);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes leave {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+
+  to {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.95);
+  }
+}
+
+.animate-enter {
+  animation: enter 0.25s ease-out forwards;
+}
+
+.animate-leave {
+  animation: leave 0.2s ease-in forwards;
+}
+
+/* Add this in your tailwind.css or global CSS */
+@keyframes slide-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-slide-in-up {
+  animation: slide-in-up 0.3s ease-out;
+}
+
+
 /* :root {
   font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
   line-height: 1.5;

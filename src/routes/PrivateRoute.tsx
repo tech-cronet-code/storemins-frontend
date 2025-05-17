@@ -1,10 +1,20 @@
-// src/routes/PrivateRoute.tsx
-import { useAuth } from "../modules/user/auth/context/AuthContext";
 import { Navigate, Outlet } from "react-router-dom";
+import { useAuth } from "../modules/auth/contexts/AuthContext";
 
 const PrivateRoute = () => {
-  const { user } = useAuth();
-  return user ? <Outlet /> : <Navigate to="/login" />;
+  const { user, loading } = useAuth();
+
+  if (loading) return <div>Loading...</div>;
+  console.log("PrivateRoute loaded", user);
+
+  if (!user) return <Navigate to="/home" replace />;
+
+  if (user.mobile_confirmed  === false) {
+    return <Navigate to="/otp-verify" replace />;
+  }
+
+  return <Outlet />;
 };
 
 export default PrivateRoute;
+ 

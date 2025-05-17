@@ -1,10 +1,17 @@
 // src/routes/AdminRoute.tsx
-import { useAuth } from "../modules/user/auth/context/AuthContext";
-import { Navigate, Outlet } from "react-router-dom";
+import { Outlet } from "react-router-dom";
+import { useAuth } from "../modules/auth/contexts/AuthContext";
+import { UserRoleName } from "../modules/auth/constants/userRoles";
 
 const AdminRoute = () => {
-  const { user } = useAuth();
-  return user?.role === "admin" ? <Outlet /> : <Navigate to="/" />;
+  const { user,loading } = useAuth();
+
+    if (loading) return <div>Loading...</div>;
+  
+    if (Array.isArray(user?.role) && user.role.includes(UserRoleName.SUPERADMIN)) {
+      return <Outlet />;
+    }
+  // return user?.role === "SUPERADMIN" ? <Outlet /> : <Navigate to="/" />;
 };
 
 export default AdminRoute;

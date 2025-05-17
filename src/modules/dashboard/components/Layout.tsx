@@ -3,9 +3,10 @@ import { Outlet } from "react-router-dom";
 import Sidebar from "./Sidebar";
 import Header from "./Header";
 import Footer from "./Footer";
+import { UserRoleName } from "../../auth/constants/userRoles";
 
 interface LayoutProps {
-  role: "seller" | "admin";
+  role: UserRoleName;
   children?: ReactNode;
 }
 

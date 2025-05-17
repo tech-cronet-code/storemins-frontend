@@ -1,0 +1,200 @@
+import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { z } from "zod";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { IoEyeOutline, IoEyeOffOutline } from "react-icons/io5";
+import { FaGoogle, FaFacebookF, FaXTwitter, FaApple } from "react-icons/fa6";
+import { UserRoleName } from "../constants/userRoles";
+// import RegisterLoginToggleBtn from "../../../components/UI/Toggles/RegisterLoginToggle";
+
+// eslint-disable-next-line react-refresh/only-export-components
+export const registerSchema = z
+  .object({
+    name: z.string().min(1, "Name is required"),
+    mobile: z
+      .string()
+      .min(10, "Mobile number must be at least 10 digits")
+      .regex(/^\d+$/, "Mobile number must be numeric"),
+    pass_hash: z.string().min(6, "Password must be at least 6 characters"),
+    confirmPassword: z.string().min(6, "Confirm password is required"),
+    isTermAndPrivarcyEnable: z.literal(true, {
+      errorMap: () => ({
+        message: "You must accept the Terms and Privacy Policy",
+      }),
+    }),
+    role: z.nativeEnum(UserRoleName),
+  })
+  .refine((data) => data.pass_hash === data.confirmPassword, {
+    path: ["confirmPassword"],
+    message: "Passwords do not match",
+  });
+
+export type RegisterFormData = z.infer<typeof registerSchema>;
+
+interface RegisterFormProps {
+  onSubmit: (data: RegisterFormData) => void;
+}
+
+const RegisterForm = ({ onSubmit }: RegisterFormProps) => {
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
+  // const [isRegister, setIsRegister] = useState(false);
+
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<RegisterFormData>({
+    resolver: zodResolver(registerSchema),
+  });
+
+  return (
+    <>
+
+      {/* Form */}
+      <form className="space-y-4" onSubmit={handleSubmit(onSubmit)}>
+        <input type="hidden" value="SELLER" {...register("role")} />
+
+        <div className="flex-1">
+          <input
+            {...register("name")}
+            placeholder="Name"
+            className="form-input-style"
+          />
+          {errors.name && (
+            <p className="text-red-500 text-sm">{errors.name.message}</p>
+          )}
+        </div>
+
+        <div className="flex-1">
+          <input
+            {...register("mobile")}
+            placeholder="Mobile number"
+            className="form-input-style w-full"
+          />
+          {errors.mobile && (
+            <p className="text-red-500 text-sm">{errors.mobile.message}</p>
+          )}
+        </div>
+
+        <div className="relative flex-1">
+          <input
+            {...register("pass_hash")}
+            type={showPassword ? "text" : "password"}
+            placeholder="Password"
+            className="form-input-style w-full"
+          />
+          <button
+            type="button"
+            onClick={() => setShowPassword(!showPassword)}
+            className="absolute top-3 right-3 text-gray-500"
+          >
+            {showPassword ? (
+              <IoEyeOutline size={18} />
+            ) : (
+              <IoEyeOffOutline size={18} />
+            )}
+          </button>
+          {errors.pass_hash && (
+            <p className="text-red-500 text-sm">{errors.pass_hash.message}</p>
+          )}
+        </div>
+
+        <div className="relative flex-1">
+          <input
+            {...register("confirmPassword")}
+            type={showConfirm ? "text" : "password"}
+            placeholder="Confirm password"
+            className="form-input-style w-full pr-10"
+          />
+          <button
+            type="button"
+            onClick={() => setShowConfirm(!showConfirm)}
+            className="absolute top-3 right-3 text-gray-500"
+          >
+            {showConfirm ? (
+              <IoEyeOutline size={18} />
+            ) : (
+              <IoEyeOffOutline size={18} />
+            )}
+          </button>
+          {errors.confirmPassword && (
+            <p className="text-red-500 text-sm">
+              {errors.confirmPassword.message}
+            </p>
+          )}
+        </div>
+
+        <label className="flex items-start gap-2 text-sm text-gray-600">
+          <input
+            type="checkbox"
+            {...register("isTermAndPrivarcyEnable")}
+            className="mt-1"
+          />
+          <span>
+            I agree with{" "}
+            <a href="#" className="text-blue-600 underline">
+              Terms
+            </a>{" "}
+            and{" "}
+            <a href="#" className="text-blue-600 underline">
+              Privacy Policy
+            </a>
+            .
+          </span>
+        </label>
+        {errors.isTermAndPrivarcyEnable && (
+          <p className="text-red-500 text-sm">
+            {errors.isTermAndPrivarcyEnable.message}
+          </p>
+        )}
+
+        <button type="submit" className="btn-primary w-full">
+          Register
+        </button>
+      </form>
+
+      {/* FORM */}
+
+      <div className="flex gap-4">
+        {/* Social Login */}
+        <div className="flex items-center justify-center mt-6">
+          <hr className="border-t border-gray-200 w-full" />
+          <span className="px-3 text-sm text-gray-500">Or register with</span>
+          <hr className="border-t border-gray-200 w-full" />
+        </div>
+
+        <div className="flex justify-center gap-4 mt-4">
+          <button className="border border-gray-300 px-4 py-2 rounded-md text-sm hover:bg-gray-50 transition">
+            <FaGoogle className="text-[#EA4335] text-base" />
+          </button>
+          <button className="border border-gray-300 px-4 py-2 rounded-md text-sm hover:bg-gray-50 transition">
+            <FaFacebookF className="text-[#1877F2] text-base" />
+          </button>
+          <button className="border border-gray-300 px-4 py-2 rounded-md text-sm hover:bg-gray-50 transition">
+            <FaXTwitter className="text-base" />
+          </button>
+          <button className="border border-gray-300 px-4 py-2 rounded-md text-sm hover:bg-gray-50 transition">
+            <FaApple className="text-base" />
+          </button>
+        </div>
+
+      </div>
+      {/* Already have an account */}
+      <div>
+        <p className="text-center text-sm mt-6">
+          Already have an account?{" "}
+          <button
+            type="button"
+            // onClick={() => setIsRegister(false)}
+            className="text-[#7F56D9] underline"
+          >
+            Login
+          </button>
+        </p>
+      </div>
+    </>
+  );
+};
+
+export default RegisterForm;

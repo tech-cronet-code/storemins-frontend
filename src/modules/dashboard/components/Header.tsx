@@ -1,12 +1,14 @@
-// src/modules/dashboard/components/Header.tsx
-import { useAuth } from '../../user/auth/context/AuthContext';
+import React from "react";
+import { useAuth } from "../../auth/contexts/AuthContext";
 
 const Header = () => {
   const { user, logout } = useAuth();
 
+  console.log(user, "useruseruseruser");
+
   return (
     <div className="bg-white shadow p-4 flex justify-between items-center">
-      <h1 className="text-xl font-bold">Welcome, {user?.email}</h1>
+      <h1 className="text-xl font-bold">Welcome, {user?.name}</h1>
       <button
         onClick={logout}
         className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
@@ -17,4 +19,4 @@ const Header = () => {
   );
 };
 
-export default Header;
+export default React.memo(Header);

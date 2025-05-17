@@ -1,32 +1,40 @@
 {
   "name": "storemins-frontend",
   "private": true,
-  "version": "0.0.0",
+  "version": "0.0.1",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "tsc -b && vite build",
-    "lint": "eslint .",
-    "preview": "vite preview"
-  },
+  "dev": "vite",
+  "build": "tsc -b && vite build",
+  "start": "npx serve -s dist",       
+  "lint": "eslint .",
+  "prod": "vite preview"
+},
   "dependencies": {
     "@hookform/resolvers": "^4.1.0",
     "@reduxjs/toolkit": "^2.5.1",
     "@tailwindcss/cli": "^4.0.7",
-    "@tailwindcss/vite": "^4.0.7",
+    "@tailwindcss/vite": "^4.0.9",
     "@tanstack/react-query": "^5.66.7",
+    "argon2-browser": "^1.18.0",
+    "argon2-wasm": "^0.9.0",
     "autoprefixer": "^10.4.20",
+    "jwt-decode": "^4.0.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-hook-form": "^7.54.2",
+    "react-hot-toast": "^2.5.2",
+    "react-icons": "^5.5.0",
     "react-redux": "^9.2.0",
     "react-router-dom": "^7.2.0",
-    "tailwindcss": "^4.0.7",
+    "tailwindcss": "^4.0.9",
     "zod": "^3.24.2"
   },
   "devDependencies": {
     "@eslint/js": "^9.19.0",
     "@tailwindcss/postcss": "^4.0.7",
+    "@types/argon2-browser": "^1.18.4",
+    "@types/node": "^22.14.0",
     "@types/react": "^19.0.8",
     "@types/react-dom": "^19.0.3",
     "@vitejs/plugin-react": "^4.3.4",
@@ -36,6 +44,8 @@
     "globals": "^15.14.0",
     "typescript": "~5.7.2",
     "typescript-eslint": "^8.22.0",
-    "vite": "^6.1.0"
+    "vite": "^6.1.0",
+    "vite-plugin-top-level-await": "^1.5.0",
+    "vite-plugin-wasm": "^3.4.1"
   }
 }
