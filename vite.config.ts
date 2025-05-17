@@ -8,7 +8,6 @@ export default defineConfig(({ mode }) => {
 
   return {
     base: "/", // ✅ for Railway root hosting; change if using subfolder hosting
-
     plugins: [
       react(),
       tailwindcss(),

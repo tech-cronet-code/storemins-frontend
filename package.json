@@ -4,11 +4,12 @@
   "version": "0.0.1",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "tsc -b && vite build",
-    "lint": "eslint .",
-    "prod": "vite preview"
-  },
+  "dev": "vite",
+  "build": "tsc -b && vite build",
+  "start": "npx serve -s dist",       
+  "lint": "eslint .",
+  "prod": "vite preview"
+},
   "dependencies": {
     "@hookform/resolvers": "^4.1.0",
     "@reduxjs/toolkit": "^2.5.1",
