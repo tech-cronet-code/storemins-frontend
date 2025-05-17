@@ -21,7 +21,7 @@ export const store = configureStore({
       },
       immutableCheck: true,
     }).concat(apiClient.middleware),
-  devTools: import.meta.env.MODE === "development", // 🔒 disable Redux DevTools in production
+  devTools: import.meta.env.VITE_MODE === "development", // 🔒 disable Redux DevTools in production
 });
 
 // Typings

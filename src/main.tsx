@@ -7,7 +7,7 @@ import { store } from "./common/state/store";
 import { StrictMode } from "react";
 import { AuthProvider } from "./modules/auth/contexts/AuthContext.tsx";
 
-if (import.meta.env.MODE === "production") {
+if (import.meta.env.VITE_MODE === "production") {
   console.log = () => {};
   console.debug = () => {};
   console.info = () => {};

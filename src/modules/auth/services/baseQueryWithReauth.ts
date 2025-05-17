@@ -6,7 +6,15 @@ import { loginSuccess, logout } from "../slices/authSlice";
 import { UserRoleName } from "../constants/userRoles";
 import { castToUserRoles } from "../../../common/utils/common";
 
-const API_ROOT = import.meta.env.VITE_PUBLIC_API_URL_RUNTIME;
+const isDev = import.meta.env.VITE_MODE === "development";
+
+const API_ROOT = isDev
+  ? import.meta.env.VITE_PUBLIC_API_URL_RUNTIME_LOCAL
+  : import.meta.env.VITE_PUBLIC_API_URL_RUNTIME_LIVE;
+
+export const IMAGE_URL = isDev
+  ? import.meta.env.VITE_PUBLIC_IMAGE_URL_LOCAL
+  : import.meta.env.VITE_PUBLIC_IMAGE_URL_LIVE;
 
 // ➊ “Auth” base (prefixes `/auth`, adds headers)
 const authBase = fetchBaseQuery({
