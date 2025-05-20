@@ -1,6 +1,8 @@
 // src/App.tsx
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import "./index.css";
+import "swiper/css";
+import "swiper/css/pagination";
 
 // Routes
 import AdminRoute from "./routes/AdminRoute";
@@ -16,6 +18,7 @@ import AdminDashboard from "./modules/dashboard/pages/AdminDashboard";
 import SellerDashboard from "./modules/dashboard/pages/SellerDashboard";
 import OtpRoute from "./routes/OtpRoute";
 import SellerStoreDetailsPage from "./modules/auth/pages/SellerStoreDetailsPage";
+import UserSettingsPage from "./modules/seller/pages/UserSettingsPage";
 // import AuthFormPage from "./modules/auth/pages/AuthForm";
 
 const App = () => {
@@ -37,7 +40,7 @@ const App = () => {
         <Route path="/otp-verify" element={<OtpRoute />}>
           <Route index element={<AuthOTPVerifyPage />} />
         </Route>
-        {/* ✅ Protected Routes */}
+        {/* Protected Routes */}
         <Route element={<PrivateRoute />}>
           <Route element={<SellerRoute />}>
             <Route path="/seller/" element={<SellerDashboard />} />
@@ -45,13 +48,13 @@ const App = () => {
               path="/seller/store-details"
               element={<SellerStoreDetailsPage />}
             />
-            {/* <Route
-              path="/seller/store-details"
-              element={<SellerStoreDetailsPage />}
-            /> */}
             <Route
               path="/seller/store-unlock"
               element={<SellerUnlockStorePage />}
+            />
+             <Route
+              path="/seller/user-settings"
+              element={<UserSettingsPage />}
             />
           </Route>
           <Route element={<AdminRoute />}>

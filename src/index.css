@@ -26,6 +26,15 @@
   @apply p-2 w-10 h-10 border border-gray-300 rounded-full flex items-center justify-center hover:bg-gray-100 text-lg;
 }
 
+/* Optional: global.css or app.css */
+.scrollbar::-webkit-scrollbar {
+  display: block !important;
+}
+
+/* Hide scrollbar but keep scroll functionality (cross-browser) */
+::-webkit-scrollbar {
+  display: none;
+}
 
 @keyframes enter {
   from {
@@ -75,7 +84,6 @@
 .animate-slide-in-up {
   animation: slide-in-up 0.3s ease-out;
 }
-
 
 /* :root {
   font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
