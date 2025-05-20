@@ -1,8 +1,8 @@
-import React, { useState } from "react";
-import SettingsTabNav from "../components/SettingsTabNav";
-import UserSettingsForm from "../components/UserSettingsForm";
+import { useState } from "react";
 import PreferencesForm from "../components/PreferencesForm";
 import SecurityForm from "../components/SecurityForm";
+import SettingsTabNav from "../components/SettingsTabNav";
+import UserSettingsForm from "../components/UserSettingsForm";
 // import PreferencesForm from "../components/PreferencesForm";
 
 const TAB_CONFIG = [

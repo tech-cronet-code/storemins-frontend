@@ -1,27 +1,26 @@
-import React, { useEffect, useState } from "react";
-import { Link, useLocation } from "react-router-dom";
-import { useNavigate } from "react-router-dom"; // ✅
 import {
-  Home,
-  Box,
   BarChart2,
-  FileText,
-  Layout,
-  Truck,
-  Grid,
-  Percent,
-  Users,
-  Settings,
-  ShoppingCart,
-  CreditCard,
-  Wallet,
-  Gem,
-  Circle,
+  Box,
   ChevronDown,
-  ChevronUp,
   ChevronLeft,
   ChevronRight,
+  ChevronUp,
+  Circle,
+  CreditCard,
+  FileText,
+  Gem,
+  Grid,
+  Home,
+  Layout,
+  Percent,
+  Settings,
+  ShoppingCart,
+  Truck,
+  Users,
+  Wallet,
 } from "lucide-react";
+import React, { useEffect, useState } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { UserRoleName } from "../../auth/constants/userRoles";
 
 interface SidebarProps {
@@ -120,7 +119,7 @@ const menuItems = [
   },
 ];
 
-const Sidebar = ({ role, collapsed, setCollapsed }: SidebarProps) => {
+const Sidebar = ({ collapsed, setCollapsed }: SidebarProps) => {
   const navigate = useNavigate(); // ✅
 
   const location = useLocation();

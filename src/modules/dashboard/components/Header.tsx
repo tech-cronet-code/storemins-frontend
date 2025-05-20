@@ -1,9 +1,9 @@
-import React, { useEffect, useRef, useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
 import { HelpCircle, Search } from "lucide-react";
+import React, { useEffect, useRef, useState } from "react";
 import { FaUserCircle } from "react-icons/fa";
 import { MdNotificationsNone } from "react-icons/md";
 import { RiSettings3Fill } from "react-icons/ri";
+import { useLocation, useNavigate } from "react-router-dom";
 import UserProfileMenu from "./UserProfileMenu";
 
 interface HeaderProps {
@@ -11,7 +11,7 @@ interface HeaderProps {
   setCollapsed?: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
-const Header = ({ collapsed, setCollapsed }: HeaderProps) => {
+const Header = ({}: HeaderProps) => {
   const [isOnline, setIsOnline] = useState(true);
   const [showProfile, setShowProfile] = useState(false);
   const [imageError, setImageError] = useState(false);
