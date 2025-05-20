@@ -1,4 +1,5 @@
-import { ReactNode } from "react";
+// Layout.tsx
+import React, { ReactNode, useEffect, useState } from "react";
 import { Outlet } from "react-router-dom";
 import Sidebar from "./Sidebar";
 import Header from "./Header";
@@ -11,11 +12,27 @@ interface LayoutProps {
 }
 
 const Layout = ({ role, children }: LayoutProps) => {
+  const [collapsed, setCollapsed] = useState(false);
+
+  useEffect(() => {
+    const handleResize = () => {
+      setCollapsed(window.innerWidth < 768);
+    };
+    handleResize();
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
   return (
-    <div className="flex min-h-screen">
-      <Sidebar role={role} />
-      <div className="flex-1 flex flex-col">
-        <Header />
+    <div className="flex min-h-screen bg-gray-50">
+      <Sidebar role={role} collapsed={collapsed} setCollapsed={setCollapsed} />
+
+      <div
+        className={`flex flex-col min-w-0 flex-1 transition-all duration-300 ${
+          collapsed ? "ml-[72px]" : "ml-64"
+        }`}
+      >
+        <Header collapsed={collapsed} setCollapsed={setCollapsed} />
         <main className="flex-1 p-4">{children || <Outlet />}</main>
         <Footer />
       </div>
