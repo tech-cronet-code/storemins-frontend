@@ -1,13 +1,13 @@
-import { createPortal } from "react-dom";
-import { useState } from "react";
 import {
+  ArrowLeft,
+  GripVertical,
+  HelpCircle,
   Pencil,
   Trash2,
-  GripVertical,
-  ArrowLeft,
   X,
-  HelpCircle,
 } from "lucide-react";
+import { useState } from "react";
+import { createPortal } from "react-dom";
 import ToggleSwitch from "./ToggleSwitch";
 import AddFieldForm from "./products/AddFieldForm";
 import ConfirmationModal from "./products/ConfirmationModal";
