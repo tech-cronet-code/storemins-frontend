@@ -11,6 +11,7 @@ interface HeaderProps {
   setCollapsed?: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
+// eslint-disable-next-line no-empty-pattern
 const Header = ({}: HeaderProps) => {
   const [isOnline, setIsOnline] = useState(true);
   const [showProfile, setShowProfile] = useState(false);

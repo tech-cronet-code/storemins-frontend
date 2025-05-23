@@ -37,6 +37,24 @@ const menuItems = [
     path: "/products",
     whiteDot: false,
     active: false,
+    hasChildren: true,
+    children: [
+      {
+        label: "All Products",
+        path: "/seller/catalogue/products",
+        icon: <Box size={16} />,
+      },
+      {
+        label: "Categories",
+        path: "/seller/catalogue/categories",
+        icon: <Grid size={16} />,
+      },
+      {
+        label: "Inventory",
+        path: "/seller/catalogue/inventory",
+        icon: <Truck size={16} />,
+      },
+    ],
   },
   {
     label: "Analytics & Reports",
@@ -130,10 +148,45 @@ const Sidebar = ({ collapsed, setCollapsed }: SidebarProps) => {
     const handleResize = () => {
       setCollapsed(window.innerWidth < 768);
     };
+
     handleResize();
     window.addEventListener("resize", handleResize);
+
+    // Auto-expand parent if child is active
+    const newExpanded: Record<string, boolean> = {};
+
+    menuItems.forEach((item) => {
+      if (item.hasChildren) {
+        const isChildActive = item.children?.some(
+          (child: any) =>
+            location.pathname === child.path ||
+            location.pathname.startsWith(child.path)
+        );
+        if (isChildActive) {
+          newExpanded[item.label] = true;
+        }
+
+        // Also check nested children recursively
+        item.children?.forEach((sub: any) => {
+          if (sub.hasChildren) {
+            const isNestedChildActive = sub.children?.some(
+              (nested: any) =>
+                location.pathname === nested.path ||
+                location.pathname.startsWith(nested.path)
+            );
+            if (isNestedChildActive) {
+              newExpanded[item.label] = true;
+              newExpanded[`${item.label}-${sub.label}`] = true;
+            }
+          }
+        });
+      }
+    });
+
+    setExpanded((prev) => ({ ...prev, ...newExpanded }));
+
     return () => window.removeEventListener("resize", handleResize);
-  }, [setCollapsed]);
+  }, [setCollapsed, location.pathname]);
 
   const toggleExpand = (label: string) => {
     setExpanded((prev) => ({ ...prev, [label]: !prev[label] }));
@@ -154,13 +207,11 @@ const Sidebar = ({ collapsed, setCollapsed }: SidebarProps) => {
                 onClick={() => toggleExpand(`${parentLabel}-${sub.label}`)}
                 className="flex items-center justify-between cursor-pointer text-white/80 hover:text-white text-sm py-1"
               >
-                {!collapsed && <span className="pl-1">{sub.label}</span>}
-                {!collapsed &&
-                  (expanded[`${parentLabel}-${sub.label}`] ? (
-                    <ChevronUp size={14} />
-                  ) : (
-                    <ChevronDown size={14} />
-                  ))}
+                <div className="flex items-center gap-2">
+                  {sub.icon}
+                  <span>{sub.label}</span>
+                </div>
+                <ChevronDown size={14} />
               </div>
               {expanded[`${parentLabel}-${sub.label}`] &&
                 renderChildren(sub.children, `${parentLabel}-${sub.label}`)}
@@ -168,13 +219,14 @@ const Sidebar = ({ collapsed, setCollapsed }: SidebarProps) => {
           ) : (
             <Link
               to={sub.path}
-              className={`block py-1 text-sm ${
+              className={`flex items-center gap-2 py-1 text-sm ${
                 location.pathname === sub.path
                   ? "text-white font-semibold"
                   : "text-white/80 hover:text-white"
               } pl-3`}
               title={collapsed ? sub.label : ""}
             >
+              {sub.icon}
               {!collapsed && sub.label}
             </Link>
           )}
