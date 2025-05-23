@@ -142,9 +142,7 @@ const SellerProductsForm: React.FC = () => {
         {/* Header */}
         <div className="w-full flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-6">
           <div className="w-full flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-6">
-            <h1 className="text-[20px] md:text-[24px] font-bold text-[#111827]">
-              Products
-            </h1>
+            <h1 className="text-[20px] md:text-[24px] font-bold text-[#111827]"></h1>
             <div className="w-full md:w-auto inline-flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
               <div className="w-full sm:w-auto">
                 <BulkActionsDropdown />

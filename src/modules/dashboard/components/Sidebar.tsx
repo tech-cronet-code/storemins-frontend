@@ -28,6 +28,7 @@ interface SidebarProps {
   collapsed: boolean;
   setCollapsed: React.Dispatch<React.SetStateAction<boolean>>;
 }
+
 const menuItems = [
   { label: "Dashboard", icon: <Home />, path: "/seller", active: true },
   { label: "Orders", icon: <ShoppingCart />, path: "/orders", active: false },
@@ -138,21 +139,26 @@ const menuItems = [
 ];
 
 const Sidebar = ({ collapsed, setCollapsed }: SidebarProps) => {
-  const navigate = useNavigate(); // ✅
-
+  const navigate = useNavigate();
   const location = useLocation();
-  // const sidebarRef = useRef<HTMLDivElement | null>(null);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  const [hasMounted, setHasMounted] = useState(false);
 
+  // Only collapse once on first mount if screen is small
   useEffect(() => {
     const handleResize = () => {
-      setCollapsed(window.innerWidth < 768);
+      if (!hasMounted) {
+        setCollapsed(window.innerWidth < 768);
+        setHasMounted(true);
+      }
     };
-
     handleResize();
     window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, [hasMounted, setCollapsed]);
 
-    // Auto-expand parent if child is active
+  // Expand menu based on active route
+  useEffect(() => {
     const newExpanded: Record<string, boolean> = {};
 
     menuItems.forEach((item) => {
@@ -166,7 +172,6 @@ const Sidebar = ({ collapsed, setCollapsed }: SidebarProps) => {
           newExpanded[item.label] = true;
         }
 
-        // Also check nested children recursively
         item.children?.forEach((sub: any) => {
           if (sub.hasChildren) {
             const isNestedChildActive = sub.children?.some(
@@ -184,9 +189,7 @@ const Sidebar = ({ collapsed, setCollapsed }: SidebarProps) => {
     });
 
     setExpanded((prev) => ({ ...prev, ...newExpanded }));
-
-    return () => window.removeEventListener("resize", handleResize);
-  }, [setCollapsed, location.pathname]);
+  }, [location.pathname]);
 
   const toggleExpand = (label: string) => {
     setExpanded((prev) => ({ ...prev, [label]: !prev[label] }));
@@ -196,7 +199,6 @@ const Sidebar = ({ collapsed, setCollapsed }: SidebarProps) => {
     setCollapsed(!collapsed);
   };
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const renderChildren = (children: any[], parentLabel: string) => (
     <ul className={`${collapsed ? "hidden" : "pl-8"} mt-1 space-y-1`}>
       {children.map((sub) => (
@@ -262,20 +264,17 @@ const Sidebar = ({ collapsed, setCollapsed }: SidebarProps) => {
         </button>
       </div>
 
-      {/* Scrollable Menu */}
       <div
         className="flex-1 overflow-y-auto px-1"
         style={{ scrollbarWidth: "none" }}
       >
         <ul className="space-y-1">
           {menuItems.map((item) => {
-            // const isActive = location.pathname.startsWith(item.path);
             const isActive =
-              item.active || location.pathname.startsWith(item.path);
-            // const isActive =
-            //   item.label === "Dashboard"
-            //     ? true // ✅ force active for Dashboard only
-            //     : location.pathname.startsWith(item.path);
+              location.pathname === item.path ||
+              item.children?.some((child: any) =>
+                location.pathname.startsWith(child.path)
+              );
 
             return (
               <li key={item.path}>
@@ -283,8 +282,12 @@ const Sidebar = ({ collapsed, setCollapsed }: SidebarProps) => {
                   onClick={() => {
                     if (item.hasChildren) {
                       toggleExpand(item.label);
+                      const firstChild = item.children?.[0];
+                      if (firstChild?.path) {
+                        navigate(firstChild.path);
+                      }
                     } else if (item.path) {
-                      navigate(item.path); // ✅ redirect
+                      navigate(item.path);
                     }
                   }}
                   className={`flex items-center justify-between ${
@@ -344,7 +347,6 @@ const Sidebar = ({ collapsed, setCollapsed }: SidebarProps) => {
         </ul>
       </div>
 
-      {/* Footer */}
       {!collapsed && (
         <div className="mx-auto mt-4 mb-4 rounded-xl overflow-hidden">
           <div className="bg-gradient-to-r from-[#0f172a] to-[#1e293b] px-3 py-3 text-white shadow-md rounded-t-xl">
