@@ -1,8 +1,8 @@
 // src/App.tsx
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
-import "./index.css";
 import "swiper/css";
 import "swiper/css/pagination";
+import "./index.css";
 
 // Routes
 import AdminRoute from "./routes/AdminRoute";
@@ -13,12 +13,13 @@ import SellerRoute from "./routes/SellerRoute";
 // Pages
 import AuthFormPage from "./modules/auth/pages/AuthFormPage";
 import AuthOTPVerifyPage from "./modules/auth/pages/AuthOTPVerifyPage";
+import SellerStoreDetailsPage from "./modules/auth/pages/SellerStoreDetailsPage";
 import SellerUnlockStorePage from "./modules/auth/pages/SellerUnlockStorePage";
 import AdminDashboard from "./modules/dashboard/pages/AdminDashboard";
 import SellerDashboard from "./modules/dashboard/pages/SellerDashboard";
-import OtpRoute from "./routes/OtpRoute";
-import SellerStoreDetailsPage from "./modules/auth/pages/SellerStoreDetailsPage";
+import SellerProductsPage from "./modules/seller/pages/SellerProductsPage";
 import UserSettingsPage from "./modules/seller/pages/UserSettingsPage";
+import OtpRoute from "./routes/OtpRoute";
 // import AuthFormPage from "./modules/auth/pages/AuthForm";
 
 const App = () => {
@@ -55,6 +56,10 @@ const App = () => {
              <Route
               path="/seller/user-settings"
               element={<UserSettingsPage />}
+            />
+             <Route
+              path="/seller/catalogue/products"
+              element={<SellerProductsPage />}
             />
           </Route>
           <Route element={<AdminRoute />}>

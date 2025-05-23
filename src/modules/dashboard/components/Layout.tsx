@@ -5,6 +5,7 @@ import { UserRoleName } from "../../auth/constants/userRoles";
 import Footer from "./Footer";
 import Header from "./Header";
 import Sidebar from "./Sidebar";
+import ProductSettingsDrawer from "../../seller/components/ProductSettingsDrawer";
 
 interface LayoutProps {
   role: UserRoleName;
@@ -13,6 +14,7 @@ interface LayoutProps {
 
 const Layout = ({ role, children }: LayoutProps) => {
   const [collapsed, setCollapsed] = useState(false);
+  const [drawerOpen, setDrawerOpen] = useState(false); // 👈 Manage drawer state here
 
   useEffect(() => {
     const handleResize = () => {
@@ -24,7 +26,7 @@ const Layout = ({ role, children }: LayoutProps) => {
   }, []);
 
   return (
-    <div className="flex min-h-screen bg-gray-50">
+    <div className="flex min-h-screen bg-gray-50 relative">
       <Sidebar role={role} collapsed={collapsed} setCollapsed={setCollapsed} />
 
       <div
@@ -33,9 +35,17 @@ const Layout = ({ role, children }: LayoutProps) => {
         }`}
       >
         <Header collapsed={collapsed} setCollapsed={setCollapsed} />
-        <main className="flex-1 p-4">{children || <Outlet />}</main>
+        <main className="flex-1 p-4">
+          {children || <Outlet context={{ setDrawerOpen }} />}
+        </main>
         <Footer />
       </div>
+
+      {/* Drawer rendered here, OUTSIDE header/footer/main */}
+      <ProductSettingsDrawer
+        open={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
+      />
     </div>
   );
 };

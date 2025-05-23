@@ -31,6 +31,14 @@
   display: block !important;
 }
 
+.scrollbar-thin::-webkit-scrollbar {
+  width: 6px;
+}
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background-color: rgba(0, 0, 0, 0.2);
+  border-radius: 10px;
+}
+
 /* Hide scrollbar but keep scroll functionality (cross-browser) */
 ::-webkit-scrollbar {
   display: none;
