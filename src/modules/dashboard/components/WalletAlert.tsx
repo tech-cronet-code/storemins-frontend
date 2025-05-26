@@ -33,7 +33,7 @@ const WalletAlert: React.FC<WalletAlertProps> = ({
           </p>
           <p className="text-sm text-orange-700">
             To ensure seamless payouts and order updates, please maintain at
-            least 2500 credits in your Dukaan Wallet.
+            least 2500 credits in your StoreMins Wallet.
           </p>
         </div>
       </div>

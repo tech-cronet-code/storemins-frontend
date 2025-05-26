@@ -121,7 +121,7 @@ const SellerProductsForm: React.FC = () => {
     }
   };
 
-  const handleAddProduct = () => navigate("/products/create");
+  const handleAddProduct = () => navigate("/seller/catalogue/products/create");
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {

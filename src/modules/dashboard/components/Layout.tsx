@@ -44,9 +44,11 @@ const Layout = ({ role, children }: LayoutProps) => {
       {/* Drawer rendered here, OUTSIDE header/footer/main */}
       <ProductSettingsDrawer
         open={drawerOpen}
-        onClose={() => setDrawerOpen(false)} onCheckoutFieldSelect={function (): void {
+        onClose={() => setDrawerOpen(false)}
+        onCheckoutFieldSelect={function (): void {
           throw new Error("Function not implemented.");
-        } }      />
+        }}
+      />
     </div>
   );
 };

@@ -11,12 +11,15 @@ import PublicRoute from "./routes/PublicRoute";
 import SellerRoute from "./routes/SellerRoute";
 
 // Pages
+import { UserRoleName } from "./modules/auth/constants/userRoles";
 import AuthFormPage from "./modules/auth/pages/AuthFormPage";
 import AuthOTPVerifyPage from "./modules/auth/pages/AuthOTPVerifyPage";
 import SellerStoreDetailsPage from "./modules/auth/pages/SellerStoreDetailsPage";
 import SellerUnlockStorePage from "./modules/auth/pages/SellerUnlockStorePage";
+import Layout from "./modules/dashboard/components/Layout";
 import AdminDashboard from "./modules/dashboard/pages/AdminDashboard";
 import SellerDashboard from "./modules/dashboard/pages/SellerDashboard";
+import AddProductPage from "./modules/seller/components/products/AddProductPage";
 import SellerProductsPage from "./modules/seller/pages/SellerProductsPage";
 import UserSettingsPage from "./modules/seller/pages/UserSettingsPage";
 import OtpRoute from "./routes/OtpRoute";
@@ -53,14 +56,20 @@ const App = () => {
               path="/seller/store-unlock"
               element={<SellerUnlockStorePage />}
             />
-             <Route
+            <Route
               path="/seller/user-settings"
               element={<UserSettingsPage />}
             />
-             <Route
+            <Route
               path="/seller/catalogue/products"
               element={<SellerProductsPage />}
             />
+            <Route element={<Layout role={UserRoleName.SELLER} />}>
+              <Route
+                path="/seller/catalogue/products/create"
+                element={<AddProductPage />}
+              />
+            </Route>
           </Route>
           <Route element={<AdminRoute />}>
             <Route path="/admin/*" element={<AdminDashboard />} />

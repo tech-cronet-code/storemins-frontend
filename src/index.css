@@ -8,6 +8,15 @@
   --color-05: #e5dfff;
 }
 
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  /* overflow: hidden; Lock outer page scroll */
+}
+
 /* global.css or tailwind config @apply */
 /* .form-input {
   @apply w-full px-4 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#7F56D9];
