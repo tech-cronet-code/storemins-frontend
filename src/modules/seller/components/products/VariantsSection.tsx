@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { ChevronDown, ChevronUp, X, Trash2 } from "lucide-react";
 import { getColorName } from "../../common/utils";
+import EditVariantTable from "./EditVariantsTable";
 
 interface VariantOption {
   id: number;
@@ -10,6 +11,112 @@ interface VariantOption {
   activeColor: string;
 }
 
+interface VariantItem {
+  id: string;
+  color: string;
+  size: string;
+  price: string;
+  discountedPrice: string;
+  sku: string;
+  quantity: number;
+  weight: string;
+  weightUnit: string;
+  gtin: string;
+  googleCategory: string;
+  image: string; // remove the ?
+}
+
+
+const generatedVariants = [
+  {
+    id: "1",
+    color: "Green",
+    size: "10",
+    price: "₹20000",
+    discountedPrice: "₹10000",
+    sku: "1000000001",
+    quantity: 10,
+    weight: "1.2",
+    weightUnit: "kg",
+    gtin: "",
+    googleCategory: "",
+    image: "/placeholder.svg",
+  },
+  {
+    id: "2",
+    color: "Green",
+    size: "20",
+    price: "₹20000",
+    discountedPrice: "₹10000",
+    sku: "1000000002",
+    quantity: 20,
+    weight: "1.2",
+    weightUnit: "kg",
+    gtin: "",
+    googleCategory: "",
+    image: "/placeholder.svg",
+  },
+  {
+    id: "3",
+    color: "Green",
+    size: "30",
+    price: "₹20000",
+    discountedPrice: "₹10000",
+    sku: "1000000003",
+    quantity: 30,
+    weight: "1.2",
+    weightUnit: "kg",
+    gtin: "",
+    googleCategory: "",
+    image: "/placeholder.svg",
+  },
+  {
+    id: "4",
+    color: "Brown",
+    size: "10",
+    price: "₹20000",
+    discountedPrice: "₹10000",
+    sku: "1000000004",
+    quantity: 0, // Out of stock
+    weight: "1.2",
+    weightUnit: "kg",
+    gtin: "",
+    googleCategory: "",
+    image: "/placeholder.svg",
+  },
+  {
+    id: "5",
+    color: "Brown",
+    size: "20",
+    price: "₹20000",
+    discountedPrice: "₹10000",
+    sku: "1000000005",
+    quantity: 50,
+    weight: "1.2",
+    weightUnit: "kg",
+    gtin: "",
+    googleCategory: "",
+    image: "/placeholder.svg",
+  },
+  {
+    id: "6",
+    color: "Brown",
+    size: "30",
+    price: "₹20000",
+    discountedPrice: "₹10000",
+    sku: "1000000006",
+    quantity: 60,
+    weight: "1.2",
+    weightUnit: "kg",
+    gtin: "",
+    googleCategory: "",
+    image: "/placeholder.svg",
+  }
+];
+
+
+
+
 const VariantsSection: React.FC = () => {
   const [expanded, setExpanded] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
@@ -17,6 +124,8 @@ const VariantsSection: React.FC = () => {
     { id: 1, name: "", type: "custom", values: [], activeColor: "#000000" },
   ]);
   const [inputValues, setInputValues] = useState<{ [key: number]: string }>({});
+  const [variantList, setVariantList] = useState(generatedVariants); // add this state
+
 
   const addOption = () => {
     const newId = Date.now();
@@ -48,12 +157,12 @@ const VariantsSection: React.FC = () => {
       prev.map((opt) =>
         opt.id === id
           ? {
-              ...opt,
-              [field]: value,
-              ...(field === "type"
-                ? { values: [], activeColor: "#000000" }
-                : {}),
-            }
+            ...opt,
+            [field]: value,
+            ...(field === "type"
+              ? { values: [], activeColor: "#000000" }
+              : {}),
+          }
           : opt
       )
     );
@@ -97,6 +206,14 @@ const VariantsSection: React.FC = () => {
     }
   };
 
+  const selectedColors = [
+  ...new Set(variantList.map((item) => item.color).filter(Boolean)),
+];
+const selectedSizes = [
+  ...new Set(variantList.map((item) => item.size).filter(Boolean)),
+];
+
+
   return (
     <>
       <div className="bg-white border border-gray-200 rounded-xl shadow-sm transition-all duration-200">
@@ -121,14 +238,36 @@ const VariantsSection: React.FC = () => {
         </div>
 
         {expanded && (
-          <div className="border-t border-gray-200 px-6 py-6 text-center">
-            <button
-              type="button"
-              onClick={() => setModalOpen(true)}
-              className="text-[14px] font-medium text-[#0B5ED7] border border-gray-300 rounded-md px-4 py-2 hover:bg-gray-50 hover:border-gray-400 transition"
-            >
-              Add variants
-            </button>
+          <div className="border-t border-gray-200 px-6 py-6">
+            <div className="flex justify-center">
+              <button
+                type="button"
+                onClick={() => setModalOpen(true)}
+                className="text-[14px] font-medium text-[#0B5ED7] border border-gray-300 rounded-md px-4 py-2 hover:bg-gray-50 hover:border-gray-400 transition"
+              >
+                Edit or add variants
+              </button>
+            </div>
+
+            {/* 🔽 Insert EditVariantTable component here */}
+            <div className="mt-6">
+             <EditVariantTable
+  data={variantList}
+  onChange={(id, field, value) => {
+    setVariantList((prev) =>
+      prev.map((item) =>
+        item.id === id ? { ...item, [field]: value } : item
+      )
+    );
+  }}
+  onReorder={(reordered) =>
+    setVariantList(reordered as VariantItem[])
+  }
+  selectedColors={selectedColors}
+  selectedSizes={selectedSizes}
+/>
+
+            </div>
           </div>
         )}
       </div>
@@ -238,9 +377,9 @@ const VariantsSection: React.FC = () => {
                                     prev.map((option) =>
                                       option.id === opt.id
                                         ? {
-                                            ...option,
-                                            values: option.values.slice(0, -1),
-                                          }
+                                          ...option,
+                                          values: option.values.slice(0, -1),
+                                        }
                                         : option
                                     )
                                   );
@@ -269,20 +408,22 @@ const VariantsSection: React.FC = () => {
                             <input
                               type="text"
                               value={inputValues[opt.id] || ""}
-                              onChange={(e) =>
+                              onChange={(e) => {
+                                const value = e.target.value;
+                                // Restrict to numbers if type is size
+                                if (opt.type === "size" && /\D/.test(value)) return;
                                 setInputValues((prev) => ({
                                   ...prev,
-                                  [opt.id]: e.target.value,
-                                }))
-                              }
+                                  [opt.id]: value,
+                                }));
+                              }}
                               onKeyDown={(e) => {
                                 const input = inputValues[opt.id]?.trim();
 
-                                // Enter/comma/space to add
                                 if (["Enter", ",", " "].includes(e.key)) {
                                   e.preventDefault();
                                   if (input) {
-                                    addColor(opt.id, input);
+                                    addColor(opt.id, input); // you may rename this to addValue if needed
                                     setInputValues((prev) => ({
                                       ...prev,
                                       [opt.id]: "",
@@ -290,24 +431,25 @@ const VariantsSection: React.FC = () => {
                                   }
                                 }
 
-                                // Backspace to remove last
                                 if (e.key === "Backspace" && !input) {
                                   e.preventDefault();
                                   setOptions((prev) =>
                                     prev.map((option) =>
                                       option.id === opt.id
-                                        ? {
-                                            ...option,
-                                            values: option.values.slice(0, -1),
-                                          }
+                                        ? { ...option, values: option.values.slice(0, -1) }
                                         : option
                                     )
                                   );
                                 }
                               }}
-                              placeholder="Type and press Enter or ,"
+                              placeholder={
+                                opt.type === "size"
+                                  ? "Type a number and press Enter or ,"
+                                  : "Type and press Enter or ,"
+                              }
                               className="flex-1 min-w-[100px] outline-none bg-transparent"
                             />
+
                           </div>
                         )}
 

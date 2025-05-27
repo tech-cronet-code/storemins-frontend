@@ -21,10 +21,11 @@ const SEOSection: React.FC = () => {
         onClick={() => setExpanded(!expanded)}
       >
         <div>
-          <h3 className="text-sm font-semibold text-gray-800">StoreMins SEO</h3>
+          <h3 className="text-sm sm:text-base font-semibold text-gray-800">
+            StoreMins SEO
+          </h3>
           <p className="text-sm text-gray-500">
-            Optimize your product with meta tags to boost its visibility on
-            search engines.
+            Optimize your product with meta tags to boost visibility on search engines.
           </p>
         </div>
         {expanded ? (
@@ -35,9 +36,9 @@ const SEOSection: React.FC = () => {
       </div>
 
       {expanded && (
-        <div className="px-5 pb-6">
+        <div className="px-5 pb-6 space-y-5">
           {/* Title Field */}
-          <div className="mb-4">
+          <div>
             <label className="text-sm font-medium text-gray-700 block mb-1">
               Title Tag
             </label>
@@ -53,7 +54,7 @@ const SEOSection: React.FC = () => {
           </div>
 
           {/* Description Field */}
-          <div className="mb-4">
+          <div>
             <label className="text-sm font-medium text-gray-700 block mb-1">
               Meta Description Tag
             </label>
@@ -73,7 +74,7 @@ const SEOSection: React.FC = () => {
             <label className="text-sm font-medium text-gray-700 block mb-2">
               Social sharing image preview
             </label>
-            <div className="flex gap-4 border border-gray-300 rounded-md p-4 bg-white items-start">
+            <div className="flex flex-col md:flex-row gap-4 border border-gray-300 rounded-md p-4 bg-white">
               {/* Upload Box */}
               <div>
                 <input
@@ -85,11 +86,11 @@ const SEOSection: React.FC = () => {
                 />
                 <label
                   htmlFor="seoImage"
-                  className="bg-[#FAFAFA] border border-dashed border-gray-300 rounded-md w-[200px] h-[112px] flex flex-col items-center justify-center text-center text-sm text-blue-600 cursor-pointer"
+                  className="bg-[#FAFAFA] border border-dashed border-gray-300 rounded-md w-full sm:w-[200px] h-[112px] flex flex-col items-center justify-center text-center text-sm text-blue-600 cursor-pointer"
                 >
                   + Add image
                   <p className="text-xs text-gray-400 mt-1">
-                    (Recommended size : 1200 × 628 px)
+                    (Recommended: 1200 × 628 px)
                   </p>
                 </label>
               </div>
