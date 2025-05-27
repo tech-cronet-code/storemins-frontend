@@ -23,6 +23,7 @@ import SellerProductsCategoriesPage from "./modules/seller/pages/SellerProductsC
 import SellerProductsPage from "./modules/seller/pages/SellerProductsPage";
 import UserSettingsPage from "./modules/seller/pages/UserSettingsPage";
 import OtpRoute from "./routes/OtpRoute";
+import SellerProductsInventoryPage from "./modules/seller/pages/SellerProductsInventoryPage";
 // import AuthFormPage from "./modules/auth/pages/AuthForm";
 
 const App = () => {
@@ -72,10 +73,18 @@ const App = () => {
               path="/seller/catalogue/categories"
               element={<SellerProductsCategoriesPage />}
             />
-             <Route
+            <Route
               path="/seller/catalogue/categories/create"
               element={<AddCategoriesPage />}
             />
+            <Route
+              path="/seller/catalogue/inventory"
+              element={<SellerProductsInventoryPage />}
+            />
+            {/* <Route
+              path="/seller/catalogue/categories/create"
+              element={<AddCategoriesPage />}
+            /> */}
           </Route>
           <Route element={<AdminRoute />}>
             <Route path="/admin/*" element={<AdminDashboard />} />

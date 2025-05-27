@@ -12,7 +12,7 @@ interface HeaderProps {
 }
 
 // eslint-disable-next-line no-empty-pattern
-const Header = ({ }: HeaderProps) => {
+const Header = ({}: HeaderProps) => {
   const [isOnline, setIsOnline] = useState(true);
   const [showProfile, setShowProfile] = useState(false);
   const [imageError, setImageError] = useState(false);
@@ -55,6 +55,12 @@ const Header = ({ }: HeaderProps) => {
         hasChildren: false,
         path: "/categories",
       });
+    } else if (path.includes("/catalogue/inventory")) {
+      setTitleInfo({
+        label: "Inventory",
+        hasChildren: false,
+        path: "/inventory",
+      });
     } else if (path.includes("/orders")) {
       setTitleInfo({ label: "Orders", hasChildren: false, path: "/orders" });
     } else {
@@ -82,8 +88,9 @@ const Header = ({ }: HeaderProps) => {
       <div className="flex items-center justify-between gap-4 w-full overflow-visible">
         {/* Dynamic Title - Clickable only if it doesn't have children */}
         <div
-          className={`text-base md:text-lg lg:text-xl font-semibold text-[#1F2B6C] whitespace-nowrap ${titleInfo.hasChildren ? "cursor-default" : "cursor-pointer"
-            }`}
+          className={`text-base md:text-lg lg:text-xl font-semibold text-[#1F2B6C] whitespace-nowrap ${
+            titleInfo.hasChildren ? "cursor-default" : "cursor-pointer"
+          }`}
           onClick={() => {
             if (!titleInfo.hasChildren && titleInfo.path)
               navigate(titleInfo.path);
@@ -112,8 +119,9 @@ const Header = ({ }: HeaderProps) => {
               {isOnline ? "Online" : "Offline"}
             </span>
             <span
-              className={`w-5 h-5 rounded-full ${isOnline ? "bg-green-600" : "bg-red-500"
-                }`}
+              className={`w-5 h-5 rounded-full ${
+                isOnline ? "bg-green-600" : "bg-red-500"
+              }`}
             />
           </button>
 
