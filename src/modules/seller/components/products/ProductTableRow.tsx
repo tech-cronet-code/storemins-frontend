@@ -105,20 +105,17 @@ const ProductTableRow: React.FC<ProductRowProps> = ({
               onChange={toggleStatus}
             />
             <div
-              className={`w-10 h-5 rounded-full transition-colors duration-300 ${
-                active ? "bg-blue-600" : "bg-gray-300"
-              }`}
+              className={`w-10 h-5 rounded-full transition-colors duration-300 ${active ? "bg-blue-600" : "bg-gray-300"
+                }`}
             ></div>
             <div
-              className={`absolute left-0.5 top-0.5 w-4 h-4 bg-white rounded-full shadow-md transform transition-transform duration-300 ${
-                active ? "translate-x-5" : ""
-              }`}
+              className={`absolute left-0.5 top-0.5 w-4 h-4 bg-white rounded-full shadow-md transform transition-transform duration-300 ${active ? "translate-x-5" : ""
+                }`}
             ></div>
           </label>
           <span
-            className={`text-sm font-medium ${
-              active ? "text-green-600" : "text-red-500"
-            }`}
+            className={`text-sm font-medium ${active ? "text-green-600" : "text-red-500"
+              }`}
           >
             {active ? "Active" : "Hidden"}
           </span>
@@ -127,7 +124,7 @@ const ProductTableRow: React.FC<ProductRowProps> = ({
         {/* Actions */}
         <div className="flex items-center gap-1.5 justify-end w-[100px]">
           <button
-            onClick={() => {}}
+            onClick={() => { }}
             title="Preview"
             className="group w-8 h-8 rounded-full flex items-center justify-center text-gray-500 hover:text-blue-600 hover:bg-gray-100 transition"
           >
@@ -148,11 +145,13 @@ const ProductTableRow: React.FC<ProductRowProps> = ({
         </div>
       </div>
 
-      {/* Share Modal */}
       <ShareModal
         visible={isShareModalOpen}
         onClose={() => setShareModalOpen(false)}
+        type="product"
+        title={title}
       />
+
 
       {/* Delete Confirmation Modal */}
       <DeleteConfirmModal

@@ -26,7 +26,7 @@ const ProductTableHeader: React.FC<ProductTableHeaderProps> = ({
   };
 
   return (
-    <div className="w-full grid grid-cols-[40px_2.5fr_1fr_1fr_1fr_1fr_1fr] gap-4 px-2 py-3 border-b bg-white text-sm font-medium text-gray-600 border-gray-200">
+    <div className="w-full grid grid-cols-[40px_2.5fr_1fr_1fr_1fr_1fr_1fr] gap-4 px-2 py-3 border-b bg-gray-50 text-sm font-medium text-gray-600 border-gray-200">
       {/* Checkbox Column */}
       <div className="flex items-center justify-center">
         <input

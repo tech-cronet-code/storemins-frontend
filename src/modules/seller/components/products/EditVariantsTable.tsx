@@ -357,7 +357,7 @@ const EditVariantTable: React.FC<Props> = ({
             </div>
 
             {/* Sticky Bottom Scrollbar */}
-            <div className="sticky bottom-0 left-0 z-50 bg-white border-t border-gray-200">
+           <div className="sticky bottom-0 left-0 z-10 border-t border-gray-100">
                 <div
                     ref={scrollShadowRef}
                     className="overflow-x-scroll w-full h-[20px] scrollbar-thick"
