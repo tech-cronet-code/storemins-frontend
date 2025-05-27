@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   ChevronLeft,
   ChevronRight,
@@ -6,7 +6,7 @@ import {
   ChevronDown,
 } from "lucide-react";
 
-interface PaginationControlsProps {
+interface Props {
   currentPage: number;
   totalPages: number;
   totalItems: number;
@@ -15,9 +15,9 @@ interface PaginationControlsProps {
   onPageChange: (page: number) => void;
 }
 
-const ROW_OPTIONS = [2, 5, 25, 50, 100];
+const ROW_OPTIONS = [2, 10, 25, 50, 100];
 
-const PaginationControls: React.FC<PaginationControlsProps> = ({
+const PaginationControls: React.FC<Props> = ({
   currentPage,
   totalPages,
   totalItems,
@@ -42,19 +42,19 @@ const PaginationControls: React.FC<PaginationControlsProps> = ({
   }, []);
 
   return (
-    <div className="w-full flex flex-wrap items-center justify-between gap-y-3 gap-x-6 px-4 sm:px-6 py-4 bg-white lg:mr-5">
+    <div className="w-full flex flex-wrap items-center justify-between gap-y-3 gap-x-6 px-4 sm:px-6 py-5 bg-white rounded-md">
       {/* Rows Dropdown */}
       <div className="relative" ref={dropdownRef}>
         <button
-          className="flex items-center gap-1 text-sm text-blue-700 font-medium underline underline-offset-2"
+          className="flex items-center gap-1 text-sm text-blue-700 font-semibold hover:underline"
           onClick={() => setDropdownOpen(!dropdownOpen)}
         >
           {rowsPerPage} rows{" "}
-          {dropdownOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+          {dropdownOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
         </button>
 
         {dropdownOpen && (
-          <div className="absolute bottom-full mb-2 left-0 bg-white border border-gray-200 rounded shadow-md z-50 min-w-max text-sm">
+          <div className="absolute top-full mt-2 left-0 bg-white border border-gray-200 rounded-lg shadow-xl z-[999] min-w-max text-sm">
             {ROW_OPTIONS.map((opt) => (
               <div
                 key={opt}
@@ -62,8 +62,10 @@ const PaginationControls: React.FC<PaginationControlsProps> = ({
                   onRowsPerPageChange(opt);
                   setDropdownOpen(false);
                 }}
-                className={`px-4 py-2 cursor-pointer hover:bg-gray-100 ${
-                  opt === rowsPerPage ? "bg-gray-100 font-semibold" : ""
+                className={`px-4 py-2 cursor-pointer transition-all duration-150 hover:bg-blue-50 ${
+                  opt === rowsPerPage
+                    ? "bg-blue-100 font-bold text-blue-700"
+                    : ""
                 }`}
               >
                 {opt} rows
@@ -74,8 +76,10 @@ const PaginationControls: React.FC<PaginationControlsProps> = ({
       </div>
 
       {/* Page Info */}
-      <div className="text-sm text-gray-500 whitespace-nowrap">
-        {`${currentPage} of ${totalPages} Pages - ${totalItems} Items`}
+      <div className="text-sm text-gray-600 font-medium">
+        Page <span className="text-blue-700 font-semibold">{currentPage}</span>{" "}
+        of {totalPages} — <span className="font-semibold">{totalItems}</span>{" "}
+        items
       </div>
 
       {/* Pagination Buttons */}
@@ -83,10 +87,10 @@ const PaginationControls: React.FC<PaginationControlsProps> = ({
         <button
           onClick={() => onPageChange(currentPage - 1)}
           disabled={currentPage === 1}
-          className={`px-3 py-1.5 text-sm flex items-center gap-1 border rounded-md transition font-medium ${
+          className={`px-3 py-2 text-sm flex items-center gap-1 rounded-md transition font-medium shadow-sm border ${
             currentPage === 1
-              ? "text-gray-400 border-gray-300 cursor-not-allowed"
-              : "text-blue-700 border-blue-700 hover:bg-blue-50"
+              ? "text-gray-400 border-gray-300 cursor-not-allowed bg-gray-100"
+              : "text-white bg-blue-600 border-blue-600 hover:bg-blue-700"
           }`}
         >
           <ChevronLeft className="w-4 h-4" /> Prev
@@ -94,10 +98,10 @@ const PaginationControls: React.FC<PaginationControlsProps> = ({
         <button
           onClick={() => onPageChange(currentPage + 1)}
           disabled={currentPage === totalPages}
-          className={`px-3 py-1.5 text-sm flex items-center gap-1 border rounded-md transition font-medium ${
+          className={`px-3 py-2 text-sm flex items-center gap-1 rounded-md transition font-medium shadow-sm border ${
             currentPage === totalPages
-              ? "text-gray-400 border-gray-300 cursor-not-allowed"
-              : "text-blue-700 border-blue-700 hover:bg-blue-50"
+              ? "text-gray-400 border-gray-300 cursor-not-allowed bg-gray-100"
+              : "text-white bg-blue-600 border-blue-600 hover:bg-blue-700"
           }`}
         >
           Next <ChevronRight className="w-4 h-4" />

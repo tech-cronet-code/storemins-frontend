@@ -66,22 +66,22 @@ const SellerProductsForm: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(2);
 
-
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const scrollShadowRef = useRef<HTMLDivElement>(null);
 
   const handleBottomScroll = () => {
     if (scrollContainerRef.current && scrollShadowRef.current) {
-      scrollContainerRef.current.scrollLeft = scrollShadowRef.current.scrollLeft;
+      scrollContainerRef.current.scrollLeft =
+        scrollShadowRef.current.scrollLeft;
     }
   };
 
   const handleMainScroll = () => {
     if (scrollContainerRef.current && scrollShadowRef.current) {
-      scrollShadowRef.current.scrollLeft = scrollContainerRef.current.scrollLeft;
+      scrollShadowRef.current.scrollLeft =
+        scrollContainerRef.current.scrollLeft;
     }
   };
-
 
   const sortedProducts = [...mockProducts].sort((a, b) => {
     const aVal = a[sortKey];
@@ -236,8 +236,11 @@ const SellerProductsForm: React.FC = () => {
         <div className="w-full bg-white border border-gray-100 rounded-md overflow-hidden">
           <ProductFilterBar />
           <div className="relative">
-            <div className="overflow-x-auto w-full" ref={scrollContainerRef} onScroll={handleMainScroll}>
-
+            <div
+              className="overflow-x-auto w-full"
+              ref={scrollContainerRef}
+              onScroll={handleMainScroll}
+            >
               <div className="min-w-[1080px]">
                 <ProductTableHeader
                   sortKey={sortKey}
@@ -270,7 +273,7 @@ const SellerProductsForm: React.FC = () => {
                     ))}
 
                     {/* Pagination aligned properly with padding fix */}
-                    <div className="px-4 py-3 bg-white border-t border-gray-200 flex flex-col sm:flex-row items-center justify-between gap-4">
+                    <div className="px-4 bg-white border-t border-gray-200 flex flex-col sm:flex-row items-center justify-between gap-4 relative z-10">
                       <PaginationControls
                         currentPage={currentPage}
                         totalPages={totalPages}
@@ -292,7 +295,7 @@ const SellerProductsForm: React.FC = () => {
               </div>
 
               {/* Sticky Bottom Scrollbar */}
-           <div className="sticky bottom-0 left-0 z-10 border-t border-gray-100">
+              <div className="sticky bottom-0 left-0 z-10 border-t border-gray-100">
                 <div
                   ref={scrollShadowRef}
                   className="overflow-x-auto w-full h-[20px] scrollbar-thin pointer-events-auto"
@@ -305,7 +308,6 @@ const SellerProductsForm: React.FC = () => {
                   <div className="min-w-[1080px] h-[20px]" />
                 </div>
               </div>
-
             </div>
             <div className="sticky bottom-0 left-0 right-0 h-5 overflow-x-auto pointer-events-none">
               <div className="min-w-[1080px] h-1 bg-transparent"></div>
