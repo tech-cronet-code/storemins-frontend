@@ -21,40 +21,32 @@ const SellerUnlockStoreForm: React.FC<Props> = ({
   checkAvailability,
   isSubmitting,
 }) => {
-  const [availability, setAvailability] = useState<
-    "available" | "taken" | null
-  >(null);
+  const [availability, setAvailability] = useState<"available" | "taken" | null>(null);
 
   const {
     register,
     handleSubmit,
     watch,
+    setValue,
     formState: { errors },
   } = useForm<SellerUnlockStoreFormValues>({
     resolver: zodResolver(sellerUnlockStoreFormSchema),
   });
 
-  // watch user input
   const businessName = watch("businessName");
-  // debounce it by 500ms
   const debouncedName = useDebounce(businessName, 500);
 
   useEffect(() => {
     let cancelled = false;
 
-    // Skip API call if not valid input
     if (!debouncedName || debouncedName.trim().length < 3) {
       setAvailability(null);
       return;
     }
 
-    // Reset state for loading UI (optional)
     setAvailability(null);
-    console.log("🔥 Checking availability for:", debouncedName);
-
     checkAvailability(debouncedName).then((status) => {
       if (!cancelled) {
-        console.log("✅ Got result:", status);
         setAvailability(status);
       }
     });
@@ -62,7 +54,7 @@ const SellerUnlockStoreForm: React.FC<Props> = ({
     return () => {
       cancelled = true;
     };
-  }, [debouncedName]); // ✅ ONLY trigger on debouncedName change
+  }, [debouncedName]);
 
   return (
     <div>
@@ -79,11 +71,7 @@ const SellerUnlockStoreForm: React.FC<Props> = ({
       <form
         className="space-y-4 mt-4"
         onSubmit={handleSubmit((data) => {
-          if (availability !== "available") {
-            console.warn("❌ Cannot submit: availability is", availability);
-            return;
-          }
-          console.log("✅ Submitting form:", data);
+          if (availability !== "available") return;
           onSubmit(data);
         })}
       >
@@ -93,34 +81,61 @@ const SellerUnlockStoreForm: React.FC<Props> = ({
           </label>
 
           <div
-            className={`relative flex items-center border rounded-md px-3 py-2 ${
-              availability === "available"
+            className={`relative flex items-center border rounded-md px-3 py-2 ${availability === "available"
                 ? "border-green-500"
                 : availability === "taken"
-                ? "border-red-500"
-                : "border-gray-300"
-            }`}
+                  ? "border-red-500"
+                  : "border-gray-300"
+              }`}
           >
-            <input
-              {...register("businessName")}
-              placeholder="khan-food-bakery"
-              className="flex-1 outline-none pr-36 text-sm"
-            />
+         <input
+  {...register("businessName")}
+  value={businessName}
+  placeholder="khan-food-bakery"
+  onKeyDown={(e) => {
+    if (e.key === " ") {
+      e.preventDefault(); // replace space with hyphen
+      const pos = e.currentTarget.selectionStart || 0;
+      const updated =
+        businessName.slice(0, pos) + "-" + businessName.slice(pos);
+      setValue("businessName", updated, { shouldValidate: true });
+    }
+  }}
+  onChange={(e) => {
+    let raw = e.target.value;
+
+    // 1. Convert to lowercase
+    raw = raw.toLowerCase();
+
+    // 2. Replace spaces with -
+    raw = raw.replace(/\s+/g, "-");
+
+    // 3. Remove anything that's NOT a-z, 0-9, or -
+    raw = raw.replace(/[^a-z0-9-]/g, "");
+
+    // 4. Collapse multiple dashes to single
+    raw = raw.replace(/-+/g, "-");
+
+    // 5. Remove starting/ending dash
+    raw = raw.replace(/^-+|-+$/g, "");
+
+    setValue("businessName", raw, { shouldValidate: true });
+  }}
+  className="flex-1 outline-none pr-36 text-sm"
+/>
+
+
             <div className="absolute right-3 flex items-center gap-2">
               <span className="text-[#7F56D9] font-semibold text-sm">
                 .storemins.com
               </span>
               <span
-                className={`
-                  w-6 h-6 rounded-full flex items-center justify-center
-                  ${
-                    availability === "available"
-                      ? "bg-green-500 text-white"
-                      : availability === "taken"
+                className={`w-6 h-6 rounded-full flex items-center justify-center ${availability === "available"
+                    ? "bg-green-500 text-white"
+                    : availability === "taken"
                       ? "bg-red-500 text-white"
                       : "bg-gray-300 text-white"
-                  }
-                `}
+                  }`}
               >
                 <svg
                   className="w-4 h-4"
@@ -139,19 +154,17 @@ const SellerUnlockStoreForm: React.FC<Props> = ({
             </div>
           </div>
 
-          {/* Messages */}
-          {/* Messages */}
           {errors.businessName ? (
             <p className="text-red-500 text-sm mt-1">
               {errors.businessName.message}
             </p>
           ) : availability === "taken" ? (
             <p className="text-red-600 text-sm mt-1">
-              This link is already in use. Please try another name
+              This link is already in use. Please try another name.
             </p>
           ) : availability === "available" ? (
             <p className="text-green-600 text-sm mt-1">
-              Yay!! This link is available
+              Yay! This link is available.
             </p>
           ) : debouncedName?.trim().length >= 3 ? (
             <p className="text-sm text-gray-500 mt-1">
@@ -160,20 +173,25 @@ const SellerUnlockStoreForm: React.FC<Props> = ({
           ) : null}
         </div>
 
-        {/* Submit Button */}
-        <button
-          type="submit"
-          disabled={isSubmitting || availability !== "available"}
-          className={`w-full py-2 rounded-md text-white font-semibold transition ${
-            isSubmitting || availability !== "available"
-              ? "bg-[#A08ADB] cursor-not-allowed"
-              : "bg-[#7F56D9] hover:bg-[#6d45c8]"
-          }`}
-        >
-          {isSubmitting ? "Nexting in..." : "Unlock your store"}
-        </button>
+      <button
+  type="submit"
+  disabled={
+    isSubmitting ||
+    availability !== "available" ||
+    !!errors.businessName // ⛔ disable if there is a validation error
+  }
+  className={`w-full py-2 rounded-md text-white font-semibold transition ${
+    isSubmitting ||
+    availability !== "available" ||
+    !!errors.businessName
+      ? "bg-[#A08ADB] cursor-not-allowed"
+      : "bg-[#7F56D9] hover:bg-[#6d45c8]"
+  }`}
+>
+  {isSubmitting ? "Nexting in..." : "Unlock your store"}
+</button>
 
-        {/* Logout */}
+
         <p className="text-center text-sm font-light">
           Click here to...{" "}
           <button

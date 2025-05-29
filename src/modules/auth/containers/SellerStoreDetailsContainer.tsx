@@ -6,17 +6,16 @@ import SellerStoreDetailsForm from "../components/SellerStoreDetailsForm";
 import { useAuth } from "../contexts/AuthContext";
 import { SellerStoreDetailsFormValues } from "../schemas/sellerStoreDetailsSchema";
 import {
-  useListBusinessCategoriesQuery,
-  useListBusinessTypesQuery,
   useCreateOrUpdateBusinessCategoryMutation,
+  useListBusinessCategoriesQuery
 } from "../services/authApi";
 
 const SellerStoreDetailsContainer: React.FC = () => {
-  const { user, createOrUpdateBusinessDetails } = useAuth();
+  const { user, createOrUpdateBusinessDetails, refetchUserDetails, } = useAuth();
   const navigate = useNavigate();
 
   // 1️⃣ Fetch the existing business‐type & category lists
-  const { data: businessTypes = [] } = useListBusinessTypesQuery();
+  // const { data: businessTypes = [] } = useListBusinessTypesQuery();
   const { data: categories = [] } = useListBusinessCategoriesQuery();
 
   // 2️⃣ Hook for creating/updating a custom category
@@ -54,21 +53,28 @@ const SellerStoreDetailsContainer: React.FC = () => {
     };
 
     try {
-      // call through your AuthContext (no unwrap here)
       const saved = await createOrUpdateBusinessDetails(payload);
 
-      // 6️⃣ Redirect on success
-      if (!user.mobile_confirmed) {
+      // Ensure user is refreshed or fetched again if needed
+      // Optional: await fetchUser(); // <-- if needed to update mobile_confirmed
+
+      if (!user?.mobile_confirmed) {
         navigate("/otp-verify");
+        return; // stop further execution
+      }
+
+      console.log(saved, "savedsavedsavedsaved");
+
+
+      if (saved) {
+        console.log("Navigating to /seller/store-unlock...");
+        // 🔁 force refresh user profile from server
+        await refetchUserDetails(); 
       } else {
-        // const r = user.role?.[0];
-        if (saved) navigate("/seller/store-unlock");
-        // else if (r === "SELLER") navigate("/seller");
-        else navigate("/home");
+        navigate("/home");
       }
     } catch (err) {
       console.error("Saving business details failed:", err);
-      // TODO: show error notification
     }
   };
 
@@ -78,7 +84,7 @@ const SellerStoreDetailsContainer: React.FC = () => {
       loading={false}
       error={undefined}
       logout={() => navigate("/logout")}
-      businessTypes={businessTypes}
+      // businessTypes={businessTypes}
       businessCategories={categories}
     />
   );

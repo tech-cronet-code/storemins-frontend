@@ -36,9 +36,10 @@ interface RegisterFormProps {
 }
 
 const RegisterForm = ({ onSubmit }: RegisterFormProps) => {
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirm, setShowConfirm] = useState(false);
+  // const [showPassword, setShowPassword] = useState(false);
+  // const [showConfirm, setShowConfirm] = useState(false);
   // const [isRegister, setIsRegister] = useState(false);
+  const [showPasswords, setShowPasswords] = useState(false);
 
   const {
     register,
@@ -77,46 +78,40 @@ const RegisterForm = ({ onSubmit }: RegisterFormProps) => {
           )}
         </div>
 
-        <div className="relative flex-1">
+        {/* Password */}
+        <div className="relative">
           <input
             {...register("pass_hash")}
-            type={showPassword ? "text" : "password"}
+            type={showPasswords ? "text" : "password"}
             placeholder="Password"
-            className="form-input-style w-full"
+            className="form-input-style"
           />
           <button
             type="button"
-            onClick={() => setShowPassword(!showPassword)}
-            className="absolute top-3 right-3 text-gray-500"
+            onClick={() => setShowPasswords(!showPasswords)}
+            className="absolute inset-y-0 right-3 flex items-center text-gray-500"
           >
-            {showPassword ? (
-              <IoEyeOutline size={18} />
-            ) : (
-              <IoEyeOffOutline size={18} />
-            )}
+            {showPasswords ? <IoEyeOutline size={18} /> : <IoEyeOffOutline size={18} />}
           </button>
           {errors.pass_hash && (
             <p className="text-red-500 text-sm">{errors.pass_hash.message}</p>
           )}
         </div>
 
-        <div className="relative flex-1">
+        {/* Confirm Password */}
+        <div className="relative">
           <input
             {...register("confirmPassword")}
-            type={showConfirm ? "text" : "password"}
+            type={showPasswords ? "text" : "password"}
             placeholder="Confirm password"
-            className="form-input-style w-full pr-10"
+            className="form-input-style"
           />
           <button
             type="button"
-            onClick={() => setShowConfirm(!showConfirm)}
-            className="absolute top-3 right-3 text-gray-500"
+            onClick={() => setShowPasswords(!showPasswords)}
+            className="absolute inset-y-0 right-3 flex items-center text-gray-500"
           >
-            {showConfirm ? (
-              <IoEyeOutline size={18} />
-            ) : (
-              <IoEyeOffOutline size={18} />
-            )}
+            {showPasswords ? <IoEyeOutline size={18} /> : <IoEyeOffOutline size={18} />}
           </button>
           {errors.confirmPassword && (
             <p className="text-red-500 text-sm">
@@ -124,6 +119,8 @@ const RegisterForm = ({ onSubmit }: RegisterFormProps) => {
             </p>
           )}
         </div>
+
+
 
         <label className="flex items-start gap-2 text-sm text-gray-600">
           <input
