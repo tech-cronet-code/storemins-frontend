@@ -4,8 +4,7 @@ import {
   FolderDown,
   Pencil,
   Plus,
-  Settings,
-  Upload,
+  Upload
 } from "lucide-react";
 import React, { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
