@@ -36,8 +36,8 @@ interface RegisterFormProps {
 }
 
 const RegisterForm = ({ onSubmit }: RegisterFormProps) => {
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirm, setShowConfirm] = useState(false);
+  // const [showPassword, setShowPassword] = useState(false);
+  // const [showConfirm, setShowConfirm] = useState(false);
   // const [isRegister, setIsRegister] = useState(false);
   const [showPasswords, setShowPasswords] = useState(false);
 
