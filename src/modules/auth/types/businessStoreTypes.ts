@@ -2,7 +2,7 @@
 
 export interface BusinessDetailsRequestDto {
   businessName: string;
-  businessTypeId: string;
+  // businessTypeId: string;
   categoryId: string;
   websiteUrl?: string;
   instagramHandle?: string;

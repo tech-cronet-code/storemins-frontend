@@ -1,17 +1,21 @@
 import { useState } from "react";
 import { UserRoleName } from "../../auth/constants/userRoles";
+// import { useAuth } from "../../auth/contexts/AuthContext";
+import CreditsBanner from "../components/CreditsBanner";
 import FeatureCarouselInsideCard from "../components/FeatureCarouselInsideCard";
 import GetMoreCard from "../components/GetMoreCard";
 import Layout from "../components/Layout";
 import SalesAnalyticsCard from "../components/SalesAnalyticsCard";
+import ShortcutCard from "../components/ShortcutCard";
+import ShortcutModal from "../components/ShortcutModal";
 import StoreLinkCard from "../components/StoreLinkCard";
 import StoreSetupChecklist from "../components/StoreSetupChecklist";
 import WalletAlert from "../components/WalletAlert";
-import ShortcutCard from "../components/ShortcutCard";
-import ShortcutModal from "../components/ShortcutModal";
-import CreditsBanner from "../components/CreditsBanner";
 
 const SellerDashboard = () => {
+
+    // const {  userDetails } = useAuth(); // ✅ from context
+  
   const initialShortcuts = [
     {
       label: "Facebook Pixel",
@@ -234,7 +238,7 @@ const SellerDashboard = () => {
 
         {/* Store Links Cards */}
         <StoreLinkCard
-          storeUrl="https://cakestore.storemins.com"
+          storeUrl={"https://cakestore.storemins.com"}
           suggestedDomain="cake-store.com"
           onCopy={() =>
             navigator.clipboard.writeText("https://cakestore.storemins.com")

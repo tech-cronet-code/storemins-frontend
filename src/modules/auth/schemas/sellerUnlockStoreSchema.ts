@@ -1,13 +1,15 @@
-// src/schemas/sellerUnlockStoreSchema.ts
 import { z } from "zod";
 
 export const sellerUnlockStoreFormSchema = z.object({
   businessName: z
     .string()
-    .nonempty("Business url is required")
-    .min(3, "Business url must be at least 3 characters")
+    .nonempty("Business URL is required")
+    .min(3, "Business URL must be at least 3 characters")
     .max(30, "Cannot exceed 30 characters")
-    .regex(/^[a-z0-9-]+$/, "Only lowercase letters, numbers & hyphens"),
+    .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, {
+      message:
+        "Only lowercase letters, numbers & hyphens (no leading/trailing or repeated hyphens)",
+    }),
 });
 
 export type SellerUnlockStoreFormValues = z.infer<

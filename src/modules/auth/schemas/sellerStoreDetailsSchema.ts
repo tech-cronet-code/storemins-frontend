@@ -2,7 +2,7 @@ import { z } from "zod";
 
 export const sellerStoreDetailsSchema = z.object({
   businessName: z.string().nonempty("Business name is required"),
-  businessTypeId: z.string().uuid("Select a valid business type"),
+  // businessTypeId: z.string().uuid("Select a valid business type"),
   // ↓ allow any non-empty string here (either an existing UUID or a new name)
   categoryId: z.string().nonempty("Please choose or add a category"),
   websiteUrl: z.string().url("Must be a valid URL").optional(),

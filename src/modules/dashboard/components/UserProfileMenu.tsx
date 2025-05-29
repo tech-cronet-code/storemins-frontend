@@ -15,7 +15,7 @@ interface UserProfileMenuProps {
 
 const UserProfileMenu: React.FC<UserProfileMenuProps> = ({ onClose }) => {
   const navigate = useNavigate();
-  const { logout } = useAuth(); // ✅ from context
+  const { logout, userDetails } = useAuth(); // ✅ from context
 
   const [showNotificationOptions, setShowNotificationOptions] = useState(false);
   const [notificationSetting, setNotificationSetting] = useState<
@@ -51,10 +51,15 @@ const UserProfileMenu: React.FC<UserProfileMenuProps> = ({ onClose }) => {
           alt="Profile"
           className="w-12 h-12 rounded-full object-cover"
         />
-        <div>
-          <p className="font-semibold text-sm text-gray-800">Noman Mansuri</p>
-          <p className="text-xs text-gray-500">noman@storemins.com</p>
+        <div className="flex flex-col leading-tight">
+          <span className="text-sm font-medium text-gray-900 truncate">
+            {userDetails?.name || "Unnamed User"}
+          </span>
+          <span className="text-xs text-gray-500 break-words">
+            {userDetails?.mobile || "No mobile number"}
+          </span>
         </div>
+
       </div>
 
       {/* Menu */}
@@ -96,21 +101,19 @@ const UserProfileMenu: React.FC<UserProfileMenuProps> = ({ onClose }) => {
             <div className="absolute top-2 left-[180px] bg-white border border-gray-200 rounded-xl shadow-md py-1 w-24 z-50">
               <button
                 onClick={() => setNotificationSetting("allow")}
-                className={`block w-full text-left px-4 py-1 text-sm rounded hover:bg-gray-100 ${
-                  notificationSetting === "allow"
+                className={`block w-full text-left px-4 py-1 text-sm rounded hover:bg-gray-100 ${notificationSetting === "allow"
                     ? "text-green-600 font-semibold"
                     : "text-gray-700"
-                }`}
+                  }`}
               >
                 Allow
               </button>
               <button
                 onClick={() => setNotificationSetting("mute")}
-                className={`block w-full text-left px-4 py-1 text-sm rounded hover:bg-gray-100 ${
-                  notificationSetting === "mute"
+                className={`block w-full text-left px-4 py-1 text-sm rounded hover:bg-gray-100 ${notificationSetting === "mute"
                     ? "text-red-500 font-semibold"
                     : "text-gray-700"
-                }`}
+                  }`}
               >
                 Mute
               </button>

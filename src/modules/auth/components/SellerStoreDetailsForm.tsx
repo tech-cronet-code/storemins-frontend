@@ -8,8 +8,7 @@ import {
   sellerStoreDetailsSchema,
 } from "../schemas/sellerStoreDetailsSchema";
 import {
-  BusinessTypeResponseDto,
-  BusinessCategoryResponseDto,
+  BusinessCategoryResponseDto
 } from "../types/businessStoreTypes";
 
 interface Props {
@@ -19,7 +18,7 @@ interface Props {
   logout: () => void;
 
   /** now passed in from the container: */
-  businessTypes: BusinessTypeResponseDto[];
+  // businessTypes: BusinessTypeResponseDto[];
   businessCategories: BusinessCategoryResponseDto[];
 }
 
@@ -28,7 +27,7 @@ const SellerStoreDetailsForm: React.FC<Props> = ({
   loading,
   error,
   logout,
-  businessTypes,
+  // businessTypes,
   businessCategories,
 }) => {
   const {
@@ -125,7 +124,7 @@ const SellerStoreDetailsForm: React.FC<Props> = ({
         </div>
 
         {/* Business Type */}
-        <div>
+        {/* <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
             Business Type
           </label>
@@ -148,7 +147,7 @@ const SellerStoreDetailsForm: React.FC<Props> = ({
           <p className="text-xs text-gray-500">
             you can always change it later!
           </p>
-        </div>
+        </div> */}
 
         {/* hidden field to carry the selected category */}
         <input type="hidden" {...register("categoryId")} />
