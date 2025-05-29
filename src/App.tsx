@@ -17,9 +17,14 @@ import SellerStoreDetailsPage from "./modules/auth/pages/SellerStoreDetailsPage"
 import SellerUnlockStorePage from "./modules/auth/pages/SellerUnlockStorePage";
 import AdminDashboard from "./modules/dashboard/pages/AdminDashboard";
 import SellerDashboard from "./modules/dashboard/pages/SellerDashboard";
+import AddCategoriesPage from "./modules/seller/pages/AddCategoriesPage";
+import AddProductPage from "./modules/seller/pages/AddProductPage";
+import SellerProductsCategoriesPage from "./modules/seller/pages/SellerProductsCategoriesPage";
 import SellerProductsPage from "./modules/seller/pages/SellerProductsPage";
 import UserSettingsPage from "./modules/seller/pages/UserSettingsPage";
 import OtpRoute from "./routes/OtpRoute";
+import SellerProductsInventoryPage from "./modules/seller/pages/SellerProductsInventoryPage";
+import SellerProductsOrdersPage from "./modules/seller/pages/SellerProductsOrdersPage";
 // import AuthFormPage from "./modules/auth/pages/AuthForm";
 
 const App = () => {
@@ -53,13 +58,33 @@ const App = () => {
               path="/seller/store-unlock"
               element={<SellerUnlockStorePage />}
             />
-             <Route
+            <Route
               path="/seller/user-settings"
               element={<UserSettingsPage />}
             />
-             <Route
+            <Route
               path="/seller/catalogue/products"
               element={<SellerProductsPage />}
+            />
+            <Route
+              path="/seller/catalogue/products/create"
+              element={<AddProductPage />}
+            />
+            <Route
+              path="/seller/catalogue/categories"
+              element={<SellerProductsCategoriesPage />}
+            />
+            <Route
+              path="/seller/catalogue/categories/create"
+              element={<AddCategoriesPage />}
+            />
+            <Route
+              path="/seller/catalogue/inventory"
+              element={<SellerProductsInventoryPage />}
+            />
+            <Route
+              path="/seller/orders"
+              element={<SellerProductsOrdersPage />}
             />
           </Route>
           <Route element={<AdminRoute />}>

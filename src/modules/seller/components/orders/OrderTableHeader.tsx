@@ -1,7 +1,7 @@
 import React from "react";
 import { ChevronDown, ChevronUp } from "lucide-react";
 
-interface ProductTableHeaderProps {
+interface OrderTablHeaderProps {
   sortKey: string;
   sortOrder: "asc" | "desc";
   onSortChange: (key: "name" | "price" | "status") => void;
@@ -9,7 +9,7 @@ interface ProductTableHeaderProps {
   onSelectAll: (checked: boolean) => void;
 }
 
-const ProductTableHeader: React.FC<ProductTableHeaderProps> = ({
+const OrderTableHeader: React.FC<OrderTablHeaderProps> = ({
   sortKey,
   sortOrder,
   onSortChange,
@@ -81,4 +81,4 @@ const ProductTableHeader: React.FC<ProductTableHeaderProps> = ({
   );
 };
 
-export default ProductTableHeader;
+export default OrderTableHeader;

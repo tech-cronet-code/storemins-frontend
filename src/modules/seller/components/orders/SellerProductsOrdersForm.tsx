@@ -1,28 +1,26 @@
-import React, { useState, useRef, useEffect } from "react";
 import {
-  Settings,
-  Plus,
   ChevronDown,
   ChevronUp,
-  Upload,
   FolderDown,
   Pencil,
+  Plus,
+  Settings,
+  Upload,
 } from "lucide-react";
+import React, { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import ProductSettingsDrawer from "./ProductSettingsDrawer";
-import BulkActionsDropdown from "./BulkActionsDropdown";
-import ProductFilterBar from "./products/ProductFilterBar";
-import ProductTableHeader from "./products/ProductTableHeader";
-import ProductTableRow from "./products/ProductTableRow";
-import UpgradeToBusinessPlanModal from "./UpgradeToBusinessPlanModal";
-import PaginationControls from "./products/PaginationControls";
+import BulkActionsOrderDropdown from "./BulkActionsOrderDropdown";
+import OrderFilterBar from "./OrderFilterBar";
+import OrderTableHeader from "./OrderTableHeader";
+import OrderTableRow from "./OrderTableRow";
+import PaginationOrdersControls from "./PaginationOrdersControls";
 
-const mockProducts = [
+const mockOrders = [
   {
     id: 1,
     name: "Lorem ipsum dolor sit amet, consectetuer adipiscing elit. Aenean commodo ligula eget dolor. Aenean massa. Cum sociis natoque penatibus et magnis dis parturient montes, nascetur ridiculus mus. Donec quam felis, ultricies nec, pellentesque eu, pretium quis, sem. Nulla consequat massa quis enim. Donec pede justo, fringilla vel, aliquet nec, vulputate eget, arcu. In enim justo, rhoncus ut, imperdiet a, venenatis vitae, justo. Nullam dictum felis eu pede mollis pretium. Integer tincidunt. Cras dapibus. Vivamus elementum semper nisi. Aenean vulputate eleifend tellus. Aenean leo ligula, porttitor eu, consequat vitae, eleifend ac, enim. Aliquam lorem ante, dapibus in, viverra quis, feugiat a, tellus. Phasellus viverra nulla ut metus varius laoreet. Quisque rutrum. Aenean imperdiet. Etiam ultricies nisi vel augue. Curabitur ullamcorper ultricies nisi. Nam eget dui. Etiam rhoncus. Maecenas tempus, tellus eget condimentum rhoncus, sem quam semper libero, sit amet adipiscing sem neque sed ipsum. Nam quam nunc, blandit vel, luctus pulvinar, hendrerit id, lorem. Maecenas nec odio et ante tincidunt tempus. Donec vitae sapien ut libero venenatis faucibus. Nullam quis ante. Etiam sit amet orci eget eros faucibus tincidunt. Duis leo. Sed fringilla mauris sit amet nibh. Donec sodales sagittis magna. Sed consequat, leo eget bibendum sodales, augue velit cursus nunc",
     category: "Test, Sub t",
-    image: "/img/product.png",
+    image: "/img/order.png",
     price: 10000,
     oldPrice: 20000,
     inventory: 332,
@@ -52,16 +50,16 @@ const mockProducts = [
 
 type SortableKey = "name" | "price" | "status";
 
-const SellerProductsForm: React.FC = () => {
+const SellerProductsOrdersForm: React.FC = () => {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  // const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
-  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  // const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const navigate = useNavigate();
 
   const [sortKey, setSortKey] = useState<SortableKey>("price");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
-  const [selectedProductIds, setSelectedProductIds] = useState<number[]>([]);
+  const [selectedOrderIds, setSelectedOrderIds] = useState<number[]>([]);
 
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(2);
@@ -83,7 +81,7 @@ const SellerProductsForm: React.FC = () => {
     }
   };
 
-  const sortedProducts = [...mockProducts].sort((a, b) => {
+  const sortedOrders = [...mockOrders].sort((a, b) => {
     const aVal = a[sortKey];
     const bVal = b[sortKey];
 
@@ -106,28 +104,28 @@ const SellerProductsForm: React.FC = () => {
     return 0;
   });
 
-  const paginatedProducts = sortedProducts.slice(
+  const paginatedOrders = sortedOrders.slice(
     (currentPage - 1) * rowsPerPage,
     currentPage * rowsPerPage
   );
 
-  const totalPages = Math.ceil(sortedProducts.length / rowsPerPage);
+  const totalPages = Math.ceil(sortedOrders.length / rowsPerPage);
 
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
-      setSelectedProductIds(mockProducts.map((p) => p.id));
+      setSelectedOrderIds(mockOrders.map((p) => p.id));
     } else {
-      setSelectedProductIds([]);
+      setSelectedOrderIds([]);
     }
   };
 
-  const handleProductCheckboxChange = (id: number, checked: boolean) => {
-    setSelectedProductIds((prev) =>
+  const handleOrderCheckboxChange = (id: number, checked: boolean) => {
+    setSelectedOrderIds((prev) =>
       checked ? [...prev, id] : prev.filter((pid) => pid !== id)
     );
   };
 
-  const allSelected = selectedProductIds.length === mockProducts.length;
+  const allSelected = selectedOrderIds.length === mockOrders.length;
 
   const handleSortChange = (key: SortableKey) => {
     if (sortKey === key) {
@@ -138,7 +136,7 @@ const SellerProductsForm: React.FC = () => {
     }
   };
 
-  const handleAddProduct = () => navigate("/seller/catalogue/products/create");
+  const handleAddOrder = () => navigate("/seller/catalogue/porders/create");
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -162,16 +160,16 @@ const SellerProductsForm: React.FC = () => {
             <h1 className="text-[20px] md:text-[24px] font-bold text-[#111827]"></h1>
             <div className="w-full md:w-auto inline-flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
               <div className="w-full sm:w-auto">
-                <BulkActionsDropdown />
+                <BulkActionsOrderDropdown />
               </div>
               <div className="relative w-full sm:w-auto" ref={dropdownRef}>
                 <div className="flex h-[44px] rounded-md border border-[#1D4ED8] bg-[#1D4ED8] text-white overflow-hidden max-w-full sm:w-auto">
                   <button
-                    onClick={handleAddProduct}
+                    onClick={handleAddOrder}
                     className="flex items-center justify-center gap-2 px-3 md:px-5 text-sm font-semibold hover:bg-[#1E40AF] transition whitespace-nowrap w-full sm:w-auto"
                   >
                     <Plus className="w-[18px] h-[18px]" />
-                    <span>Add Product</span>
+                    <span>Create Order</span>
                   </button>
                   <button
                     type="button"
@@ -192,19 +190,19 @@ const SellerProductsForm: React.FC = () => {
                         label: "Bulk Import",
                         icon: <Upload className="w-4 h-4 text-blue-600" />,
                         tag: <span className="text-pink-500">💎</span>,
-                        link: "/products/import",
+                        link: "/porders/import",
                       },
                       {
                         label: "Bulk Update",
                         icon: <Pencil className="w-4 h-4 text-blue-600" />,
                         tag: <span className="text-purple-500">💗</span>,
-                        link: "/products/bulk-update",
+                        link: "/porders/bulk-update",
                       },
                       {
                         label: "Export Data",
                         icon: <FolderDown className="w-4 h-4 text-blue-600" />,
                         tag: null,
-                        link: "/products/export",
+                        link: "/porders/export",
                       },
                     ].map(({ label, icon, tag, link }, idx) => (
                       <button
@@ -223,18 +221,18 @@ const SellerProductsForm: React.FC = () => {
                   </div>
                 )}
               </div>
-              <button
+              {/* <button
                 onClick={() => setIsDrawerOpen(true)}
                 className="w-[44px] h-[44px] bg-white border border-blue-600 text-blue-600 hover:bg-blue-50 rounded-md flex items-center justify-center"
               >
                 <Settings className="w-[20px] h-[20px]" />
-              </button>
+              </button> */}
             </div>
           </div>
         </div>
 
         <div className="w-full bg-white border border-gray-100 rounded-md overflow-hidden">
-          <ProductFilterBar />
+          <OrderFilterBar />
           <div className="relative">
             <div
               className="overflow-x-auto w-full"
@@ -242,31 +240,31 @@ const SellerProductsForm: React.FC = () => {
               onScroll={handleMainScroll}
             >
               <div className="min-w-[1080px]">
-                <ProductTableHeader
+                <OrderTableHeader
                   sortKey={sortKey}
                   sortOrder={sortOrder}
                   onSortChange={handleSortChange}
                   allSelected={allSelected}
                   onSelectAll={handleSelectAll}
                 />
-                {paginatedProducts.length > 0 ? (
+                {paginatedOrders.length > 0 ? (
                   <>
-                    {paginatedProducts.map((product) => (
+                    {paginatedOrders.map((order) => (
                       <div
-                        key={product.id}
+                        key={order.id}
                         className="hover:bg-gray-50 transition cursor-pointer"
                       >
-                        <ProductTableRow
-                          image={product.image}
-                          title={product.name}
-                          subtitle={product.category}
-                          price={product.price}
-                          mrp={product.oldPrice}
-                          inventory={product.inventory}
-                          isActive={product.status}
-                          checked={selectedProductIds.includes(product.id)}
+                        <OrderTableRow
+                          image={order.image}
+                          title={order.name}
+                          subtitle={order.category}
+                          price={order.price}
+                          mrp={order.oldPrice}
+                          inventory={order.inventory}
+                          isActive={order.status}
+                          checked={selectedOrderIds.includes(order.id)}
                           onCheckboxChange={(checked) =>
-                            handleProductCheckboxChange(product.id, checked)
+                            handleOrderCheckboxChange(order.id, checked)
                           }
                         />
                       </div>
@@ -274,10 +272,10 @@ const SellerProductsForm: React.FC = () => {
 
                     {/* Pagination aligned properly with padding fix */}
                     <div className="px-4 bg-white border-t border-gray-200 flex flex-col sm:flex-row items-center justify-between gap-4 relative z-10">
-                      <PaginationControls
+                      <PaginationOrdersControls
                         currentPage={currentPage}
                         totalPages={totalPages}
-                        totalItems={sortedProducts.length}
+                        totalItems={sortedOrders.length}
                         rowsPerPage={rowsPerPage}
                         onRowsPerPageChange={(val) => {
                           setRowsPerPage(val);
@@ -289,7 +287,7 @@ const SellerProductsForm: React.FC = () => {
                   </>
                 ) : (
                   <div className="text-center text-gray-400 text-sm py-6">
-                    No products available on this page.
+                    No porders available on this page.
                   </div>
                 )}
               </div>
@@ -316,7 +314,7 @@ const SellerProductsForm: React.FC = () => {
         </div>
       </div>
 
-      <ProductSettingsDrawer
+      {/* <OrderSettingsDrawer
         open={isDrawerOpen}
         onClose={() => setIsDrawerOpen(false)}
         onCheckoutFieldSelect={() => setShowUpgradeModal(true)}
@@ -333,9 +331,9 @@ const SellerProductsForm: React.FC = () => {
             }}
           />
         </div>
-      )}
+      )} */}
     </>
   );
 };
 
-export default SellerProductsForm;
+export default SellerProductsOrdersForm;

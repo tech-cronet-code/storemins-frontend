@@ -1,10 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import {
-  ChevronLeft,
-  ChevronRight,
-  ChevronUp,
-  ChevronDown,
-} from "lucide-react";
+import { ChevronLeft, ChevronRight, ChevronUp, ChevronDown } from "lucide-react";
 
 interface Props {
   currentPage: number;
@@ -30,10 +25,7 @@ const PaginationControls: React.FC<Props> = ({
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (
-        dropdownRef.current &&
-        !dropdownRef.current.contains(event.target as Node)
-      ) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setDropdownOpen(false);
       }
     };
@@ -49,12 +41,12 @@ const PaginationControls: React.FC<Props> = ({
           className="flex items-center gap-1 text-sm text-blue-700 font-semibold hover:underline"
           onClick={() => setDropdownOpen(!dropdownOpen)}
         >
-          {rowsPerPage} rows{" "}
-          {dropdownOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+           {rowsPerPage} rows {dropdownOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
         </button>
 
         {dropdownOpen && (
-          <div className="absolute top-full mt-2 left-0 bg-white border border-gray-200 rounded-lg shadow-xl z-[999] min-w-max text-sm">
+        <div className="absolute top-full mt-2 left-0 bg-white border border-gray-200 rounded-lg shadow-xl z-[999] min-w-max text-sm">
+
             {ROW_OPTIONS.map((opt) => (
               <div
                 key={opt}
@@ -63,9 +55,7 @@ const PaginationControls: React.FC<Props> = ({
                   setDropdownOpen(false);
                 }}
                 className={`px-4 py-2 cursor-pointer transition-all duration-150 hover:bg-blue-50 ${
-                  opt === rowsPerPage
-                    ? "bg-blue-100 font-bold text-blue-700"
-                    : ""
+                  opt === rowsPerPage ? "bg-blue-100 font-bold text-blue-700" : ""
                 }`}
               >
                 {opt} rows
@@ -77,9 +67,7 @@ const PaginationControls: React.FC<Props> = ({
 
       {/* Page Info */}
       <div className="text-sm text-gray-600 font-medium">
-        Page <span className="text-blue-700 font-semibold">{currentPage}</span>{" "}
-        of {totalPages} — <span className="font-semibold">{totalItems}</span>{" "}
-        items
+        Page <span className="text-blue-700 font-semibold">{currentPage}</span> of {totalPages} — <span className="font-semibold">{totalItems}</span> items
       </div>
 
       {/* Pagination Buttons */}

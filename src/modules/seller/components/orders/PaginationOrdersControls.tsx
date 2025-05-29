@@ -17,7 +17,7 @@ interface Props {
 
 const ROW_OPTIONS = [2, 10, 25, 50, 100];
 
-const PaginationControls: React.FC<Props> = ({
+const PaginationOrdersControls: React.FC<Props> = ({
   currentPage,
   totalPages,
   totalItems,
@@ -111,4 +111,4 @@ const PaginationControls: React.FC<Props> = ({
   );
 };
 
-export default PaginationControls;
+export default PaginationOrdersControls;

@@ -49,6 +49,18 @@ const Header = ({}: HeaderProps) => {
         hasChildren: false,
         path: "/products",
       });
+    } else if (path.includes("/catalogue/categories")) {
+      setTitleInfo({
+        label: "Categories",
+        hasChildren: false,
+        path: "/categories",
+      });
+    } else if (path.includes("/catalogue/inventory")) {
+      setTitleInfo({
+        label: "Inventory",
+        hasChildren: false,
+        path: "/inventory",
+      });
     } else if (path.includes("/orders")) {
       setTitleInfo({ label: "Orders", hasChildren: false, path: "/orders" });
     } else {

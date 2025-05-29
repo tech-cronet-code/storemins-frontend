@@ -3,7 +3,7 @@ import { X } from "lucide-react";
 import { FaFacebookF, FaWhatsapp, FaXTwitter } from "react-icons/fa6";
 import { BiLink } from "react-icons/bi"; // or any link icon
 
-interface ShareModalProps {
+interface OrderShareModalProps {
   visible: boolean;
   onClose: () => void;
   type?: string;
@@ -11,7 +11,7 @@ interface ShareModalProps {
   message?: string;
 }
 
-const ShareModal: React.FC<ShareModalProps> = ({
+const OrderShareModal: React.FC<OrderShareModalProps> = ({
   visible,
   onClose,
   type = "product",
@@ -85,4 +85,4 @@ const ShareModal: React.FC<ShareModalProps> = ({
   );
 };
 
-export default ShareModal;
+export default OrderShareModal;

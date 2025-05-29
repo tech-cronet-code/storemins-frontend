@@ -22,6 +22,7 @@ import {
 import React, { useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { UserRoleName } from "../../auth/constants/userRoles";
+import { BiPurchaseTag } from "react-icons/bi";
 
 interface SidebarProps {
   role: UserRoleName;
@@ -31,7 +32,35 @@ interface SidebarProps {
 
 const menuItems = [
   { label: "Dashboard", icon: <Home />, path: "/seller", active: true },
-  { label: "Orders", icon: <ShoppingCart />, path: "/orders", active: false },
+  {
+    label: "Orders",
+    icon: <ShoppingCart />,
+    path: "/seller/orders",
+    active: false,
+    hasChildren: true,
+    children: [
+      {
+        label: "All Orders",
+        path: "/seller/orders",
+        icon: <Box size={16} />,
+      },
+      {
+        label: "Purchase",
+        path: "/seller/purchases",
+        icon: <BiPurchaseTag size={16} />,
+      },
+      {
+        label: "Estimates",
+        path: "/seller/estimates",
+        icon: <Truck size={16} />,
+      },
+      {
+        label: "Abandoned Orders",
+        path: "/seller/abandoned-orders-cart",
+        icon: <BiPurchaseTag size={16} />,
+      },
+    ],
+  },
   {
     label: "Products",
     icon: <Box />,

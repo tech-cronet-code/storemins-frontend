@@ -1,8 +1,8 @@
 import React, { useState } from "react";
 import { Eye, Share2 } from "lucide-react";
-import ShareModal from "./ShareModal";
-import ProductActionsMenu from "./ProductActionsMenu";
-import DeleteConfirmModal from "./DeleteConfirmModal";
+import OrderActionsMenu from "./OrderActionsMenu";
+import OrderShareModal from "./ShareModal";
+import DeleteOrderConfirmModal from "./DeleteOrderConfirmModal";
 
 interface ProductRowProps {
   image: string;
@@ -137,7 +137,7 @@ const ProductTableRow: React.FC<ProductRowProps> = ({
           >
             <Share2 className="w-[18px] h-[18px]" />
           </button>
-          <ProductActionsMenu
+          <OrderActionsMenu
             onEdit={() => console.log("Edit product")}
             onDuplicate={() => console.log("Duplicate product")}
             onDelete={() => setDeleteModalOpen(true)}
@@ -145,7 +145,7 @@ const ProductTableRow: React.FC<ProductRowProps> = ({
         </div>
       </div>
 
-      <ShareModal
+      <OrderShareModal
         visible={isShareModalOpen}
         onClose={() => setShareModalOpen(false)}
         type="product"
@@ -154,7 +154,7 @@ const ProductTableRow: React.FC<ProductRowProps> = ({
 
 
       {/* Delete Confirmation Modal */}
-      <DeleteConfirmModal
+      <DeleteOrderConfirmModal
         visible={isDeleteModalOpen}
         onClose={() => setDeleteModalOpen(false)}
         onConfirm={() => {
