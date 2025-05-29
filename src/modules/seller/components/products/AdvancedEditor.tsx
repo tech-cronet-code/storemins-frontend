@@ -1,5 +1,5 @@
 // ✅ AdvancedEditor.tsx
-import React, { useRef, useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 const AdvancedEditor = ({
   value,
