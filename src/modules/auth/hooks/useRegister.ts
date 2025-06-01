@@ -4,49 +4,74 @@ import { AppDispatch } from "../../../common/state/store";
 import { showToast } from "../../../common/utils/showToast";
 import { RegisterPayload, useRegisterMutation } from "../services/authApi";
 import { loginFailure, loginStart, registerSuccess } from "../slices/authSlice";
+import { UserRoleName } from "../constants/userRoles";
 
-export const useRegister = () => {
+export const useRegister = (
+  onQuickLoginEnable?: (enabled: boolean) => void
+) => {
   const dispatch = useDispatch<AppDispatch>();
   const [registerApi, { isLoading }] = useRegisterMutation();
 
   const register = async (
     payload: RegisterPayload
-  ): Promise<{ needsOtp: boolean }> => {
+  ): Promise<{ needsOtp: boolean; quickLoginEnable: boolean }> => {
     dispatch(loginStart());
+
+    let quickLoginEnable = false;
+    let needsOtp = false;
 
     try {
       const response = await registerApi(payload).unwrap();
+      console.log(response, "response ???");
 
-      if (response.quickRegisterInfo) {
-        console.log(response, "response");
-        console.log(payload, "payload");
+      if (response && response.quickRegisterInfo) {
+        quickLoginEnable = response.quickLoginEnable ?? false;
+        needsOtp = response.needs_confirm_otp_code ?? false;
 
-        dispatch(
+        onQuickLoginEnable?.(quickLoginEnable);
+
+        const {
+          id,
+          mobile,
+          role,
+          permissions,
+          access_token,
+          refresh_token,
+          mobile_confirmed,
+        } = response.quickRegisterInfo;
+
+        // 👇 cast `role` properly
+        const castedRoles = role as UserRoleName[];
+
+         dispatch(
           registerSuccess({
             user: {
-              id: response.quickRegisterInfo.id,
-              mobile: response.quickRegisterInfo.mobile,
-              role: payload.role,
-              name: payload.name,
-              pwd_hash: payload.pass_hash,
+              id,
+              mobile,
+              role: castedRoles || [],
+              permissions: permissions || [],
+              name: payload.name, // Name comes from input
+              mobile_confirmed: mobile_confirmed ?? false,
             },
-            token: undefined,
-            needsOtp: response.needs_confirm_otp_code,
+            token: access_token,
+            refreshToken: refresh_token,
+            needsOtp,
           })
         );
 
-        const needsOtp = response.needs_confirm_otp_code ?? false;
-        if (needsOtp) {
-          showToast({
-            type: "success",
-            message:
-              response.message ||
-              "We have sent a new OTP to your mobile number. Please verify the OTP to complete your registration.",
-            showClose: true,
-          });
-        }
-        return { needsOtp }; // ✅ Return value here
+        showToast({
+          type: "success",
+          message:
+            response.message ||
+            "We have sent a new OTP to your mobile number. Please verify the OTP to complete your registration.",
+          showClose: true,
+        });
+
+        return { needsOtp, quickLoginEnable };
       }
+
+      quickLoginEnable = response.quickLoginEnable;
+      onQuickLoginEnable?.(quickLoginEnable);
 
       showToast({
         type: "info",
@@ -69,8 +94,8 @@ export const useRegister = () => {
         showClose: true,
       });
     }
-    // ❌ Still need to return in case of error to satisfy function type
-    return { needsOtp: false };
+
+    return { needsOtp, quickLoginEnable };
   };
 
   return {

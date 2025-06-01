@@ -1,15 +1,23 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Eye, Pencil, Share2, MoreVertical, Plus, Minus, X } from "lucide-react";
+import {
+  Eye,
+  Pencil,
+  Share2,
+  MoreVertical,
+  Plus,
+  Minus,
+  X,
+} from "lucide-react";
 import classNames from "classnames";
 import ShareModal from "../products/ShareModal";
 
 interface Category {
-  id: number;
+  id: string;
   name: string;
   image: string;
   status: boolean;
   products: number;
-  subcategories?: Category[];
+  subCategories?: Category[];
 }
 
 interface Props {
@@ -38,7 +46,7 @@ const SellerCategoryTableRow: React.FC<Props> = ({
   const menuRef = useRef<HTMLDivElement>(null);
   const deleteModalRef = useRef<HTMLDivElement>(null);
 
-  const hasSubcategories = (category.subcategories?.length ?? 0) > 0;
+  const hasSubcategories = (category.subCategories?.length ?? 0) > 0;
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -52,7 +60,10 @@ const SellerCategoryTableRow: React.FC<Props> = ({
 
   useEffect(() => {
     const handleOutsideDeleteModal = (e: MouseEvent) => {
-      if (deleteModalRef.current && !deleteModalRef.current.contains(e.target as Node)) {
+      if (
+        deleteModalRef.current &&
+        !deleteModalRef.current.contains(e.target as Node)
+      ) {
         setDeleteModalOpen(false);
         setConfirmDelete(false);
       }
@@ -60,7 +71,8 @@ const SellerCategoryTableRow: React.FC<Props> = ({
     if (isDeleteModalOpen) {
       document.addEventListener("mousedown", handleOutsideDeleteModal);
     }
-    return () => document.removeEventListener("mousedown", handleOutsideDeleteModal);
+    return () =>
+      document.removeEventListener("mousedown", handleOutsideDeleteModal);
   }, [isDeleteModalOpen]);
 
   const toggleStatus = () => setActive((prev) => !prev);
@@ -69,8 +81,8 @@ const SellerCategoryTableRow: React.FC<Props> = ({
     <>
       <div
         className={classNames(
-          "w-full grid grid-cols-[40px_2.5fr_1fr_1.2fr_1.2fr] gap-2 px-4 py-3 border-t text-sm border-gray-200 text-gray-700 bg-white hover:bg-gray-50",
-          isSub && "pl-10"
+          "w-full grid grid-cols-[40px_2.5fr_1fr_1.2fr_1.2fr] gap-2 px-4 py-3 text-sm border-b border-gray-100 transition hover:bg-gray-50",
+          isSub ? "bg-gray-50 pl-12" : "bg-white"
         )}
       >
         {/* Checkbox */}
@@ -85,13 +97,17 @@ const SellerCategoryTableRow: React.FC<Props> = ({
 
         {/* Category Name */}
         <div
-          className={classNames("flex items-center gap-2", !isSub && hasSubcategories && "cursor-pointer")}
+          className={classNames(
+            "flex items-center gap-3",
+            !isSub && hasSubcategories && "cursor-pointer"
+          )}
           onClick={
             !isSub && hasSubcategories && onToggleExpand
               ? () => onToggleExpand()
               : undefined
           }
         >
+          {/* Expand/Collapse Button */}
           {!isSub && hasSubcategories && (
             <button
               type="button"
@@ -99,20 +115,33 @@ const SellerCategoryTableRow: React.FC<Props> = ({
                 e.stopPropagation();
                 onToggleExpand?.();
               }}
+              className="w-7 h-7 flex items-center justify-center rounded-full border border-gray-300 hover:bg-gray-100 transition"
             >
-              {expanded ? <Minus className="w-4 h-4 text-gray-600" /> : <Plus className="w-4 h-4 text-gray-600" />}
+              {expanded ? (
+                <Minus className="w-4 h-4 text-gray-600" />
+              ) : (
+                <Plus className="w-4 h-4 text-gray-600" />
+              )}
             </button>
           )}
+          {/* Category Image + Name */}
           <img
             src={category.image}
             alt={category.name}
-            className="w-10 h-10 object-cover rounded border border-gray-200"
+            className={classNames(
+              isSub ? "w-8 h-8" : "w-10 h-10",
+              "object-cover rounded border border-gray-200"
+            )}
           />
-          <span className="text-blue-600 font-medium">{category.name}</span>
+          <span className="text-blue-600 font-medium truncate">
+            {category.name}
+          </span>
         </div>
 
         {/* Product Count */}
-        <div className="flex items-center justify-center">{category.products}</div>
+        <div className="flex items-center justify-center">
+          {category.products}
+        </div>
 
         {/* Status Toggle */}
         <div className="flex items-center justify-center gap-2">
@@ -123,10 +152,22 @@ const SellerCategoryTableRow: React.FC<Props> = ({
               checked={active}
               onChange={toggleStatus}
             />
-            <div className={`w-10 h-5 rounded-full transition-colors duration-300 ${active ? "bg-blue-600" : "bg-gray-300"}`} />
-            <div className={`absolute left-0.5 top-0.5 w-4 h-4 bg-white rounded-full shadow-md transform transition-transform duration-300 ${active ? "translate-x-5" : ""}`} />
+            <div
+              className={`w-10 h-5 rounded-full transition-colors duration-300 ${
+                active ? "bg-blue-600" : "bg-gray-300"
+              }`}
+            />
+            <div
+              className={`absolute left-0.5 top-0.5 w-4 h-4 bg-white rounded-full shadow-md transform transition-transform duration-300 ${
+                active ? "translate-x-5" : ""
+              }`}
+            />
           </label>
-          <span className={`text-sm font-medium ${active ? "text-green-600" : "text-red-500"}`}>
+          <span
+            className={`text-sm font-medium ${
+              active ? "text-green-600" : "text-red-500"
+            }`}
+          >
             {active ? "Active" : "Hidden"}
           </span>
         </div>
@@ -200,7 +241,8 @@ const SellerCategoryTableRow: React.FC<Props> = ({
           >
             <h2 className="text-lg font-semibold">Confirm deletion</h2>
             <p className="text-sm text-gray-600 mt-2">
-              Deleting this category will also delete all subcategories and products under it.
+              Deleting this category will also delete all subcategories and
+              products under it.
             </p>
 
             <label className="flex items-center mt-4 gap-2 cursor-pointer">

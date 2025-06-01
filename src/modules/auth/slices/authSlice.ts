@@ -5,6 +5,10 @@ const userFromStorage = localStorage.getItem("auth_user");
 // const refreshTokenFromStorage = localStorage.getItem("auth_refresh");
 const tokenFromStorage = localStorage.getItem("auth_token"); // ✅ Load token
 
+// const RegisterMobile = JSON.parse(
+//         localStorage.getItem("action_payload") || "false"
+//       );
+
 interface AuthState {
   user: User | null;
   token: string | null; // access_token
@@ -12,6 +16,7 @@ interface AuthState {
   loading: boolean;
   error: string | null;
   needsOtp?: boolean;
+  quickLoginEnable?: boolean;
 }
 
 const initialState: AuthState = {
@@ -68,6 +73,7 @@ const authSlice = createSlice({
       state.loading = false;
       state.error = null;
       state.needsOtp = false;
+      // state.quickLoginEnable = false;
       localStorage.removeItem("auth_user"); // ✅ Clear user
       localStorage.removeItem("auth_token"); // ✅ Clear token on logout
     },
@@ -79,15 +85,44 @@ const authSlice = createSlice({
       state,
       action: PayloadAction<{
         user: User;
-        token?: string;
+        token: string;
+        refreshToken: string;
         needsOtp?: boolean;
       }>
     ) {
       state.user = action.payload.user;
       state.token = action.payload.token ?? null;
+      state.refreshToken = action.payload.refreshToken ?? null;
       state.needsOtp = action.payload.needsOtp ?? false;
       state.loading = false;
       state.error = null;
+      // console.log(action.payload, "action.payload");
+      // if (action.payload.user?.mobile) {
+      // localStorage.setItem(
+      //   "action_payload",
+      //   JSON.stringify({ mobile: action.payload.user.mobile })
+      // );
+      // }
+      /// why not set this
+      // const user = JSON.parse(
+      //   localStorage.getItem("action_payload") || "false"
+      // );
+
+      // console.log(user, "user???");
+
+      localStorage.setItem("auth_token", action.payload.token ?? "Null"); // ✅ Save token
+      localStorage.setItem(
+        "auth_user",
+        JSON.stringify({
+          id: action.payload.user.id,
+          name: action.payload.user.name,
+          role: action.payload.user.role,
+          permissions: action.payload.user.permissions,
+          mobile_confirmed: action.payload.user.mobile_confirmed,
+          mobile: action.payload.user.mobile, // ✅ this must exist
+          otpExpiresAt: action.payload.user.otpExpiresAt, // ✅ include this
+        })
+      );
     },
 
     confirmOtpSuccess(

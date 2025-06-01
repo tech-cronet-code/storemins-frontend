@@ -5,6 +5,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useState,
 } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { AppDispatch, RootState } from "../../../common/state/store";
@@ -14,7 +15,10 @@ import { useConfirmOtp } from "../hooks/useConfirmOtp";
 import { useDomain } from "../hooks/useDomainOperations";
 import { useLogin } from "../hooks/useLogin";
 import { useRegister } from "../hooks/useRegister";
-import { useGetUserDetailsQuery } from "../services/authApi";
+import {
+  useGetUserDetailsQuery,
+  useUpdateUserProfileMutation,
+} from "../services/authApi";
 import { logout, setUser } from "../slices/authSlice";
 import { User } from "../types/authTypes";
 import {
@@ -41,7 +45,7 @@ interface AuthContextType {
     pass_hash: string;
     role: UserRoleName;
     isTermAndPrivarcyEnable: boolean;
-  }) => Promise<{ needsOtp: boolean }>;
+  }) => Promise<{ needsOtp: boolean; quickLoginEnable: boolean }>;
   confirmOtp: (code: string) => Promise<void>;
   logout: () => void;
   loading: boolean;
@@ -52,6 +56,8 @@ interface AuthContextType {
 
   checkDomainAvailability: (slug: string) => Promise<"available" | "taken">;
   saveDomain: (dto: DomainRequestDto) => Promise<DomainResponseDto>;
+  quickLoginEnabledFlag: boolean;
+  updateProfile: (name: string) => Promise<void>; // <--- added here
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -61,6 +67,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const { user, token, loading, error } = useSelector(
     (state: RootState) => state.auth
   );
+  const [quickLoginEnabledFlag, setQuickLoginEnabledFlag] = useState(false);
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const {
@@ -70,7 +77,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   } = useBusinessDetails();
 
   const loginHook = useLogin();
-  const registerHook = useRegister();
+  const registerHook = useRegister(setQuickLoginEnabledFlag);
   const confirmOtpHook = useConfirmOtp();
   // ➊ pull in domain helpers
   const { checkDomainAvailability, saveDomain } = useDomain();
@@ -114,11 +121,27 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     ) {
       dispatch(setUser(userFromResponse));
     }
-  }, [token, userDetails, user, dispatch]);
+  }, [token, userDetails, user, dispatch, userFromResponse]);
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const handleLogout = () => {
-    dispatch(logout());
+    const persistedQuickLogin = localStorage.getItem("quick_login_enabled");
+    if (persistedQuickLogin) {
+      dispatch(logout()); //  Redux logout
+      setTimeout(() => {
+        localStorage.removeItem("quick_login_enabled");
+        window.location.href = "/home"; // 🔁 Full reload with delay
+      }, 100); // slight delay to let Redux update
+    } else {
+      dispatch(logout()); //  Redux logout
+    }
+  };
+
+  const [updateUserProfileApi] = useUpdateUserProfileMutation();
+
+  const updateProfile = async (name: string): Promise<void> => {
+    await updateUserProfileApi({ name }).unwrap();
+    await refetch(); // Refresh user details
   };
 
   const contextValue = useMemo<AuthContextType>(
@@ -135,10 +158,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       createOrUpdateBusinessDetails: createOrUpdate,
       checkDomainAvailability,
       saveDomain,
+      quickLoginEnabledFlag,
+      updateProfile,
     }),
     [
       user,
-      userDetails,
+      userFromResponse,
       refetch,
       loginHook.login,
       registerHook.register,
@@ -149,6 +174,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       createOrUpdate,
       checkDomainAvailability,
       saveDomain,
+      quickLoginEnabledFlag,
+      updateProfile,
     ]
   );
 

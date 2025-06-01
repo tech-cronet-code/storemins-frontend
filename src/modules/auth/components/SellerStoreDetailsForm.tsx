@@ -7,9 +7,7 @@ import {
   SellerStoreDetailsFormValues,
   sellerStoreDetailsSchema,
 } from "../schemas/sellerStoreDetailsSchema";
-import {
-  BusinessCategoryResponseDto
-} from "../types/businessStoreTypes";
+import { BusinessCategoryResponseDto } from "../types/businessStoreTypes";
 
 interface Props {
   onSubmit: (data: SellerStoreDetailsFormValues) => Promise<void>;
@@ -208,7 +206,7 @@ const SellerStoreDetailsForm: React.FC<Props> = ({
           className="w-full py-3 rounded-md bg-[#7F56D9] text-white font-semibold hover:bg-[#6d45c8] transition"
           disabled={loading}
         >
-          {loading ? "Nexting in..." : "Next"}
+          {loading ? "Saving..." : "Save & Continue"}
         </button>
 
         {error && <p className="text-red-500 text-center text-sm">{error}</p>}

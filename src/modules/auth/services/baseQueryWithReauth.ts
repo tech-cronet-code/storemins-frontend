@@ -40,7 +40,9 @@ const adminBase = fetchBaseQuery({
 
 // ➌ Which paths should use the “adminBase” instead of authBase?
 const isAdminEndpoint = (url: string) =>
-  url.startsWith("/super-admin/") || url.startsWith("/seller/business");
+  url.startsWith("/super-admin/") ||
+  url.startsWith("/seller/business") ||
+  url.startsWith("/seller/product");
 
 // ➍ The wrapper
 export const baseQueryWithReauth: typeof authBase = async (
