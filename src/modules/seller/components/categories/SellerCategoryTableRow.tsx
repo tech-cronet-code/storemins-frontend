@@ -10,15 +10,8 @@ import {
 } from "lucide-react";
 import classNames from "classnames";
 import ShareModal from "../products/ShareModal";
-
-interface Category {
-  id: string;
-  name: string;
-  image: string;
-  status: boolean;
-  products: number;
-  subCategories?: Category[];
-}
+import { Category } from "../../types/category";
+import { useSellerProduct } from "../../hooks/useSellerProduct";
 
 interface Props {
   category: Category;
@@ -27,6 +20,8 @@ interface Props {
   checked: boolean;
   onCheckboxChange: (checked: boolean) => void;
   onToggleExpand?: () => void;
+  onEdit: (category: Category, type: "PARENT" | "SUB") => void;
+  onRefresh: () => void; // ✅ new
 }
 
 const SellerCategoryTableRow: React.FC<Props> = ({
@@ -36,12 +31,17 @@ const SellerCategoryTableRow: React.FC<Props> = ({
   checked,
   onCheckboxChange,
   onToggleExpand,
+  onEdit,
+  onRefresh,
 }) => {
   const [active, setActive] = useState(category.status);
   const [isShareModalOpen, setShareModalOpen] = useState(false);
   const [isDeleteModalOpen, setDeleteModalOpen] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+
+  const { deleteCategories } = useSellerProduct();
+  const [deleting, setDeleting] = useState(false);
 
   const menuRef = useRef<HTMLDivElement>(null);
   const deleteModalRef = useRef<HTMLDivElement>(null);
@@ -174,9 +174,13 @@ const SellerCategoryTableRow: React.FC<Props> = ({
 
         {/* Actions */}
         <div className="flex items-center gap-1.5 justify-end">
-          <button className="group w-8 h-8 rounded-full flex items-center justify-center text-gray-500 hover:text-blue-600 hover:bg-gray-100 transition">
+          <button
+            className="group w-8 h-8 rounded-full flex items-center justify-center text-gray-500 hover:text-blue-600 hover:bg-gray-100 transition"
+            onClick={() => onEdit(category, isSub ? "PARENT" : "SUB")} // ✅ fire the edit action
+          >
             <Pencil className="w-[18px] h-[18px]" />
           </button>
+
           <button className="group w-8 h-8 rounded-full flex items-center justify-center text-gray-500 hover:text-blue-600 hover:bg-gray-100 transition">
             <Eye className="w-[18px] h-[18px]" />
           </button>
@@ -240,22 +244,26 @@ const SellerCategoryTableRow: React.FC<Props> = ({
             className="bg-white rounded-md px-6 py-5 shadow-xl relative w-full max-w-md"
           >
             <h2 className="text-lg font-semibold">Confirm deletion</h2>
+
             <p className="text-sm text-gray-600 mt-2">
-              Deleting this category will also delete all subcategories and
-              products under it.
+              {isSub
+                ? "Are you sure you want to delete this subcategory?"
+                : "Deleting this category will also delete all subcategories and products under it."}
             </p>
 
-            <label className="flex items-center mt-4 gap-2 cursor-pointer">
-              <input
-                type="checkbox"
-                className="w-4 h-4"
-                checked={confirmDelete}
-                onChange={(e) => setConfirmDelete(e.target.checked)}
-              />
-              <span className="text-sm text-gray-700">
-                I understand I cannot undo this action.
-              </span>
-            </label>
+            {!isSub && (
+              <label className="flex items-center mt-4 gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  className="w-4 h-4"
+                  checked={confirmDelete}
+                  onChange={(e) => setConfirmDelete(e.target.checked)}
+                />
+                <span className="text-sm text-gray-700">
+                  I understand I cannot undo this action.
+                </span>
+              </label>
+            )}
 
             <div className="mt-5 flex justify-end gap-2">
               <button
@@ -267,20 +275,32 @@ const SellerCategoryTableRow: React.FC<Props> = ({
               >
                 Cancel
               </button>
+
               <button
-                className={`text-sm px-4 py-2 rounded text-white ${
-                  confirmDelete
-                    ? "bg-red-600 hover:bg-red-700"
-                    : "bg-red-300 cursor-not-allowed"
+                className={`text-sm px-4 py-2 rounded text-white flex items-center justify-center gap-2 ${
+                  (!isSub && !confirmDelete) || deleting
+                    ? "bg-red-300 cursor-not-allowed"
+                    : "bg-red-600 hover:bg-red-700"
                 }`}
-                disabled={!confirmDelete}
-                onClick={() => {
+                disabled={(!isSub && !confirmDelete) || deleting}
+                onClick={async () => {
+                  setDeleting(true);
+                  const success = await deleteCategories.deleteCategories([
+                    category.id,
+                  ]);
+                  if (success) {
+                    onRefresh();
+                  }
+                  setDeleting(false);
                   setDeleteModalOpen(false);
                   setConfirmDelete(false);
-                  alert("Category deleted");
                 }}
               >
-                Yes, delete
+                {deleting ? (
+                  <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  "Yes, delete"
+                )}
               </button>
             </div>
 

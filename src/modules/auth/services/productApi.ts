@@ -91,7 +91,32 @@ export const productApi = createApi({
     >({
       query: (body) => ({
         url: `/seller/product/product-category/edit`,
-        method: "POST", 
+        method: "POST",
+        body,
+      }),
+    }),
+    //  getCategory endpoint
+    getCategory: builder.query<
+      ProductCategoryResponse,
+      { id: string; type: "PARENT" | "SUB" }
+    >({
+      query: ({ id, type }) => ({
+        url: `/seller/product/product-category/${id}?type=${type}`,
+        method: "GET",
+      }),
+      transformResponse: (response: {
+        message: string;
+        data: ProductCategoryResponse;
+      }) => response.data,
+    }),
+
+    deleteCategories: builder.mutation<
+      { message: string }, // response type
+      { ids: string[] } // payload
+    >({
+      query: (body) => ({
+        url: `/seller/product/product-category/delete`,
+        method: "DELETE",
         body,
       }),
     }),
@@ -103,4 +128,7 @@ export const {
   useListCategoriesQuery,
   useLazyListCategoriesQuery,
   useUpdateCategoryMutation,
+  useGetCategoryQuery,
+  useLazyGetCategoryQuery,
+  useDeleteCategoriesMutation,
 } = productApi;

@@ -4,17 +4,22 @@ import CategoriesSidebarNavigation from "../components/categories/SidebarNavigat
 import { ArrowLeft } from "lucide-react";
 import CategoriesForm from "../components/categories/CategoriesForm";
 
-const AddCategoriesContainer = () => {
+interface Props {
+  categoryId?: string; // 👈 accept optional categoryId
+  type?: string; // 👈 add type
+}
+
+const AddCategoriesContainer: React.FC<Props> = ({ categoryId, type }) => {
   const navigate = useNavigate();
   const formContainerRef = useRef<HTMLDivElement>(null!);
 
-  // Lock page scroll only for this page
   useEffect(() => {
     document.body.style.overflow = "hidden";
     return () => {
       document.body.style.overflow = "auto";
     };
   }, []);
+
   return (
     <>
       <div className="flex h-screen w-full bg-[#f9fafb] overflow-hidden">
@@ -41,7 +46,7 @@ const AddCategoriesContainer = () => {
                 <ArrowLeft size={24} strokeWidth={2} />
               </button>
               <h1 className="text-base sm:text-lg font-semibold text-gray-900 leading-none">
-                Add new Categories
+                {categoryId ? "Edit Category" : "Add New Category"} {/* 👈 */}
               </h1>
             </div>
 
@@ -50,7 +55,7 @@ const AddCategoriesContainer = () => {
               disabled
               className="w-full sm:w-auto px-5 py-2.5 rounded-md bg-blue-600 text-white text-sm font-medium shadow-sm transition hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Add Categories
+              {categoryId ? "Update Category" : "Add Category"}
             </button>
           </div>
 
@@ -59,7 +64,7 @@ const AddCategoriesContainer = () => {
             ref={formContainerRef}
             className="flex-1 overflow-y-auto px-4 py-4 scroll-smooth"
           >
-            <CategoriesForm />
+            <CategoriesForm categoryId={categoryId} type={type} />
           </div>
         </div>
       </div>

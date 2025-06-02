@@ -1,23 +1,37 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import React from "react";
+import React, { useEffect } from "react";
 import { FormProvider, useForm } from "react-hook-form";
 import { z } from "zod";
 import CategoriesInfoSection from "./CategoriesInfoSection";
 import SEOCategorySection from "./SEOCategorySection";
-import { useSellerProduct } from "../../hooks/useSellerProduct"; // 👈 hook for createCategory
-import { useAuth } from "../../../auth/contexts/AuthContext"; // 👈 get userDetails
+import { useSellerProduct } from "../../hooks/useSellerProduct";
+import { useAuth } from "../../../auth/contexts/AuthContext";
 import { showToast } from "../../../../common/utils/showToast";
-import { CategoriesSchema } from "../../Schemas/CategoriesSchema";
+import { CategoriesSchema } from "../../Schemas/categoriesSchema";
+import { useNavigate } from "react-router-dom";
+import HeaderSubmitButton from "./HeaderButton";
 
 type CategoriesFormValues = z.infer<typeof CategoriesSchema>;
 
-const CategoriesForm: React.FC = () => {
-  const { createCategory } = useSellerProduct();
-  const { userDetails } = useAuth();
+interface CategoriesFormProps {
+  categoryId?: string; // 📝 For Edit Mode
+  type?: string;
+  onSuccess?: () => void; // ✅ On Save Success
+}
+
+const CategoriesForm: React.FC<CategoriesFormProps> = ({
+  categoryId,
+  type,
+  onSuccess,
+}) => {
+  const navigate = useNavigate();
+
+  const { createCategory, updateCategory, getCategory } = useSellerProduct(); // CRUD APIs
+  const { userDetails } = useAuth(); // User Info
 
   const methods = useForm<CategoriesFormValues>({
     resolver: zodResolver(CategoriesSchema),
-    mode: "onChange", // 💡 Real-time validation
+    mode: "onChange",
     defaultValues: {
       name: "",
       isSubcategory: false,
@@ -31,12 +45,55 @@ const CategoriesForm: React.FC = () => {
     },
   });
 
-  const { isValid, isSubmitting } = methods.formState;
+//   const { isValid, isSubmitting } = methods.formState;
+  const { reset: resetForm } = methods;
 
-  const onSubmit = async (data: CategoriesFormValues) => {
+  // 👇 Lazy Query for Get Category (one-time)
+  const {
+    getCategory: fetchCategory,
+    data,
+    isError,
+    error,
+    isLoading,
+  } = getCategory;
+  // 👇 Fetch Category on Mount
+  useEffect(() => {
+    if (categoryId && type) {
+      const categoryType = type === "PARENT" ? "PARENT" : "SUB";
+      fetchCategory(categoryId, categoryType);
+    }
+    // 👇 fetchCategory ko dependency se hatao
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [categoryId, type]);
+
+  // 👇 Reset form with fetched data
+  useEffect(() => {
+    if (data) {
+      resetForm({
+        name: data.name || "",
+        description: data.description || "",
+        isSubcategory: data.categoryType === "SUB",
+        seoTitle: data.seoMetaData?.title || "",
+        seoDescription: data.seoMetaData?.description || "",
+      });
+    }
+  }, [data, resetForm]);
+
+  // 👇 Show error toast
+  useEffect(() => {
+    if (isError && error) {
+      showToast({
+        type: "error",
+        message: "Failed to load category details.",
+        showClose: true,
+      });
+    }
+  }, [isError, error]);
+
+  // 👇 Form Submit Handler
+  const onSubmit = async (formData: CategoriesFormValues) => {
     try {
       const businessId = userDetails?.storeLinks?.[0]?.businessId;
-
       if (!businessId) {
         showToast({
           type: "error",
@@ -47,40 +104,56 @@ const CategoriesForm: React.FC = () => {
       }
 
       const payload = {
-        name: data.name,
-        description: data.description || undefined,
+        name: formData.name,
+        description: formData.description || undefined,
         status: "ACTIVE" as const,
-        categoryType: data.isSubcategory
+        categoryType: formData.isSubcategory
           ? ("SUB" as const)
           : ("PARENT" as const),
         businessId,
-        parentId: data.isSubcategory ? data.category : undefined,
+        parentId: formData.isSubcategory ? formData.category : undefined,
         seoMetaData:
-          data.seoTitle || data.seoDescription
+          formData.seoTitle || formData.seoDescription
             ? {
-                title: data.seoTitle || "",
-                description: data.seoDescription || "",
+                title: formData.seoTitle || "",
+                description: formData.seoDescription || "",
               }
             : undefined,
         imageId: undefined,
       };
 
-      console.log("🚀 Payload sending to API:", payload);
+      if (categoryId) {
+        // ✅ Update Mode
+        const response = await updateCategory.updateCategory({
+          ...payload,
+          id: categoryId,
+        });
+        showToast({
+          type: "success",
+          message: response.message || "Category updated successfully!",
+          showClose: true,
+        });
+      } else {
+        // ➕ Create Mode
+        const response = await createCategory(payload);
+        showToast({
+          type: "success",
+          message: response.data?.message || "Category created successfully!",
+          showClose: true,
+        });
+      }
 
-      const response = await createCategory(payload).unwrap();
+      resetForm(); // Reset Form
+      if (onSuccess) {
+        onSuccess();
+      }
+      navigate("/seller/catalogue/categories"); // 👈 redirects to main listing
 
-      showToast({
-        type: "success",
-        message: response.message || "Category created successfully!",
-        showClose: true,
-      });
-
-      methods.reset();
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
       const errorMessage =
         error?.data?.message || "Something went wrong. Please try again.";
-      console.error("Failed to create category:", error);
+      console.error("Failed to save category:", error);
 
       showToast({
         type: "error",
@@ -92,24 +165,29 @@ const CategoriesForm: React.FC = () => {
 
   return (
     <FormProvider {...methods}>
-      <form onSubmit={methods.handleSubmit(onSubmit)} className="space-y-10">
-        <section id="categories-info" className="scroll-mt-24">
-          <CategoriesInfoSection />
-        </section>
-
-        <section id="seo" className="scroll-mt-24">
-          <SEOCategorySection />
-        </section>
-        <div className="flex justify-end mt-6 pb-15 pt-1">
-          <button
-            type="submit"
-            disabled={!isValid || isSubmitting}
-            className="bg-blue-600 text-white px-6 py-3 rounded-md text-sm hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {isSubmitting ? "Adding..." : "Add Categories"}
-          </button>
+      {isLoading ? (
+        <div className="text-center py-6 text-gray-500">
+          Loading category details...
         </div>
-      </form>
+      ) : isError ? (
+        <div className="text-center py-6 text-red-500">
+          Failed to load category.
+        </div>
+      ) : (
+        <form onSubmit={methods.handleSubmit(onSubmit)} className="space-y-10">
+          <section id="categories-info" className="scroll-mt-24">
+            <CategoriesInfoSection />
+          </section>
+
+          <section id="seo" className="scroll-mt-24">
+            <SEOCategorySection />
+          </section>
+
+          <div className="flex justify-end mt-6 pb-15 pt-1">
+            <HeaderSubmitButton categoryId={categoryId} />
+          </div>
+        </form>
+      )}
     </FormProvider>
   );
 };

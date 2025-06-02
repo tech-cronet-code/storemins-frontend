@@ -1,8 +1,14 @@
-'use client';
+"use client";
 
 import { useFormContext } from "react-hook-form";
 
-const HeaderButton = () => {
+interface HeaderSubmitButtonProps {
+  categoryId?: string;
+}
+
+const HeaderSubmitButton: React.FC<HeaderSubmitButtonProps> = ({
+  categoryId,
+}) => {
   const {
     formState: { isValid, isSubmitting },
   } = useFormContext();
@@ -11,15 +17,17 @@ const HeaderButton = () => {
     <button
       type="submit"
       disabled={!isValid || isSubmitting}
-      className={`w-full sm:w-auto px-5 py-2.5 rounded-md text-sm font-medium shadow-sm transition ${
-        isValid && !isSubmitting
-          ? "bg-blue-600 text-white hover:bg-blue-700"
-          : "bg-gray-300 text-white cursor-not-allowed"
-      }`}
+      className="bg-blue-600 text-white px-6 py-3 rounded-md text-sm hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
     >
-      {isSubmitting ? "Adding..." : "Add Categories"}
+      {isSubmitting
+        ? categoryId
+          ? "Updating..."
+          : "Adding..."
+        : categoryId
+        ? "Update Category"
+        : "Add Category"}
     </button>
   );
 };
 
-export default HeaderButton;
+export default HeaderSubmitButton;

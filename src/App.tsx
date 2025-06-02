@@ -25,11 +25,13 @@ import UserSettingsPage from "./modules/seller/pages/UserSettingsPage";
 import OtpRoute from "./routes/OtpRoute";
 import SellerProductsInventoryPage from "./modules/seller/pages/SellerProductsInventoryPage";
 import SellerProductsOrdersPage from "./modules/seller/pages/SellerProductsOrdersPage";
+import ScrollToTop from "./modules/seller/common/components/ScrollToTop";
 // import AuthFormPage from "./modules/auth/pages/AuthForm";
 
 const App = () => {
   return (
     <BrowserRouter>
+      <ScrollToTop />
       <Routes>
         {/* ✅ Public Routes */}
         <Route element={<PublicRoute />}>
@@ -78,6 +80,11 @@ const App = () => {
               path="/seller/catalogue/categories/create"
               element={<AddCategoriesPage />}
             />
+            <Route
+              path="/seller/catalogue/categories/edit/:id"
+              element={<AddCategoriesPage />}
+            />
+
             <Route
               path="/seller/catalogue/inventory"
               element={<SellerProductsInventoryPage />}
