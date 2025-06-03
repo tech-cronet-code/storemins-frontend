@@ -204,10 +204,10 @@ const SellerCategoryTableRow: React.FC<Props> = ({
                 {!isSub && (
                   <button
                     className="w-full px-4 py-2 text-left hover:bg-gray-100 text-gray-700"
-                    onClick={() => {
-                      setIsMenuOpen(false);
-                      alert("Add subcategory clicked");
-                    }}
+                    // onClick={() => {
+                    //   setIsMenuOpen(false);
+                    //   alert("Add subcategory clicked");
+                    // }}
                   >
                     Add subcategory
                   </button>

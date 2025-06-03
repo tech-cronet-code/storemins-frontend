@@ -4,7 +4,15 @@ import { useAuth } from "../../../auth/contexts/AuthContext";
 import { useSellerProduct } from "../../hooks/useSellerProduct";
 import { CategoriesFormValues } from "../../Schemas/categoriesSchema";
 
-const CategoriesInfoSection: React.FC = () => {
+interface CategoriesInfoSectionProps {
+  categoryId?: string;
+  type?: "PARENT" | "SUB";
+}
+
+const CategoriesInfoSection: React.FC<CategoriesInfoSectionProps> = ({
+  categoryId,
+  type,
+}) => {
   const {
     register,
     watch,
@@ -85,6 +93,9 @@ const CategoriesInfoSection: React.FC = () => {
     cat.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
   console.log(filteredCategories, "filteredCategories");
+
+  // const isEditParent = !!categoryId && type === "PARENT";
+  const isEditSub = !!categoryId && type === "SUB";
 
   return (
     <div className="bg-white border border-gray-200 rounded-md p-6 space-y-6">
@@ -179,8 +190,20 @@ const CategoriesInfoSection: React.FC = () => {
           id="isSubcategory"
           {...register("isSubcategory")}
           className="rounded border-gray-300"
+          disabled={isEditSub}
+          checked={isSubcategory || !!parentCategory}
         />
-        <label htmlFor="isSubcategory" className="text-sm text-gray-700">
+        <label
+          htmlFor="isSubcategory"
+          className={`text-sm ${
+            isEditSub ? "text-gray-400 cursor-not-allowed" : "text-gray-700"
+          }`}
+          title={
+            isEditSub
+              ? "You are editing a subcategory, this cannot be changed."
+              : ""
+          }
+        >
           Add as subcategory
         </label>
       </div>

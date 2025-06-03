@@ -45,7 +45,7 @@ const CategoriesForm: React.FC<CategoriesFormProps> = ({
     },
   });
 
-//   const { isValid, isSubmitting } = methods.formState;
+  //   const { isValid, isSubmitting } = methods.formState;
   const { reset: resetForm } = methods;
 
   // 👇 Lazy Query for Get Category (one-time)
@@ -176,7 +176,10 @@ const CategoriesForm: React.FC<CategoriesFormProps> = ({
       ) : (
         <form onSubmit={methods.handleSubmit(onSubmit)} className="space-y-10">
           <section id="categories-info" className="scroll-mt-24">
-            <CategoriesInfoSection />
+            <CategoriesInfoSection
+              categoryId={categoryId}
+              type={type as "PARENT" | "SUB"}
+            />
           </section>
 
           <section id="seo" className="scroll-mt-24">
