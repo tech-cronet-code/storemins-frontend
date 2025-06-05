@@ -4,7 +4,7 @@ interface SubCategory {
   id: string;
   name: string;
   productCount: number;
-  image?: string; // ✅ Subcategory image
+  image?: string;
 }
 
 interface Category {
@@ -22,6 +22,7 @@ interface CategorySelectModalProps {
   onSelect: (selectedIds: string[]) => void;
   onAddNewCategory: () => void;
   onClose: () => void;
+  loading: boolean; // ✅ ADD THIS
 }
 
 const CategorySelectModal: React.FC<CategorySelectModalProps> = ({
@@ -31,6 +32,7 @@ const CategorySelectModal: React.FC<CategorySelectModalProps> = ({
   onSelect,
   onAddNewCategory,
   onClose,
+  loading, // ✅ AND HERE
 }) => {
   const [search, setSearch] = useState("");
   const [localSelected, setLocalSelected] =
@@ -154,7 +156,6 @@ const CategorySelectModal: React.FC<CategorySelectModalProps> = ({
               onClick={() => toggleCategory(sub.id)}
             >
               <div className="flex items-center space-x-4 flex-1">
-                {/* Subcategory Image */}
                 {sub.image && (
                   <img
                     src={sub.image}
@@ -214,7 +215,9 @@ const CategorySelectModal: React.FC<CategorySelectModalProps> = ({
 
         {/* Category List */}
         <div className="max-h-48 overflow-y-auto space-y-3 pr-1 custom-scrollbar">
-          {filteredCategories.length > 0 ? (
+          {loading ? (
+            <div className="text-center text-gray-400 text-sm">Loading...</div>
+          ) : filteredCategories.length > 0 ? (
             filteredCategories.map((cat) => renderCategory(cat))
           ) : (
             <div className="text-center text-gray-400 text-sm">

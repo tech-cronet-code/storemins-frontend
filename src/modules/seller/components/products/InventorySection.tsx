@@ -14,7 +14,9 @@ const InventorySection: React.FC = () => {
   const [isOpen, setIsOpen] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
 
+  // 🟢 Watch stock and sku
   const quantity = watch("stock");
+  const sku = watch("sku");
 
   return (
     <>
@@ -81,6 +83,7 @@ const InventorySection: React.FC = () => {
                 <input
                   type="text"
                   {...register("sku")}
+                  defaultValue={sku || ""}
                   placeholder="Eg. 1000000001"
                   className="w-full h-[48px] px-4 py-2 text-sm rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder-gray-400"
                 />

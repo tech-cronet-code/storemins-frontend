@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef } from "react";
 import {
   Settings,
   Plus,
@@ -16,43 +16,12 @@ import ProductTableHeader from "./products/ProductTableHeader";
 import ProductTableRow from "./products/ProductTableRow";
 import UpgradeToBusinessPlanModal from "./UpgradeToBusinessPlanModal";
 import PaginationControls from "./products/PaginationControls";
-
-const mockProducts = [
-  {
-    id: 1,
-    name: "Lorem ipsum dolor sit amet, consectetuer adipiscing elit. Aenean commodo ligula eget dolor. Aenean massa. Cum sociis natoque penatibus et magnis dis parturient montes, nascetur ridiculus mus. Donec quam felis, ultricies nec, pellentesque eu, pretium quis, sem. Nulla consequat massa quis enim. Donec pede justo, fringilla vel, aliquet nec, vulputate eget, arcu. In enim justo, rhoncus ut, imperdiet a, venenatis vitae, justo. Nullam dictum felis eu pede mollis pretium. Integer tincidunt. Cras dapibus. Vivamus elementum semper nisi. Aenean vulputate eleifend tellus. Aenean leo ligula, porttitor eu, consequat vitae, eleifend ac, enim. Aliquam lorem ante, dapibus in, viverra quis, feugiat a, tellus. Phasellus viverra nulla ut metus varius laoreet. Quisque rutrum. Aenean imperdiet. Etiam ultricies nisi vel augue. Curabitur ullamcorper ultricies nisi. Nam eget dui. Etiam rhoncus. Maecenas tempus, tellus eget condimentum rhoncus, sem quam semper libero, sit amet adipiscing sem neque sed ipsum. Nam quam nunc, blandit vel, luctus pulvinar, hendrerit id, lorem. Maecenas nec odio et ante tincidunt tempus. Donec vitae sapien ut libero venenatis faucibus. Nullam quis ante. Etiam sit amet orci eget eros faucibus tincidunt. Duis leo. Sed fringilla mauris sit amet nibh. Donec sodales sagittis magna. Sed consequat, leo eget bibendum sodales, augue velit cursus nunc",
-    category: "Test, Sub t",
-    image: "/img/product.png",
-    price: 10000,
-    oldPrice: 20000,
-    inventory: 332,
-    status: true,
-  },
-  {
-    id: 2,
-    name: "Test",
-    category: "Test c",
-    image: "",
-    price: 60,
-    oldPrice: 100,
-    inventory: "Unlimited",
-    status: false,
-  },
-  {
-    id: 3,
-    name: "Test New",
-    category: "Test Add",
-    image: "",
-    price: 50000,
-    oldPrice: 100,
-    inventory: "Unlimited",
-    status: false,
-  },
-];
+import { useListProductsQuery } from "../../auth/services/productApi";
 
 type SortableKey = "name" | "price" | "status";
 
 const SellerProductsForm: React.FC = () => {
+  const { data: products = [], isLoading } = useListProductsQuery(); // ✅ API
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -61,10 +30,10 @@ const SellerProductsForm: React.FC = () => {
 
   const [sortKey, setSortKey] = useState<SortableKey>("price");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
-  const [selectedProductIds, setSelectedProductIds] = useState<number[]>([]);
+  const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]); // 🟢 Make it string[], since your id is string from API
 
   const [currentPage, setCurrentPage] = useState(1);
-  const [rowsPerPage, setRowsPerPage] = useState(2);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
 
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const scrollShadowRef = useRef<HTMLDivElement>(null);
@@ -83,7 +52,7 @@ const SellerProductsForm: React.FC = () => {
     }
   };
 
-  const sortedProducts = [...mockProducts].sort((a, b) => {
+  const sortedProducts = [...products].sort((a, b) => {
     const aVal = a[sortKey];
     const bVal = b[sortKey];
 
@@ -92,17 +61,9 @@ const SellerProductsForm: React.FC = () => {
         ? aVal.localeCompare(bVal)
         : bVal.localeCompare(aVal);
     }
-
     if (typeof aVal === "number" && typeof bVal === "number") {
       return sortOrder === "asc" ? aVal - bVal : bVal - aVal;
     }
-
-    if (typeof aVal === "boolean" && typeof bVal === "boolean") {
-      return sortOrder === "asc"
-        ? Number(aVal) - Number(bVal)
-        : Number(bVal) - Number(aVal);
-    }
-
     return 0;
   });
 
@@ -115,19 +76,19 @@ const SellerProductsForm: React.FC = () => {
 
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
-      setSelectedProductIds(mockProducts.map((p) => p.id));
+      setSelectedProductIds(products.map((p) => p.id));
     } else {
       setSelectedProductIds([]);
     }
   };
 
-  const handleProductCheckboxChange = (id: number, checked: boolean) => {
+  const handleProductCheckboxChange = (id: string, checked: boolean) => {
     setSelectedProductIds((prev) =>
       checked ? [...prev, id] : prev.filter((pid) => pid !== id)
     );
   };
 
-  const allSelected = selectedProductIds.length === mockProducts.length;
+  const allSelected = selectedProductIds.length === products.length;
 
   const handleSortChange = (key: SortableKey) => {
     if (sortKey === key) {
@@ -140,19 +101,9 @@ const SellerProductsForm: React.FC = () => {
 
   const handleAddProduct = () => navigate("/seller/catalogue/products/create");
 
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (
-        dropdownRef.current &&
-        !dropdownRef.current.contains(event.target as Node)
-      ) {
-        setIsDropdownOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
-
+  if (isLoading) {
+    return <div className="text-center text-gray-500">Loading products...</div>;
+  }
   return (
     <>
       <div className="w-full min-h-screen bg-[#F9FAFB] px-3 lg:px-0 py-5 md:py-2">
@@ -251,28 +202,44 @@ const SellerProductsForm: React.FC = () => {
                 />
                 {paginatedProducts.length > 0 ? (
                   <>
-                    {paginatedProducts.map((product) => (
-                      <div
-                        key={product.id}
-                        className="hover:bg-gray-50 transition cursor-pointer"
-                      >
-                        <ProductTableRow
-                          image={product.image}
-                          title={product.name}
-                          subtitle={product.category}
-                          price={product.price}
-                          mrp={product.oldPrice}
-                          inventory={product.inventory}
-                          isActive={product.status}
-                          checked={selectedProductIds.includes(product.id)}
-                          onCheckboxChange={(checked) =>
-                            handleProductCheckboxChange(product.id, checked)
-                          }
-                        />
-                      </div>
-                    ))}
+                    {paginatedProducts.map((product) => {
+                      const firstImage =
+                        Array.isArray(product.images) &&
+                        product.images.length > 0
+                          ? product.images[0]
+                          : ""; // Fallback if no image
 
-                    {/* Pagination aligned properly with padding fix */}
+                      const discountPrice = product.discountPrice || 0;
+                      const inventory = product.stock ?? "N/A";
+                      const isActive = product.status === "ACTIVE";
+
+                      return (
+                        <div
+                          key={product.id}
+                          className="hover:bg-gray-50 transition cursor-pointer"
+                        >
+                          <ProductTableRow
+                            id={product.id}
+                            image={firstImage}
+                            title={product.name}
+                            subtitle={product.category}
+                            price={product.price}
+                            mrp={discountPrice}
+                            inventory={inventory}
+                            isActive={isActive}
+                            checked={selectedProductIds.includes(product.id)}
+                            onCheckboxChange={(checked) =>
+                              handleProductCheckboxChange(product.id, checked)
+                            }
+                            onEdit={(id) =>
+                              navigate(`/seller/catalogue/products/edit/${id}`)
+                            }
+                          />
+                        </div>
+                      );
+                    })}
+
+                    {/* Pagination only if there are products */}
                     <div className="px-4 bg-white border-t border-gray-200 flex flex-col sm:flex-row items-center justify-between gap-4 relative z-10">
                       <PaginationControls
                         currentPage={currentPage}
@@ -281,36 +248,34 @@ const SellerProductsForm: React.FC = () => {
                         rowsPerPage={rowsPerPage}
                         onRowsPerPageChange={(val) => {
                           setRowsPerPage(val);
-                          setCurrentPage(1);
+                          setCurrentPage(1); // reset to page 1
                         }}
                         onPageChange={(page) => setCurrentPage(page)}
                       />
                     </div>
+
+                    {/* Sticky Bottom Scrollbar only if there are products */}
+                    <div className="sticky bottom-0 left-0 z-10 border-t border-gray-100">
+                      <div
+                        ref={scrollShadowRef}
+                        className="overflow-x-auto w-full h-[20px] scrollbar-thin pointer-events-auto"
+                        onScroll={handleBottomScroll}
+                        style={{
+                          scrollbarColor: "#d1d5db #fff",
+                          scrollbarWidth: "thin",
+                        }}
+                      >
+                        <div className="min-w-[1080px] h-[20px]" />
+                      </div>
+                    </div>
                   </>
                 ) : (
-                  <div className="text-center text-gray-400 text-sm py-6">
-                    No products available on this page.
+                  <div className="text-center text-gray-400 text-sm py-12 italic">
+                    No products available. Try adjusting your filters or add a
+                    new product.
                   </div>
                 )}
               </div>
-
-              {/* Sticky Bottom Scrollbar */}
-              <div className="sticky bottom-0 left-0 z-10 border-t border-gray-100">
-                <div
-                  ref={scrollShadowRef}
-                  className="overflow-x-auto w-full h-[20px] scrollbar-thin pointer-events-auto"
-                  onScroll={handleBottomScroll}
-                  style={{
-                    scrollbarColor: "#d1d5db #fff",
-                    scrollbarWidth: "thin",
-                  }}
-                >
-                  <div className="min-w-[1080px] h-[20px]" />
-                </div>
-              </div>
-            </div>
-            <div className="sticky bottom-0 left-0 right-0 h-5 overflow-x-auto pointer-events-none">
-              <div className="min-w-[1080px] h-1 bg-transparent"></div>
             </div>
           </div>
         </div>

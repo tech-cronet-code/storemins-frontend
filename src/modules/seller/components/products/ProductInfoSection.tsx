@@ -1,51 +1,9 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useFormContext } from "react-hook-form";
 import { ProductFormValues } from "../../Schemas/productSchema";
 import CategorySelectModal from "../categories/CategorySelectorModal";
-
-// Dummy category list (replace with your API later)
-const dummyCategories = [
-  {
-    id: "1",
-    name: "Men",
-    productCount: 20,
-    image: "/images/men.png",
-    subcategories: [
-      {
-        id: "1-1",
-        name: "T-Shirts",
-        productCount: 10,
-        image: "/images/tshirt.png",
-      },
-      {
-        id: "1-2",
-        name: "Jeans",
-        productCount: 10,
-        image: "/images/jeans.png",
-      },
-    ],
-  },
-  {
-    id: "2",
-    name: "Women",
-    productCount: 15,
-    image: "/images/women.png",
-    subcategories: [
-      {
-        id: "2-1",
-        name: "Dresses",
-        productCount: 5,
-        image: "/images/dress.png",
-      },
-      {
-        id: "2-2",
-        name: "Skirts",
-        productCount: 10,
-        image: "/images/skirt.png",
-      },
-    ],
-  },
-];
+import { useListCategoriesQuery } from "../../../auth/services/productApi";
+import { useAuth } from "../../../auth/contexts/AuthContext";
 
 const ProductInfoSection: React.FC = () => {
   const {
@@ -56,9 +14,17 @@ const ProductInfoSection: React.FC = () => {
   } = useFormContext<ProductFormValues>();
 
   const [modalOpen, setModalOpen] = useState(false);
-  const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([]); // updated here
+  const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([]);
 
-  const categoryValue = watch("category");
+  const categoryIdsValue = watch("category");
+
+  useEffect(() => {
+    if (categoryIdsValue) {
+      const selectedIds = categoryIdsValue.split(",").map((id) => id.trim());
+      setSelectedCategoryIds(selectedIds);
+    }
+  }, [categoryIdsValue]);
+
   const price = watch("price");
   const discountPrice = watch("discountPrice");
 
@@ -76,23 +42,53 @@ const ProductInfoSection: React.FC = () => {
       ? Math.round(((priceValue - discountValue) / priceValue) * 100)
       : 0;
 
-  const handleSelectCategories = (categoryIds: string[]) => {
-    const selectedNames: string[] = [];
+  const { userDetails } = useAuth();
+  const businessId = userDetails?.storeLinks?.[0]?.businessId;
 
-    dummyCategories.forEach((cat) => {
-      if (categoryIds.includes(cat.id)) {
-        selectedNames.push(cat.name);
+  const { data: categories = [], isLoading } = useListCategoriesQuery(
+    { businessId: businessId! },
+    { skip: !businessId }
+  );
+
+  if (!businessId) {
+    return (
+      <div className="text-center text-red-500">Business ID not found.</div>
+    );
+  }
+
+  const categoryOptions = categories.map((cat) => ({
+    id: cat.id,
+    name: cat.name,
+    productCount: 0,
+    subcategories:
+      cat.subCategories?.map((sub) => ({
+        id: sub.id,
+        name: sub.name,
+        productCount: 0,
+      })) || [],
+  }));
+
+  // 🟢 This will map selected IDs into names for input display
+  const selectedCategoryNames = categories
+    .flatMap((cat) => {
+      const matchedNames: string[] = [];
+
+      if (selectedCategoryIds.includes(cat.id)) {
+        matchedNames.push(cat.name);
       }
-
-      cat.subcategories?.forEach((sub) => {
-        if (categoryIds.includes(sub.id)) {
-          selectedNames.push(sub.name);
+      cat.subCategories?.forEach((sub) => {
+        if (selectedCategoryIds.includes(sub.id)) {
+          matchedNames.push(sub.name);
         }
       });
-    });
 
+      return matchedNames;
+    })
+    .join(", ");
+
+  const handleSelectCategories = (categoryIds: string[]) => {
     setSelectedCategoryIds(categoryIds);
-    setValue("category", selectedNames.join(", "), { shouldValidate: true }); // join names
+    setValue("category", categoryIds.join(","), { shouldValidate: true });
     setModalOpen(false);
   };
 
@@ -102,7 +98,6 @@ const ProductInfoSection: React.FC = () => {
 
   return (
     <div className="bg-white border border-gray-200 rounded-lg shadow-sm p-5 sm:p-6 lg:p-8 space-y-6">
-      {/* Section Title */}
       <div>
         <h3 className="text-lg font-semibold text-gray-800">
           Product Information
@@ -128,11 +123,13 @@ const ProductInfoSection: React.FC = () => {
           placeholder="Enter product name"
           className={`w-full border ${
             errors.name ? "border-red-500" : "border-gray-300"
-          } rounded-md px-3 py-2 text-sm focus:ring-1 focus:outline-none ${
-            errors.name
-              ? "focus:ring-red-500 focus:border-red-500"
-              : "focus:ring-blue-500 focus:border-blue-500"
-          }`}
+          } 
+            rounded-md px-3 py-2 text-sm focus:ring-1 focus:outline-none 
+            ${
+              errors.name
+                ? "focus:ring-red-500 focus:border-red-500"
+                : "focus:ring-blue-500 focus:border-blue-500"
+            }`}
         />
         {errors.name?.message && (
           <p className="text-red-600 text-xs mt-1">{errors.name?.message}</p>
@@ -151,17 +148,19 @@ const ProductInfoSection: React.FC = () => {
           id="category"
           {...register("category")}
           type="text"
-          value={categoryValue || ""}
+          value={selectedCategoryNames} // 🟢 Show Names not IDs
           readOnly
           onClick={() => setModalOpen(true)}
           placeholder="Select categories"
           className={`w-full border ${
             errors.category ? "border-red-500" : "border-gray-300"
-          } rounded-md px-3 py-2 text-sm focus:ring-1 focus:outline-none cursor-pointer bg-gray-50 ${
-            errors.category
-              ? "focus:ring-red-500 focus:border-red-500"
-              : "focus:ring-blue-500 focus:border-blue-500"
-          }`}
+          } 
+            rounded-md px-3 py-2 text-sm focus:ring-1 focus:outline-none cursor-pointer bg-gray-50 
+            ${
+              errors.category
+                ? "focus:ring-red-500 focus:border-red-500"
+                : "focus:ring-blue-500 focus:border-blue-500"
+            }`}
         />
         {errors.category?.message && (
           <p className="text-red-600 text-xs mt-1">
@@ -170,14 +169,15 @@ const ProductInfoSection: React.FC = () => {
         )}
       </div>
 
-      {/* 🟢 Reusable Modal */}
+      {/* Category Selection Modal */}
       <CategorySelectModal
         open={modalOpen}
-        categories={dummyCategories}
-        selectedCategoryIds={selectedCategoryIds} // updated here
-        onSelect={handleSelectCategories} // updated here
+        categories={categoryOptions}
+        selectedCategoryIds={selectedCategoryIds}
+        onSelect={handleSelectCategories}
         onAddNewCategory={handleAddNewCategory}
         onClose={() => setModalOpen(false)}
+        loading={isLoading}
       />
 
       {/* Price and Discounted Price */}
@@ -203,11 +203,13 @@ const ProductInfoSection: React.FC = () => {
               placeholder="Enter price"
               className={`w-full pl-7 border ${
                 errors.price ? "border-red-500" : "border-gray-300"
-              } rounded-md px-3 py-2 text-sm focus:ring-1 focus:outline-none ${
-                errors.price
-                  ? "focus:ring-red-500 focus:border-red-500"
-                  : "focus:ring-blue-500 focus:border-blue-500"
-              }`}
+              } 
+                rounded-md px-3 py-2 text-sm focus:ring-1 focus:outline-none 
+                ${
+                  errors.price
+                    ? "focus:ring-red-500 focus:border-red-500"
+                    : "focus:ring-blue-500 focus:border-blue-500"
+                }`}
               onInput={(e) => {
                 e.currentTarget.value = e.currentTarget.value.replace(
                   /\D/g,
@@ -242,11 +244,13 @@ const ProductInfoSection: React.FC = () => {
               placeholder="Enter discounted price"
               className={`w-full pl-7 border ${
                 errors.discountPrice ? "border-red-500" : "border-gray-300"
-              } rounded-md px-3 py-2 text-sm focus:ring-1 focus:outline-none ${
-                errors.discountPrice
-                  ? "focus:ring-red-500 focus:border-red-500"
-                  : "focus:ring-blue-500 focus:border-blue-500"
-              }`}
+              } 
+                rounded-md px-3 py-2 text-sm focus:ring-1 focus:outline-none 
+                ${
+                  errors.discountPrice
+                    ? "focus:ring-red-500 focus:border-red-500"
+                    : "focus:ring-blue-500 focus:border-blue-500"
+                }`}
               onInput={(e) => {
                 e.currentTarget.value = e.currentTarget.value.replace(
                   /\D/g,
@@ -305,11 +309,13 @@ const ProductInfoSection: React.FC = () => {
           rows={6}
           className={`w-full border ${
             errors.description ? "border-red-500" : "border-gray-300"
-          } rounded-md px-3 py-2 text-sm resize-none focus:ring-1 focus:outline-none ${
-            errors.description
-              ? "focus:ring-red-500 focus:border-red-500"
-              : "focus:ring-blue-500 focus:border-blue-500"
-          }`}
+          } 
+            rounded-md px-3 py-2 text-sm resize-none focus:ring-1 focus:outline-none 
+            ${
+              errors.description
+                ? "focus:ring-red-500 focus:border-red-500"
+                : "focus:ring-blue-500 focus:border-blue-500"
+            }`}
         />
         {errors.description?.message && (
           <p className="text-red-600 text-xs mt-1">

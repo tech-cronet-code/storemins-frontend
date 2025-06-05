@@ -224,34 +224,40 @@ const SellerProductsCategoriesForm: React.FC = () => {
               )}
 
               {/* Pagination Footer */}
-              <div className="px-4 bg-white border-t border-gray-200 flex flex-col sm:flex-row items-center justify-between gap-4 relative z-10">
-                <PaginationControls
-                  currentPage={currentPage}
-                  totalPages={totalPages}
-                  totalItems={categories.length}
-                  rowsPerPage={rowsPerPage}
-                  onRowsPerPageChange={(val) => {
-                    setRowsPerPage(val);
-                    setCurrentPage(1);
-                  }}
-                  onPageChange={(page) => setCurrentPage(page)}
-                />
-              </div>
-            </div>
 
-            {/* Sticky Bottom Scrollbar */}
-            <div className="sticky bottom-0 left-0 z-10 border-t border-gray-100">
-              <div
-                ref={scrollShadowRef}
-                className="overflow-x-auto w-full h-[20px] scrollbar-thin pointer-events-auto"
-                onScroll={handleBottomScroll}
-                style={{
-                  scrollbarColor: "#d1d5db #fff",
-                  scrollbarWidth: "thin",
-                }}
-              >
-                <div className="min-w-[1080px] h-[20px]" />
-              </div>
+              {/* Pagination Footer */}
+              {paginatedCategories.length > 0 && (
+                <>
+                  <div className="px-4 bg-white border-t border-gray-200 flex flex-col sm:flex-row items-center justify-between gap-4 relative z-10">
+                    <PaginationControls
+                      currentPage={currentPage}
+                      totalPages={totalPages}
+                      totalItems={categories.length}
+                      rowsPerPage={rowsPerPage}
+                      onRowsPerPageChange={(val) => {
+                        setRowsPerPage(val);
+                        setCurrentPage(1);
+                      }}
+                      onPageChange={(page) => setCurrentPage(page)}
+                    />
+                  </div>
+
+                  {/* Sticky Bottom Scrollbar */}
+                  <div className="sticky bottom-0 left-0 z-10 border-t border-gray-100">
+                    <div
+                      ref={scrollShadowRef}
+                      className="overflow-x-auto w-full h-[20px] scrollbar-thin pointer-events-auto"
+                      onScroll={handleBottomScroll}
+                      style={{
+                        scrollbarColor: "#d1d5db #fff",
+                        scrollbarWidth: "thin",
+                      }}
+                    >
+                      <div className="min-w-[1080px] h-[20px]" />
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </div>

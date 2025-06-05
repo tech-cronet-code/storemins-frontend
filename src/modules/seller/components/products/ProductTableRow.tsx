@@ -5,18 +5,21 @@ import ProductActionsMenu from "./ProductActionsMenu";
 import DeleteConfirmModal from "./DeleteConfirmModal";
 
 interface ProductRowProps {
+  id: string; // ✅ Add id prop properly
   image: string;
   title: string;
   subtitle: string;
   price: number;
-  mrp: number;
+  mrp: number; // ✅ Remove optional. Always pass `0` if missing.
   inventory: number | string;
   isActive: boolean;
   checked: boolean;
   onCheckboxChange: (checked: boolean) => void;
+  onEdit: (id: string) => void;
 }
 
 const ProductTableRow: React.FC<ProductRowProps> = ({
+  id, 
   image,
   title,
   subtitle,
@@ -26,6 +29,7 @@ const ProductTableRow: React.FC<ProductRowProps> = ({
   isActive,
   checked,
   onCheckboxChange,
+  onEdit,
 }) => {
   const [active, setActive] = useState(isActive);
   const [isShareModalOpen, setShareModalOpen] = useState(false);
@@ -76,9 +80,11 @@ const ProductTableRow: React.FC<ProductRowProps> = ({
         </div>
 
         {/* Price */}
+        {/* Price */}
         <div className="flex flex-col justify-center ml-2">
           <p className="font-semibold text-black">₹{price.toLocaleString()}</p>
-          {mrp > price && (
+          {/* Only show MRP if it’s greater than 0 */}
+          {mrp > 0 && mrp > price && (
             <p className="line-through text-gray-400 text-xs">
               ₹{mrp.toLocaleString()}
             </p>
@@ -105,17 +111,20 @@ const ProductTableRow: React.FC<ProductRowProps> = ({
               onChange={toggleStatus}
             />
             <div
-              className={`w-10 h-5 rounded-full transition-colors duration-300 ${active ? "bg-blue-600" : "bg-gray-300"
-                }`}
+              className={`w-10 h-5 rounded-full transition-colors duration-300 ${
+                active ? "bg-blue-600" : "bg-gray-300"
+              }`}
             ></div>
             <div
-              className={`absolute left-0.5 top-0.5 w-4 h-4 bg-white rounded-full shadow-md transform transition-transform duration-300 ${active ? "translate-x-5" : ""
-                }`}
+              className={`absolute left-0.5 top-0.5 w-4 h-4 bg-white rounded-full shadow-md transform transition-transform duration-300 ${
+                active ? "translate-x-5" : ""
+              }`}
             ></div>
           </label>
           <span
-            className={`text-sm font-medium ${active ? "text-green-600" : "text-red-500"
-              }`}
+            className={`text-sm font-medium ${
+              active ? "text-green-600" : "text-red-500"
+            }`}
           >
             {active ? "Active" : "Hidden"}
           </span>
@@ -124,7 +133,7 @@ const ProductTableRow: React.FC<ProductRowProps> = ({
         {/* Actions */}
         <div className="flex items-center gap-1.5 justify-end w-[100px]">
           <button
-            onClick={() => { }}
+            onClick={() => {}}
             title="Preview"
             className="group w-8 h-8 rounded-full flex items-center justify-center text-gray-500 hover:text-blue-600 hover:bg-gray-100 transition"
           >
@@ -138,7 +147,8 @@ const ProductTableRow: React.FC<ProductRowProps> = ({
             <Share2 className="w-[18px] h-[18px]" />
           </button>
           <ProductActionsMenu
-            onEdit={() => console.log("Edit product")}
+            // onEdit={() => console.log("Edit product")}
+            onEdit={() => onEdit(id)}
             onDuplicate={() => console.log("Duplicate product")}
             onDelete={() => setDeleteModalOpen(true)}
           />
@@ -151,7 +161,6 @@ const ProductTableRow: React.FC<ProductRowProps> = ({
         type="product"
         title={title}
       />
-
 
       {/* Delete Confirmation Modal */}
       <DeleteConfirmModal

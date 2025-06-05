@@ -57,6 +57,63 @@ export interface ProductCategoryListResponse {
   }>;
 }
 
+// Extend the ProductFormValues or create a new DTO if backend requires a different shape
+export interface CreateProductRequest {
+  name: string;
+  category: string;
+  price: number;
+  discountPrice?: number;
+  description?: string;
+  stock?: number;
+  stockStatus?: "in_stock" | "out_of_stock";
+  shippingClass?: string;
+  taxClass?: string;
+  variant?: string;
+  images?: File[]; // For file uploads
+  video?: File; // Optional video file
+}
+
+export interface CreateProductResponse {
+  id: string;
+  name: string;
+  status: string;
+  message?: string;
+}
+
+export interface ProductListResponse {
+  id: string;
+  name: string;
+  price: number;
+  discountPrice?: number;
+  description?: string;
+  stock?: number;
+  stockStatus?: "in_stock" | "out_of_stock";
+  shippingClass?: string;
+  taxClass?: string;
+  variant?: string;
+  images?: string[]; // URL strings
+  videoUrl?: string;
+  category: string;
+  status: "ACTIVE" | "INACTIVE";
+}
+
+export interface GetProductResponse {
+  id: string;
+  name: string;
+  price: number;
+  discountPrice?: number;
+  description?: string;
+  stock?: number;
+  stockStatus?: "in_stock" | "out_of_stock";
+  shippingClass?: string;
+  taxClass?: string;
+  variant?: string;
+  images?: string[];
+  videoUrl?: string;
+  category: string;
+  status: "ACTIVE" | "INACTIVE";
+}
+
 export const productApi = createApi({
   baseQuery: baseQueryWithReauth, // ⬅️ Uses the smart switch
   reducerPath: "productApi",
@@ -120,6 +177,97 @@ export const productApi = createApi({
         body,
       }),
     }),
+    // ADD inside endpoints
+    createProduct: builder.mutation<
+      { message: string; data: CreateProductResponse },
+      CreateProductRequest
+    >({
+      query: (body) => {
+        const formData = new FormData();
+        formData.append("name", body.name);
+        formData.append("category", body.category);
+        formData.append("price", body.price.toString());
+        if (body.discountPrice)
+          formData.append("discountPrice", body.discountPrice.toString());
+        if (body.description) formData.append("description", body.description);
+        if (body.stock !== undefined)
+          formData.append("stock", body.stock.toString());
+        if (body.stockStatus) formData.append("stockStatus", body.stockStatus);
+        if (body.shippingClass)
+          formData.append("shippingClass", body.shippingClass);
+        if (body.taxClass) formData.append("taxClass", body.taxClass);
+        if (body.variant) formData.append("variant", body.variant);
+
+        if (body.images && body.images.length > 0) {
+          body.images.forEach((file) => formData.append("images", file)); // Backend should handle array files
+        }
+        if (body.video) {
+          formData.append("video", body.video);
+        }
+
+        return {
+          url: `/seller/product/create`, // Your backend endpoint for product create
+          method: "POST",
+          body: formData,
+        };
+      },
+    }),
+
+    // ✅ New: List all products
+    listProducts: builder.query<ProductListResponse[], void>({
+      query: () => ({
+        url: `/seller/product/list`, // <-- Replace with your real endpoint
+        method: "GET",
+      }),
+      transformResponse: (raw: {
+        message: string;
+        data: ProductListResponse[];
+      }) => raw.data,
+    }),
+    // ✅ New: Get Single Product
+    getProduct: builder.query<GetProductResponse, { id: string }>({
+      query: ({ id }) => ({
+        url: `/seller/product/${id}`,
+        method: "GET",
+      }),
+      transformResponse: (raw: { message: string; data: GetProductResponse }) =>
+        raw.data,
+    }),
+    // ✅ New: Update Product
+    updateProduct: builder.mutation<
+      { message: string; data: GetProductResponse },
+      CreateProductRequest & { id: string }
+    >({
+      query: (body) => {
+        const formData = new FormData();
+        formData.append("id", body.id);
+        formData.append("name", body.name);
+        formData.append("category", body.category);
+        formData.append("price", body.price.toString());
+        if (body.discountPrice)
+          formData.append("discountPrice", body.discountPrice.toString());
+        if (body.description) formData.append("description", body.description);
+        if (body.stock !== undefined)
+          formData.append("stock", body.stock.toString());
+        if (body.stockStatus) formData.append("stockStatus", body.stockStatus);
+        if (body.shippingClass)
+          formData.append("shippingClass", body.shippingClass);
+        if (body.taxClass) formData.append("taxClass", body.taxClass);
+        if (body.variant) formData.append("variant", body.variant);
+        if (body.images && body.images.length > 0) {
+          body.images.forEach((file) => formData.append("images", file));
+        }
+        if (body.video) {
+          formData.append("video", body.video);
+        }
+
+        return {
+          url: `/seller/product/edit`, // <-- Update endpoint
+          method: "POST",
+          body: formData,
+        };
+      },
+    }),
   }),
 });
 
@@ -131,4 +279,8 @@ export const {
   useGetCategoryQuery,
   useLazyGetCategoryQuery,
   useDeleteCategoriesMutation,
+  useCreateProductMutation,
+  useListProductsQuery,
+  useGetProductQuery,
+  useUpdateProductMutation,
 } = productApi;

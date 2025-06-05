@@ -1,15 +1,28 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useFormContext } from "react-hook-form";
 import { ChevronDown, ChevronUp } from "lucide-react";
 
 const SEOSection: React.FC = () => {
-  const { register } = useFormContext();
+  const { register, watch, setValue } = useFormContext();
+
   const [expanded, setExpanded] = useState(true);
   const [imageName, setImageName] = useState<string | null>(null);
+
+  // 🟢 Watch the existing SEO image
+  const seoImageValue = watch("seoImage");
+
+  useEffect(() => {
+    if (seoImageValue && typeof seoImageValue === "string") {
+      // If existing SEO image (URL from DB), show filename
+      const urlParts = seoImageValue.split("/");
+      setImageName(urlParts[urlParts.length - 1]);
+    }
+  }, [seoImageValue]);
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files?.[0]) {
       setImageName(e.target.files[0].name);
+      setValue("seoImage", e.target.files[0]); // Update the field manually
     }
   };
 
@@ -25,7 +38,8 @@ const SEOSection: React.FC = () => {
             StoreMins SEO
           </h3>
           <p className="text-sm text-gray-500">
-            Optimize your product with meta tags to boost visibility on search engines.
+            Optimize your product with meta tags to boost visibility on search
+            engines.
           </p>
         </div>
         {expanded ? (
@@ -105,12 +119,23 @@ const SEOSection: React.FC = () => {
                 </p>
                 <p className="text-xs text-[#A0A0A0] mt-1">Meta Description</p>
                 {imageName && (
-                  <p className="text-xs mt-1 text-gray-400 italic">
+                  <p className="text-xs mt-2 text-gray-500 italic">
                     ({imageName} selected)
                   </p>
                 )}
               </div>
             </div>
+
+            {/* 🟢 If URL is string, show existing image preview */}
+            {seoImageValue && typeof seoImageValue === "string" && (
+              <div className="mt-4">
+                <img
+                  src={seoImageValue}
+                  alt="SEO Preview"
+                  className="max-w-xs rounded-md border border-gray-300"
+                />
+              </div>
+            )}
           </div>
         </div>
       )}
