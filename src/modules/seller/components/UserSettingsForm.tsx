@@ -1,10 +1,93 @@
 import { Pencil } from "lucide-react";
+import { useAuth } from "../../auth/contexts/AuthContext";
+import { useState, useEffect } from "react";
+import { showToast } from "../../../common/utils/showToast";
+import * as z from "zod"; // ✅ import Zod
+
+// ✅ Updated Zod Schema (Only Letters and Spaces Allowed)
+const nameSchema = z
+  .string()
+  .min(3, "Name must be at least 3 characters long.")
+  .max(50, "Name cannot be more than 50 characters.")
+  .regex(/^[A-Za-z\s]+$/, "Name must contain only letters and spaces."); // ✅ Strong regex
 
 const UserSettingsForm = () => {
+  const { userDetails, updateProfile } = useAuth();
+  const [name, setName] = useState(userDetails?.name || "");
+  const [nameError, setNameError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  // ✅ Validate name on change — no condition, always at top
+  useEffect(() => {
+    if (userDetails) {
+      setName(userDetails.name); // set initial name
+    }
+  }, [userDetails]);
+
+  useEffect(() => {
+    try {
+      nameSchema.parse(name);
+      setNameError(null); // No error
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        setNameError(error.errors[0]?.message || "Invalid name");
+      }
+    }
+  }, [name]);
+
+  // ✅ Now safe to return
+  if (!userDetails) {
+    return <div>Loading...</div>;
+  }
+
+  const isNameChanged = name.trim() !== (userDetails?.name || "").trim();
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      nameSchema.parse(name); // validate before submit
+      if (!isNameChanged) {
+        showToast({
+          type: "error",
+          message: "Name is unchanged.",
+          showClose: true,
+        });
+        return;
+      }
+      setLoading(true);
+      await updateProfile(name);
+      showToast({
+        type: "success",
+        message: "Profile updated successfully!",
+        showClose: true,
+      });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        showToast({
+          type: "error",
+          message: error.errors[0]?.message || "Invalid name",
+          showClose: true,
+        });
+      } else {
+        console.error(error);
+        showToast({
+          type: "error",
+          message: "Failed to update profile. Please try again.",
+          showClose: true,
+        });
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
-    <form className="max-w-6xl w-full mx-auto bg-white rounded-xl px-4 py-6 sm:p-6 md:p-8">
+    <form
+      onSubmit={handleSubmit}
+      className="max-w-6xl w-full mx-auto bg-white rounded-xl px-4 py-6 sm:p-6 md:p-8"
+    >
       <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-start">
-        {/* Left: Profile Image */}
+        {/* Profile Image */}
         <div className="md:col-span-2 flex flex-col items-center justify-start">
           <div className="relative w-24 h-24">
             <img
@@ -21,109 +104,84 @@ const UserSettingsForm = () => {
           </div>
         </div>
 
-        {/* Right: Form Fields */}
+        {/* Form Fields */}
         <div className="md:col-span-10 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4 w-full">
+          {/* Editable Name Field */}
           <div>
             <label className="text-sm font-medium text-gray-700">
               Your Name
             </label>
             <input
+              className={`mt-1 w-full border ${
+                nameError ? "border-red-500" : "border-gray-300"
+              } rounded-md px-3 py-2`}
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+            />
+            {nameError && (
+              <p className="text-red-500 text-sm mt-1">{nameError}</p>
+            )}
+          </div>
+
+          {/* Readonly Fields */}
+          <div>
+            <label className="text-sm font-medium text-gray-700">Mobile</label>
+            <input
               className="mt-1 w-full border border-gray-300 rounded-md px-3 py-2"
-              defaultValue="Charlene Reed"
+              value={userDetails?.mobile || ""}
+              disabled
             />
           </div>
 
           <div>
             <label className="text-sm font-medium text-gray-700">
-              User Name
+              Tenant ID
             </label>
             <input
               className="mt-1 w-full border border-gray-300 rounded-md px-3 py-2"
-              defaultValue="Charlene Reed"
-            />
-          </div>
-
-          <div>
-            <label className="text-sm font-medium text-gray-700">Email</label>
-            <input
-              className="mt-1 w-full border border-gray-300 rounded-md px-3 py-2"
-              defaultValue="charlenereed@gmail.com"
+              value={userDetails?.tenantId || "N/A"}
+              disabled
             />
           </div>
 
           <div>
             <label className="text-sm font-medium text-gray-700">
-              Password
-            </label>
-            <input
-              type="password"
-              className="mt-1 w-full border border-gray-300 rounded-md px-3 py-2"
-              defaultValue="*********"
-            />
-          </div>
-
-          <div>
-            <label className="text-sm font-medium text-gray-700">
-              Date of Birth
-            </label>
-            <input
-              type="date"
-              className="mt-1 w-full border border-gray-300 rounded-md px-3 py-2"
-              defaultValue="1990-01-25"
-            />
-          </div>
-
-          <div>
-            <label className="text-sm font-medium text-gray-700">
-              Present Address
+              Linked Domain?
             </label>
             <input
               className="mt-1 w-full border border-gray-300 rounded-md px-3 py-2"
-              defaultValue="San Jose, California, USA"
+              value={userDetails?.isDomainLinked ? "Yes" : "No"}
+              disabled
             />
           </div>
 
           <div>
-            <label className="text-sm font-medium text-gray-700">
-              Permanent Address
-            </label>
+            <label className="text-sm font-medium text-gray-700">Roles</label>
             <input
               className="mt-1 w-full border border-gray-300 rounded-md px-3 py-2"
-              defaultValue="San Jose, California, USA"
-            />
-          </div>
-
-          <div>
-            <label className="text-sm font-medium text-gray-700">City</label>
-            <input
-              className="mt-1 w-full border border-gray-300 rounded-md px-3 py-2"
-              defaultValue="San Jose"
-            />
-          </div>
-
-          <div>
-            <label className="text-sm font-medium text-gray-700">
-              Postal Code
-            </label>
-            <input
-              className="mt-1 w-full border border-gray-300 rounded-md px-3 py-2"
-              defaultValue="45962"
-            />
-          </div>
-
-          <div>
-            <label className="text-sm font-medium text-gray-700">Country</label>
-            <input
-              className="mt-1 w-full border border-gray-300 rounded-md px-3 py-2"
-              defaultValue="USA"
+              value={
+                Array.isArray(userDetails?.role)
+                  ? userDetails.role.join(", ")
+                  : userDetails?.role || ""
+              }
+              disabled
             />
           </div>
         </div>
       </div>
 
+      {/* Submit Button */}
       <div className="text-right mt-8">
-        <button className="bg-blue-600 text-white px-8 py-2 rounded-lg hover:bg-blue-700 transition">
-          Save
+        <button
+          type="submit"
+          className={`bg-blue-600 text-white px-8 py-2 rounded-lg transition ${
+            loading || !isNameChanged || nameError
+              ? "opacity-50 cursor-not-allowed"
+              : "hover:bg-blue-700"
+          }`}
+          disabled={loading || !isNameChanged || !!nameError}
+        >
+          {loading ? "Saving..." : "Save"}
         </button>
       </div>
     </form>

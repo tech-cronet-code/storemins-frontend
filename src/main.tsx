@@ -6,6 +6,7 @@ import App from "./App.tsx";
 import { store } from "./common/state/store";
 import { StrictMode } from "react";
 import { AuthProvider } from "./modules/auth/contexts/AuthContext.tsx";
+import { SellerProductProvider } from "./modules/seller/context/SellerProductContext.tsx";
 
 if (import.meta.env.VITE_MODE === "production") {
   console.log = () => {};
@@ -29,8 +30,10 @@ createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <Provider store={store}>
       <AuthProvider>
-        <App />
-        <Toaster position="top-center" gutter={8} />
+        <SellerProductProvider>
+          <App />
+          <Toaster position="top-center" gutter={8} />
+        </SellerProductProvider>
       </AuthProvider>
     </Provider>
   </StrictMode>

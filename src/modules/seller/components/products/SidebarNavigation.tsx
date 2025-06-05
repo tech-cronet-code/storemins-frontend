@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, memo } from "react"; // <-- memo imported
 import {
   Info,
   Image,
@@ -26,14 +26,13 @@ const navItems = [
     label: "Additional Product Fields",
     id: "additional-fields",
     icon: Settings,
-  }, // opens drawer
+  },
 ];
 
 const SidebarNavigation: React.FC<Props> = ({ scrollContainerRef }) => {
   const [activeSection, setActiveSection] = useState<string>("product-info");
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
-  console.log("SidebarNavigation");
 
   const scrollToSection = (id: string) => {
     if (id === "additional-fields") {
@@ -71,7 +70,6 @@ const SidebarNavigation: React.FC<Props> = ({ scrollContainerRef }) => {
       }
     );
 
-    // ⛔ Don't loop until container is rendered
     const validSections = navItems
       .filter((item) => item.id !== "additional-fields")
       .map((item) => container.querySelector(`#${item.id}`))
@@ -82,7 +80,7 @@ const SidebarNavigation: React.FC<Props> = ({ scrollContainerRef }) => {
     });
 
     return () => observer.disconnect();
-  }, [scrollContainerRef]); // 👈 use `.current` as the dependency
+  }, []); // <-- IMPORTANT: EMPTY dependency array
 
   return (
     <>
@@ -144,4 +142,4 @@ const SidebarNavigation: React.FC<Props> = ({ scrollContainerRef }) => {
   );
 };
 
-export default SidebarNavigation;
+export default memo(SidebarNavigation); // ✅ MEMO WRAP

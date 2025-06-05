@@ -31,9 +31,15 @@ export interface RegisterResponse {
   id: string;
   message?: string;
   needs_confirm_otp_code: boolean;
+  quickLoginEnable: boolean;
   quickRegisterInfo?: {
     id: string;
     mobile: string;
+    role?: string[]; // or UserRoleName[]
+    permissions?: string[];
+    access_token: string;
+    refresh_token: string;
+    tenentId?: string | null;
     mobile_confirmed: boolean;
   };
 }
@@ -85,6 +91,15 @@ interface ResendMobileOtpResponse {
   message: string;
   expiresAt: string;
 }
+interface UpdateProfileRequestDto {
+  name: string;
+}
+
+interface UpdateProfileResponseDto {
+  id: string;
+  name: string;
+  mobile: string;
+}
 
 export const apiClient = createApi({
   baseQuery: baseQueryWithReauth,
@@ -103,6 +118,17 @@ export const apiClient = createApi({
         method: "POST",
         body,
       }),
+      transformResponse: (raw: {
+        success: boolean;
+        message?: string;
+        statusCode: number;
+        data: RegisterResponse;
+      }) => {
+        return {
+          ...raw.data,
+          message: raw.message,
+        };
+      },
     }),
     getUserDetails: builder.query<ApiResponse<User>, void>({
       query: () => ({
@@ -260,6 +286,17 @@ export const apiClient = createApi({
         }) => raw.data,
       }
     ),
+    // ⬇️ Add this mutation
+    updateUserProfile: builder.mutation<
+      UpdateProfileResponseDto,
+      UpdateProfileRequestDto
+    >({
+      query: (body) => ({
+        url: "/my-profile", // Your backend path
+        method: "PUT",
+        body,
+      }),
+    }),
   }),
 });
 
@@ -276,4 +313,5 @@ export const {
   useListDomainsQuery,
   useLazyListDomainsQuery,
   useCreateOrUpdateDomainMutation,
+  useUpdateUserProfileMutation,
 } = apiClient;

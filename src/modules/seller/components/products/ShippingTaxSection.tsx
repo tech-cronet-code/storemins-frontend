@@ -3,8 +3,14 @@ import { useFormContext } from "react-hook-form";
 import { ChevronDown, ChevronUp } from "lucide-react";
 
 const ShippingTaxSection: React.FC = () => {
-  const { register } = useFormContext();
+  const { register, watch } = useFormContext();
   const [expanded, setExpanded] = useState(true);
+
+  // 🟢 Watch saved form values
+  const shipmentWeight = watch("shipmentWeight");
+  const weightUnit = watch("weightUnit");
+  const hsnCode = watch("hsnCode");
+  const gst = watch("gst");
 
   return (
     <div className="bg-white border border-gray-200 rounded-xl shadow-sm transition-all duration-200">
@@ -42,10 +48,12 @@ const ShippingTaxSection: React.FC = () => {
                 type="text"
                 placeholder="Eg. 1.2"
                 {...register("shipmentWeight")}
+                defaultValue={shipmentWeight || ""}
                 className="w-full border border-gray-300 rounded-md px-3 py-2 text-[14px] focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
               <select
                 {...register("weightUnit")}
+                defaultValue={weightUnit || "kg"}
                 className="min-w-[80px] border border-gray-300 rounded-md px-2 text-[14px] focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <option value="kg">kg</option>
@@ -64,6 +72,7 @@ const ShippingTaxSection: React.FC = () => {
               type="text"
               placeholder="Enter the HSN code"
               {...register("hsnCode")}
+              defaultValue={hsnCode || ""}
               className="w-full border border-gray-300 rounded-md px-3 py-2 text-[14px] focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
             <p className="text-[13px] text-gray-500 mt-1">
@@ -87,6 +96,7 @@ const ShippingTaxSection: React.FC = () => {
                 type="text"
                 placeholder="Enter the GST percentage"
                 {...register("gst")}
+                defaultValue={gst || ""}
                 className="w-full border border-gray-300 rounded-l-md px-3 py-2 text-[14px] focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
               <span className="border border-l-0 border-gray-300 px-3 py-2 rounded-r-md text-gray-600 bg-gray-100 text-[14px]">

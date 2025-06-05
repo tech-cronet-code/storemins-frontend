@@ -20,14 +20,13 @@ export type User = {
 };
 
 export interface StoreLink {
-  id:          string;
-  userId:      string;
-  businessId:  string;
-  role:        string;
-  tenantId:    string;
+  id: string;
+  userId: string;
+  businessId: string;
+  role: string;
+  tenantId: string;
 }
 
-  
 // export type GetMyProfileDto = {
 //   id: string;
 //   name: string;

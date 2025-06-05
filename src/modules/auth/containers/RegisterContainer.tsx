@@ -14,7 +14,7 @@ const RegisterContainer = () =>
     const handleSubmit = async (data: RegisterFormData) => {
       const hashedPassword = await hashPassword(data.pass_hash); // 👈 hash here
       try {
-        const { needsOtp } = await register({
+        const { needsOtp, quickLoginEnable } = await register({
           name: data.name,
           mobile: data.mobile,
           pass_hash: hashedPassword,
@@ -23,8 +23,10 @@ const RegisterContainer = () =>
         });
         // showToast({ message: 'Registration successful. Please verify OTP.', type: 'success' });
 
-        console.log(needsOtp, "RegisterContainer - needsOtp");
-        if (needsOtp) {
+        console.log(needsOtp, quickLoginEnable, "RegisterContainer - needsOtp");
+        if (needsOtp || quickLoginEnable) {
+          console.log("Calling or not.... >>>>");
+
           navigate("/otp-verify");
         } else {
           navigate("/homes");

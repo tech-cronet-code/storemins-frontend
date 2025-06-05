@@ -21,7 +21,9 @@ const SellerUnlockStoreForm: React.FC<Props> = ({
   checkAvailability,
   isSubmitting,
 }) => {
-  const [availability, setAvailability] = useState<"available" | "taken" | null>(null);
+  const [availability, setAvailability] = useState<
+    "available" | "taken" | null
+  >(null);
 
   const {
     register,
@@ -81,61 +83,62 @@ const SellerUnlockStoreForm: React.FC<Props> = ({
           </label>
 
           <div
-            className={`relative flex items-center border rounded-md px-3 py-2 ${availability === "available"
+            className={`relative flex items-center border rounded-md px-3 py-2 ${
+              availability === "available"
                 ? "border-green-500"
                 : availability === "taken"
-                  ? "border-red-500"
-                  : "border-gray-300"
-              }`}
+                ? "border-red-500"
+                : "border-gray-300"
+            }`}
           >
-         <input
-  {...register("businessName")}
-  value={businessName}
-  placeholder="khan-food-bakery"
-  onKeyDown={(e) => {
-    if (e.key === " ") {
-      e.preventDefault(); // replace space with hyphen
-      const pos = e.currentTarget.selectionStart || 0;
-      const updated =
-        businessName.slice(0, pos) + "-" + businessName.slice(pos);
-      setValue("businessName", updated, { shouldValidate: true });
-    }
-  }}
-  onChange={(e) => {
-    let raw = e.target.value;
+            <input
+              {...register("businessName")}
+              value={businessName}
+              placeholder="khan-food-bakery"
+              onKeyDown={(e) => {
+                if (e.key === " ") {
+                  e.preventDefault(); // replace space with hyphen
+                  const pos = e.currentTarget.selectionStart || 0;
+                  const updated =
+                    businessName.slice(0, pos) + "-" + businessName.slice(pos);
+                  setValue("businessName", updated, { shouldValidate: true });
+                }
+              }}
+              onChange={(e) => {
+                let raw = e.target.value;
 
-    // 1. Convert to lowercase
-    raw = raw.toLowerCase();
+                // 1. Convert to lowercase
+                raw = raw.toLowerCase();
 
-    // 2. Replace spaces with -
-    raw = raw.replace(/\s+/g, "-");
+                // 2. Replace spaces with -
+                raw = raw.replace(/\s+/g, "-");
 
-    // 3. Remove anything that's NOT a-z, 0-9, or -
-    raw = raw.replace(/[^a-z0-9-]/g, "");
+                // 3. Remove anything that's NOT a-z, 0-9, or -
+                raw = raw.replace(/[^a-z0-9-]/g, "");
 
-    // 4. Collapse multiple dashes to single
-    raw = raw.replace(/-+/g, "-");
+                // 4. Collapse multiple dashes to single
+                raw = raw.replace(/-+/g, "-");
 
-    // 5. Remove starting/ending dash
-    raw = raw.replace(/^-+|-+$/g, "");
+                // 5. Remove starting/ending dash
+                raw = raw.replace(/^-+|-+$/g, "");
 
-    setValue("businessName", raw, { shouldValidate: true });
-  }}
-  className="flex-1 outline-none pr-36 text-sm"
-/>
-
+                setValue("businessName", raw, { shouldValidate: true });
+              }}
+              className="flex-1 outline-none pr-36 text-sm"
+            />
 
             <div className="absolute right-3 flex items-center gap-2">
               <span className="text-[#7F56D9] font-semibold text-sm">
-                .storemins.com
+                {`storemins.com/${businessName}`}
               </span>
               <span
-                className={`w-6 h-6 rounded-full flex items-center justify-center ${availability === "available"
+                className={`w-6 h-6 rounded-full flex items-center justify-center ${
+                  availability === "available"
                     ? "bg-green-500 text-white"
                     : availability === "taken"
-                      ? "bg-red-500 text-white"
-                      : "bg-gray-300 text-white"
-                  }`}
+                    ? "bg-red-500 text-white"
+                    : "bg-gray-300 text-white"
+                }`}
               >
                 <svg
                   className="w-4 h-4"
@@ -173,24 +176,23 @@ const SellerUnlockStoreForm: React.FC<Props> = ({
           ) : null}
         </div>
 
-      <button
-  type="submit"
-  disabled={
-    isSubmitting ||
-    availability !== "available" ||
-    !!errors.businessName // ⛔ disable if there is a validation error
-  }
-  className={`w-full py-2 rounded-md text-white font-semibold transition ${
-    isSubmitting ||
-    availability !== "available" ||
-    !!errors.businessName
-      ? "bg-[#A08ADB] cursor-not-allowed"
-      : "bg-[#7F56D9] hover:bg-[#6d45c8]"
-  }`}
->
-  {isSubmitting ? "Nexting in..." : "Unlock your store"}
-</button>
-
+        <button
+          type="submit"
+          disabled={
+            isSubmitting ||
+            availability !== "available" ||
+            !!errors.businessName // ⛔ disable if there is a validation error
+          }
+          className={`w-full py-2 rounded-md text-white font-semibold transition ${
+            isSubmitting ||
+            availability !== "available" ||
+            !!errors.businessName
+              ? "bg-[#A08ADB] cursor-not-allowed"
+              : "bg-[#7F56D9] hover:bg-[#6d45c8]"
+          }`}
+        >
+          {isSubmitting ? "Nexting in..." : "Unlock your store"}
+        </button>
 
         <p className="text-center text-sm font-light">
           Click here to...{" "}
