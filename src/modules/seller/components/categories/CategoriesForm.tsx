@@ -7,7 +7,7 @@ import SEOCategorySection from "./SEOCategorySection";
 import { useSellerProduct } from "../../hooks/useSellerProduct";
 import { useAuth } from "../../../auth/contexts/AuthContext";
 import { showToast } from "../../../../common/utils/showToast";
-import { CategoriesSchema } from "../../Schemas/categoriesSchema";
+import { CategoriesSchema } from "../../Schemas/CategoriesSchema";
 import { useNavigate } from "react-router-dom";
 import HeaderSubmitButton from "./HeaderButton";
 
