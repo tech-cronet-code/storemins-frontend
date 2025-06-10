@@ -14,6 +14,43 @@ body,
   height: 100%;
   margin: 0;
   padding: 0;
+  font-family: "Inter", sans-serif;
+  font-optical-sizing: auto;
+  font-style: normal;
+
+  --color-primary: #0070f3;
+  --color-secondary: #6c757d;
+  --color-success: #28a745;
+  --color-danger: #dc3545;
+  --color-warning: #ffc107;
+  --color-info: #17a2b8;
+
+  --font-primary: "Inter", sans-serif;
+  --font-secondary: "Poppins", sans-serif;
+  --font-size-base: 16px;
+  --font-size-sm: 14px;
+  --font-size-lg: 18px;
+  --line-height-base: 1.5;
+
+  --space-xxs: 4px;
+  --space-xs: 8px;
+  --space-sm: 12px;
+  --space-md: 16px;
+  --space-lg: 24px;
+  --space-xl: 32px;
+  --space-xxl: 48px;
+
+  --theme-color-primary: #007bff;
+  --theme-color-secondary: #6c757d;
+  --theme-font-base: "Inter", sans-serif;
+  --theme-radius: 6px;
+  --theme-bg: #ffffff;
+
+  --breakpoint-xs: 480px;
+  --breakpoint-sm: 768px;
+  --breakpoint-md: 992px;
+  --breakpoint-lg: 1200px;
+  --breakpoint-xl: 1440px;
   /* overflow: hidden; Lock outer page scroll */
 }
 
@@ -24,11 +61,9 @@ body,
 
 /* tailwind.config.js or global styles */
 .form-input-style {
-  
   @apply w-full px-4 py-2 border border-gray-300 rounded-md text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500;
   padding-right: 2.5rem !important; /* Reserve space for eye icon */
 }
-
 
 .btn-primary {
   @apply w-full bg-[#7F56D9] text-white py-3 rounded-md text-sm hover:bg-[#6845c4] transition;
