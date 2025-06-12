@@ -19,10 +19,7 @@ const AdForm = () => {
   return (
     <>
       {/* Start LEFT SIDE Add Form*/}
-      <div
-        className="md:w-full flex flex-col items-center justify-center
-       bg-white"
-      >
+      <div className="md:w-full flex h-full flex-col items-center justify-center bg-white">
         <div className="w-full h-full space-y-1">
           {/* Top Content */}
           <div className="bg-[#e4e4e5] hidden lg:block p-6 lg:p-8">
