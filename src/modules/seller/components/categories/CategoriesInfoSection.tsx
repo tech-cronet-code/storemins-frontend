@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useFormContext } from "react-hook-form";
 import { useAuth } from "../../../auth/contexts/AuthContext";
 import { useSellerProduct } from "../../hooks/useSellerProduct";
-import { CategoriesFormValues } from "../../Schemas/CategoriesSchema";
+import { CategoriesFormValues } from "../../Schemas/categoriesSchema";
 
 interface CategoriesInfoSectionProps {
   categoryId?: string;

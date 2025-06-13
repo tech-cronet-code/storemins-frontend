@@ -1,27 +1,49 @@
-import React, { useState, useRef } from "react";
 import {
-  Settings,
-  Plus,
   ChevronDown,
   ChevronUp,
-  Upload,
   FolderDown,
   Pencil,
+  Plus,
+  Settings,
+  Upload,
 } from "lucide-react";
-import { useNavigate } from "react-router-dom";
-import ProductSettingsDrawer from "./ProductSettingsDrawer";
+import React, { useEffect, useRef, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
+import { useAuth } from "../../auth/contexts/AuthContext";
+import { useListProductsQuery } from "../../auth/services/productApi";
 import BulkActionsDropdown from "./BulkActionsDropdown";
+import PaginationControls from "./products/PaginationControls";
 import ProductFilterBar from "./products/ProductFilterBar";
 import ProductTableHeader from "./products/ProductTableHeader";
 import ProductTableRow from "./products/ProductTableRow";
+import ProductSettingsDrawer from "./ProductSettingsDrawer";
 import UpgradeToBusinessPlanModal from "./UpgradeToBusinessPlanModal";
-import PaginationControls from "./products/PaginationControls";
-import { useListProductsQuery } from "../../auth/services/productApi";
 
 type SortableKey = "name" | "price" | "status";
 
 const SellerProductsForm: React.FC = () => {
-  const { data: products = [], isLoading } = useListProductsQuery(); // ✅ API
+  const { userDetails } = useAuth();
+
+  const businessId = userDetails?.storeLinks?.[0]?.businessId;
+
+  const {
+    data: products = [],
+    isLoading,
+    refetch,
+  } = useListProductsQuery(
+    { businessId: businessId || "" },
+    { skip: !businessId }
+  );
+
+  const location = useLocation();
+
+  useEffect(() => {
+    if (location.state?.refresh) {
+      refetch();
+      window.history.replaceState({}, document.title);
+    }
+  }, [location.state, refetch]);
+
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -30,8 +52,7 @@ const SellerProductsForm: React.FC = () => {
 
   const [sortKey, setSortKey] = useState<SortableKey>("price");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
-  const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]); // 🟢 Make it string[], since your id is string from API
-
+  const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(10);
 
@@ -101,9 +122,18 @@ const SellerProductsForm: React.FC = () => {
 
   const handleAddProduct = () => navigate("/seller/catalogue/products/create");
 
+  if (!businessId) {
+    return (
+      <div className="text-center text-red-500 font-semibold">
+        Business ID not found. Please login again.
+      </div>
+    );
+  }
+
   if (isLoading) {
     return <div className="text-center text-gray-500">Loading products...</div>;
   }
+
   return (
     <>
       <div className="w-full min-h-screen bg-[#F9FAFB] px-3 lg:px-0 py-5 md:py-2">
@@ -203,15 +233,12 @@ const SellerProductsForm: React.FC = () => {
                 {paginatedProducts.length > 0 ? (
                   <>
                     {paginatedProducts.map((product) => {
-                      const firstImage =
-                        Array.isArray(product.images) &&
-                        product.images.length > 0
-                          ? product.images[0]
-                          : ""; // Fallback if no image
-
-                      const discountPrice = product.discountPrice || 0;
+                      const firstImage = product.images?.[0] || "";
+                      const discountPrice = product.discountedPrice || 0;
                       const inventory = product.stock ?? "N/A";
                       const isActive = product.status === "ACTIVE";
+
+                      const isLastItemOnPage = paginatedProducts.length === 1;
 
                       return (
                         <div
@@ -223,7 +250,11 @@ const SellerProductsForm: React.FC = () => {
                             image={firstImage}
                             title={product.name}
                             subtitle={product.category}
+                            variant={`${product.variant?.length || 0}`}
                             price={product.price}
+                            discountedPrice={
+                              product.discountedPrice || product.price
+                            }
                             mrp={discountPrice}
                             inventory={inventory}
                             isActive={isActive}
@@ -234,12 +265,19 @@ const SellerProductsForm: React.FC = () => {
                             onEdit={(id) =>
                               navigate(`/seller/catalogue/products/edit/${id}`)
                             }
+                            isLastItemOnPage={isLastItemOnPage} // ✅ pass flag
+                            onDeleteComplete={(_, shouldGoToPrevPage) => {
+                              if (shouldGoToPrevPage && currentPage > 1) {
+                                setCurrentPage((prev) => prev - 1);
+                              }
+                              refetch();
+                            }}
                           />
                         </div>
                       );
                     })}
 
-                    {/* Pagination only if there are products */}
+                    {/* Pagination */}
                     <div className="px-4 bg-white border-t border-gray-200 flex flex-col sm:flex-row items-center justify-between gap-4 relative z-10">
                       <PaginationControls
                         currentPage={currentPage}
@@ -248,13 +286,13 @@ const SellerProductsForm: React.FC = () => {
                         rowsPerPage={rowsPerPage}
                         onRowsPerPageChange={(val) => {
                           setRowsPerPage(val);
-                          setCurrentPage(1); // reset to page 1
+                          setCurrentPage(1);
                         }}
                         onPageChange={(page) => setCurrentPage(page)}
                       />
                     </div>
 
-                    {/* Sticky Bottom Scrollbar only if there are products */}
+                    {/* Sticky Bottom Scrollbar */}
                     <div className="sticky bottom-0 left-0 z-10 border-t border-gray-100">
                       <div
                         ref={scrollShadowRef}

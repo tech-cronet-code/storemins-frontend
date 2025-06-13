@@ -109,8 +109,8 @@ const menuItems = [
     hasChildren: true,
     active: false,
     children: [
-      { label: "Themes", path: "/appearance/themes" },
-      { label: "Layouts", path: "/appearance/layouts" },
+      { label: "Themes", path: "/seller//appearance/themes" },
+      { label: "Layouts", path: "/seller//appearance/layouts" },
     ],
   },
   { label: "Delivery", icon: <Truck />, path: "/delivery", active: false },

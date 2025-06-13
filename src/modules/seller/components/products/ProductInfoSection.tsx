@@ -5,7 +5,11 @@ import CategorySelectModal from "../categories/CategorySelectorModal";
 import { useListCategoriesQuery } from "../../../auth/services/productApi";
 import { useAuth } from "../../../auth/contexts/AuthContext";
 
-const ProductInfoSection: React.FC = () => {
+interface ProductInfoSectionProps {
+  productId?: string;
+}
+
+const ProductInfoSection: React.FC<ProductInfoSectionProps> = () => {
   const {
     register,
     watch,
@@ -15,33 +19,10 @@ const ProductInfoSection: React.FC = () => {
 
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([]);
+  const [selectedCategoryNames, setSelectedCategoryNames] = useState("");
 
-  const categoryIdsValue = watch("category");
-
-  useEffect(() => {
-    if (categoryIdsValue) {
-      const selectedIds = categoryIdsValue.split(",").map((id) => id.trim());
-      setSelectedCategoryIds(selectedIds);
-    }
-  }, [categoryIdsValue]);
-
-  const price = watch("price");
-  const discountPrice = watch("discountPrice");
-
-  const priceValue = parseFloat(price || "");
-  const discountValue = parseFloat(discountPrice || "");
-
-  const hasValidPrices =
-    !isNaN(priceValue) &&
-    priceValue > 0 &&
-    !isNaN(discountValue) &&
-    discountValue > 0;
-
-  const discountPercent =
-    hasValidPrices && discountValue < priceValue
-      ? Math.round(((priceValue - discountValue) / priceValue) * 100)
-      : 0;
-
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const categoryLinks = watch("categoryLinks") || [];
   const { userDetails } = useAuth();
   const businessId = userDetails?.storeLinks?.[0]?.businessId;
 
@@ -50,11 +31,79 @@ const ProductInfoSection: React.FC = () => {
     { skip: !businessId }
   );
 
-  if (!businessId) {
-    return (
-      <div className="text-center text-red-500">Business ID not found.</div>
+  // When product is loaded or categories change, update displayed category names
+  useEffect(() => {
+    if (!categories.length || !categoryLinks.length) return;
+
+    const ids = categoryLinks.map(
+      (link) => link.parentCategoryId || link.subCategoryId || ""
     );
-  }
+    setSelectedCategoryIds(ids);
+
+    const names = categoryLinks
+      .map((link) => {
+        if (link.parentCategoryId) {
+          const match = categories.find(
+            (cat) => cat.id === link.parentCategoryId
+          );
+          return match?.name;
+        }
+        if (link.subCategoryId) {
+          const match = categories
+            .flatMap((cat) => cat.subCategories || [])
+            .find((sub) => sub.id === link.subCategoryId);
+          return match?.name;
+        }
+        return "";
+      })
+      .filter(Boolean)
+      .join(", ");
+
+    setSelectedCategoryNames(names);
+  }, [categoryLinks, categories]);
+
+  const handleSelectCategories = (categoryIds: string[]) => {
+    const links: { parentCategoryId?: string; subCategoryId?: string }[] = [];
+
+    categoryIds.forEach((id) => {
+      const parent = categories.find((cat) => cat.id === id);
+      if (parent) {
+        links.push({ parentCategoryId: parent.id });
+        return;
+      }
+      const sub = categories
+        .flatMap((cat) => cat.subCategories || [])
+        .find((s) => s.id === id);
+      if (sub) {
+        links.push({ subCategoryId: sub.id });
+      }
+    });
+
+    setValue("categoryLinks", links, { shouldValidate: true });
+
+    const names = links
+      .map((link) => {
+        const parent = link.parentCategoryId
+          ? categories.find((cat) => cat.id === link.parentCategoryId)?.name
+          : null;
+        const sub = link.subCategoryId
+          ? categories
+              .flatMap((cat) => cat.subCategories || [])
+              .find((s) => s.id === link.subCategoryId)?.name
+          : null;
+        return parent || sub || "";
+      })
+      .filter(Boolean)
+      .join(", ");
+
+    setSelectedCategoryNames(names);
+    setSelectedCategoryIds(categoryIds);
+    setModalOpen(false);
+  };
+
+  const handleAddNewCategory = () => {
+    console.log("Add new category clicked");
+  };
 
   const categoryOptions = categories.map((cat) => ({
     id: cat.id,
@@ -68,33 +117,28 @@ const ProductInfoSection: React.FC = () => {
       })) || [],
   }));
 
-  // 🟢 This will map selected IDs into names for input display
-  const selectedCategoryNames = categories
-    .flatMap((cat) => {
-      const matchedNames: string[] = [];
+  const price = watch("price");
+  const discountedPrice = watch("discountedPrice");
 
-      if (selectedCategoryIds.includes(cat.id)) {
-        matchedNames.push(cat.name);
-      }
-      cat.subCategories?.forEach((sub) => {
-        if (selectedCategoryIds.includes(sub.id)) {
-          matchedNames.push(sub.name);
-        }
-      });
+  const priceValue = parseFloat(price || "");
+  const discountValue = parseFloat(discountedPrice || "");
 
-      return matchedNames;
-    })
-    .join(", ");
+  const hasValidPrices =
+    !isNaN(priceValue) &&
+    priceValue > 0 &&
+    !isNaN(discountValue) &&
+    discountValue > 0;
 
-  const handleSelectCategories = (categoryIds: string[]) => {
-    setSelectedCategoryIds(categoryIds);
-    setValue("category", categoryIds.join(","), { shouldValidate: true });
-    setModalOpen(false);
-  };
+  const discountPercent =
+    hasValidPrices && discountValue < priceValue
+      ? Math.round(((priceValue - discountValue) / priceValue) * 100)
+      : 0;
 
-  const handleAddNewCategory = () => {
-    console.log("Add new category clicked");
-  };
+  if (!businessId) {
+    return (
+      <div className="text-center text-red-500">Business ID not found.</div>
+    );
+  }
 
   return (
     <div className="bg-white border border-gray-200 rounded-lg shadow-sm p-5 sm:p-6 lg:p-8 space-y-6">
@@ -123,20 +167,16 @@ const ProductInfoSection: React.FC = () => {
           placeholder="Enter product name"
           className={`w-full border ${
             errors.name ? "border-red-500" : "border-gray-300"
-          } 
-            rounded-md px-3 py-2 text-sm focus:ring-1 focus:outline-none 
-            ${
-              errors.name
-                ? "focus:ring-red-500 focus:border-red-500"
-                : "focus:ring-blue-500 focus:border-blue-500"
-            }`}
+          } rounded-md px-3 py-2 text-sm focus:ring-1 focus:outline-none ${
+            errors.name ? "focus:ring-red-500" : "focus:ring-blue-500"
+          }`}
         />
         {errors.name?.message && (
-          <p className="text-red-600 text-xs mt-1">{errors.name?.message}</p>
+          <p className="text-red-600 text-xs mt-1">{errors.name.message}</p>
         )}
       </div>
 
-      {/* Product Category */}
+      {/* Category Input (Opens Modal) */}
       <div className="space-y-1">
         <label
           htmlFor="category"
@@ -146,30 +186,25 @@ const ProductInfoSection: React.FC = () => {
         </label>
         <input
           id="category"
-          {...register("category")}
           type="text"
-          value={selectedCategoryNames} // 🟢 Show Names not IDs
           readOnly
           onClick={() => setModalOpen(true)}
+          value={selectedCategoryNames}
           placeholder="Select categories"
           className={`w-full border ${
-            errors.category ? "border-red-500" : "border-gray-300"
-          } 
-            rounded-md px-3 py-2 text-sm focus:ring-1 focus:outline-none cursor-pointer bg-gray-50 
-            ${
-              errors.category
-                ? "focus:ring-red-500 focus:border-red-500"
-                : "focus:ring-blue-500 focus:border-blue-500"
-            }`}
+            errors.categoryLinks ? "border-red-500" : "border-gray-300"
+          } rounded-md px-3 py-2 text-sm cursor-pointer bg-gray-50 ${
+            errors.categoryLinks ? "focus:ring-red-500" : "focus:ring-blue-500"
+          }`}
         />
-        {errors.category?.message && (
+        {errors.categoryLinks && (
           <p className="text-red-600 text-xs mt-1">
-            {errors.category?.message}
+            At least one category must be selected.
           </p>
         )}
       </div>
 
-      {/* Category Selection Modal */}
+      {/* Category Modal */}
       <CategorySelectModal
         open={modalOpen}
         categories={categoryOptions}
@@ -180,9 +215,8 @@ const ProductInfoSection: React.FC = () => {
         loading={isLoading}
       />
 
-      {/* Price and Discounted Price */}
+      {/* Price + Discount */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        {/* Price */}
         <div className="space-y-1">
           <label
             htmlFor="price"
@@ -199,77 +233,68 @@ const ProductInfoSection: React.FC = () => {
               {...register("price")}
               type="text"
               inputMode="numeric"
-              pattern="[0-9]*"
               placeholder="Enter price"
-              className={`w-full pl-7 border ${
-                errors.price ? "border-red-500" : "border-gray-300"
-              } 
-                rounded-md px-3 py-2 text-sm focus:ring-1 focus:outline-none 
-                ${
-                  errors.price
-                    ? "focus:ring-red-500 focus:border-red-500"
-                    : "focus:ring-blue-500 focus:border-blue-500"
-                }`}
               onInput={(e) => {
                 e.currentTarget.value = e.currentTarget.value.replace(
                   /\D/g,
                   ""
                 );
               }}
+              className={`w-full pl-7 border ${
+                errors.price ? "border-red-500" : "border-gray-300"
+              } rounded-md px-3 py-2 text-sm focus:ring-1 focus:outline-none ${
+                errors.price ? "focus:ring-red-500" : "focus:ring-blue-500"
+              }`}
             />
           </div>
           {errors.price?.message && (
-            <p className="text-red-600 text-xs mt-1">{errors.price?.message}</p>
+            <p className="text-red-600 text-xs mt-1">{errors.price.message}</p>
           )}
         </div>
 
-        {/* Discount Price */}
         <div className="space-y-1">
           <label
-            htmlFor="discountPrice"
+            htmlFor="discountedPrice"
             className="block text-sm font-medium text-gray-700"
           >
-            Discounted Price
+            Discount Price
           </label>
           <div className="relative">
             <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-500 text-sm">
               ₹
             </span>
             <input
-              id="discountPrice"
-              {...register("discountPrice")}
+              id="discountedPrice"
+              {...register("discountedPrice")}
               type="text"
               inputMode="numeric"
-              pattern="[0-9]*"
               placeholder="Enter discounted price"
-              className={`w-full pl-7 border ${
-                errors.discountPrice ? "border-red-500" : "border-gray-300"
-              } 
-                rounded-md px-3 py-2 text-sm focus:ring-1 focus:outline-none 
-                ${
-                  errors.discountPrice
-                    ? "focus:ring-red-500 focus:border-red-500"
-                    : "focus:ring-blue-500 focus:border-blue-500"
-                }`}
               onInput={(e) => {
                 e.currentTarget.value = e.currentTarget.value.replace(
                   /\D/g,
                   ""
                 );
               }}
+              className={`w-full pl-7 border ${
+                errors.discountedPrice ? "border-red-500" : "border-gray-300"
+              } rounded-md px-3 py-2 text-sm focus:ring-1 focus:outline-none ${
+                errors.discountedPrice
+                  ? "focus:ring-red-500"
+                  : "focus:ring-blue-500"
+              }`}
             />
           </div>
-          {errors.discountPrice?.message && (
+          {errors.discountedPrice?.message && (
             <p className="text-red-600 text-xs mt-1">
-              {errors.discountPrice?.message}
+              {errors.discountedPrice.message}
             </p>
           )}
         </div>
       </div>
 
-      {/* Dynamic Price Display */}
+      {/* Price Display */}
       {priceValue > 0 && (
-        <div className="mt-2 flex items-center flex-wrap gap-2 text-sm font-medium">
+        <div className="mt-2 flex items-center gap-2 text-sm font-medium">
           <span className="text-gray-700">Price:</span>
           {discountValue > 0 && discountValue < priceValue ? (
             <>
@@ -285,7 +310,7 @@ const ProductInfoSection: React.FC = () => {
         </div>
       )}
 
-      {/* Product Description */}
+      {/* Description */}
       <div className="space-y-1">
         <label
           htmlFor="description"
@@ -293,33 +318,20 @@ const ProductInfoSection: React.FC = () => {
         >
           Product Description
         </label>
-        <p className="text-sm text-gray-500">
-          Get high quality product descriptions within seconds!{" "}
-          <button
-            type="button"
-            className="text-blue-600 font-medium underline hover:opacity-80"
-          >
-            Get description.
-          </button>
-        </p>
         <textarea
           id="description"
           {...register("description")}
-          placeholder="Enter product description"
           rows={6}
+          placeholder="Enter product description"
           className={`w-full border ${
             errors.description ? "border-red-500" : "border-gray-300"
-          } 
-            rounded-md px-3 py-2 text-sm resize-none focus:ring-1 focus:outline-none 
-            ${
-              errors.description
-                ? "focus:ring-red-500 focus:border-red-500"
-                : "focus:ring-blue-500 focus:border-blue-500"
-            }`}
+          } rounded-md px-3 py-2 text-sm resize-none focus:ring-1 focus:outline-none ${
+            errors.description ? "focus:ring-red-500" : "focus:ring-blue-500"
+          }`}
         />
         {errors.description?.message && (
           <p className="text-red-600 text-xs mt-1">
-            {errors.description?.message}
+            {errors.description.message}
           </p>
         )}
       </div>

@@ -57,8 +57,8 @@ const ProductTableHeader: React.FC<ProductTableHeaderProps> = ({
         </button>
       </div>
 
-      {/* Category */}
-      <div className="flex items-center">Category</div>
+      {/* Variant */}
+      <div className="flex items-center">Variant</div>
 
       {/* Inventory */}
       <div className="flex items-center">Inventory</div>

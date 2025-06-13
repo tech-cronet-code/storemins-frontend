@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 // src/common/services/productApi.ts
 import { createApi } from "@reduxjs/toolkit/query/react";
 import { baseQueryWithReauth } from "./baseQueryWithReauth";
@@ -62,7 +63,7 @@ export interface CreateProductRequest {
   name: string;
   category: string;
   price: number;
-  discountPrice?: number;
+  discountedPrice?: number;
   description?: string;
   stock?: number;
   stockStatus?: "in_stock" | "out_of_stock";
@@ -80,28 +81,12 @@ export interface CreateProductResponse {
   message?: string;
 }
 
+// Product List and Get Single Product
 export interface ProductListResponse {
   id: string;
   name: string;
   price: number;
-  discountPrice?: number;
-  description?: string;
-  stock?: number;
-  stockStatus?: "in_stock" | "out_of_stock";
-  shippingClass?: string;
-  taxClass?: string;
-  variant?: string;
-  images?: string[]; // URL strings
-  videoUrl?: string;
-  category: string;
-  status: "ACTIVE" | "INACTIVE";
-}
-
-export interface GetProductResponse {
-  id: string;
-  name: string;
-  price: number;
-  discountPrice?: number;
+  discountedPrice?: number;
   description?: string;
   stock?: number;
   stockStatus?: "in_stock" | "out_of_stock";
@@ -112,6 +97,76 @@ export interface GetProductResponse {
   videoUrl?: string;
   category: string;
   status: "ACTIVE" | "INACTIVE";
+}
+export interface UpdateProductStatusRequest {
+  id: string;
+  status: "ACTIVE" | "INACTIVE";
+  businessId: string;
+}
+
+export interface GetProductResponse {
+  id: string;
+  name: string;
+  price: number;
+  discountedPrice?: number;
+  description?: string;
+  stock?: number;
+  stockStatus?: "in_stock" | "out_of_stock";
+  shippingClass?: string;
+  taxClass?: string;
+  variant?: string;
+  images?: string[];
+  videoUrl?: string;
+  category: string;
+  status: "ACTIVE" | "INACTIVE";
+}
+
+// Backend response DTO
+interface ProductResponseDto {
+  id: string;
+  name: string;
+  price?: number;
+  discountedPrice?: number;
+  description?: string;
+  quantity?: number;
+  status?: string;
+  media?: Array<{ type: "IMAGE" | "VIDEO"; url: string; order?: number }>;
+  seoMetaData?: {
+    title?: string;
+    description?: string;
+    imageUrl?: string;
+  };
+  ParentCategory?: { id: string; name: string };
+  SubCategory?: { id: string; name: string };
+  // Other fields...
+}
+
+export interface ProductDetailsResponse {
+  id: string;
+  name: string;
+  price: number;
+  discountedPrice?: number;
+  description?: string;
+  stock?: number;
+  sku?: string;
+  stockStatus?: "in_stock" | "out_of_stock";
+  shippingClass?: string;
+  taxClass?: string;
+  variant?: string;
+  images?: string[];
+  videoUrl?: string;
+  status: "ACTIVE" | "INACTIVE";
+  categoryLinks: Array<{
+    parentCategoryId?: string;
+    parentCategoryName?: string;
+    subCategoryId?: string;
+    subCategoryName?: string;
+  }>;
+  seoMetaData?: {
+    title?: string;
+    description?: string;
+    imageUrl?: string;
+  };
 }
 
 export const productApi = createApi({
@@ -180,93 +235,160 @@ export const productApi = createApi({
     // ADD inside endpoints
     createProduct: builder.mutation<
       { message: string; data: CreateProductResponse },
-      CreateProductRequest
+      FormData // <-- Change here to FormData
     >({
-      query: (body) => {
-        const formData = new FormData();
-        formData.append("name", body.name);
-        formData.append("category", body.category);
-        formData.append("price", body.price.toString());
-        if (body.discountPrice)
-          formData.append("discountPrice", body.discountPrice.toString());
-        if (body.description) formData.append("description", body.description);
-        if (body.stock !== undefined)
-          formData.append("stock", body.stock.toString());
-        if (body.stockStatus) formData.append("stockStatus", body.stockStatus);
-        if (body.shippingClass)
-          formData.append("shippingClass", body.shippingClass);
-        if (body.taxClass) formData.append("taxClass", body.taxClass);
-        if (body.variant) formData.append("variant", body.variant);
-
-        if (body.images && body.images.length > 0) {
-          body.images.forEach((file) => formData.append("images", file)); // Backend should handle array files
-        }
-        if (body.video) {
-          formData.append("video", body.video);
-        }
-
-        return {
-          url: `/seller/product/create`, // Your backend endpoint for product create
-          method: "POST",
-          body: formData,
-        };
-      },
+      query: (formData) => ({
+        url: `/seller/product/product/create`,
+        method: "POST",
+        body: formData, // send form data raw
+      }),
     }),
 
     // ✅ New: List all products
-    listProducts: builder.query<ProductListResponse[], void>({
-      query: () => ({
-        url: `/seller/product/list`, // <-- Replace with your real endpoint
-        method: "GET",
+    // ✅ List Products by Business
+    listProducts: builder.query<ProductListResponse[], { businessId: string }>({
+      query: ({ businessId }) => ({
+        url: `/seller/product/product/list-by-business`,
+        method: "POST",
+        body: { businessId },
       }),
       transformResponse: (raw: {
         message: string;
-        data: ProductListResponse[];
-      }) => raw.data,
+        data: ProductResponseDto[];
+      }): ProductListResponse[] => {
+        return raw.data.map((product) => {
+          const images =
+            product.media
+              ?.filter((m) => m.type === "IMAGE")
+              .map((m) => m.url) || [];
+          const video =
+            product.media?.find((m) => m.type === "VIDEO")?.url || "";
+
+          return {
+            id: product.id,
+            name: product.name,
+            price: product.price || 0,
+            discountedPrice: product.discountedPrice,
+            description: product.description,
+            stock: product.quantity,
+            stockStatus:
+              product.quantity && product.quantity > 0
+                ? "in_stock"
+                : "out_of_stock",
+            shippingClass: "", // Not provided by backend
+            taxClass: "", // Not provided by backend
+            variant: "", // Not provided by backend
+            images: images,
+            videoUrl: video,
+            category: "", // Not provided by backend
+            status: product.status === "ACTIVE" ? "ACTIVE" : "INACTIVE",
+          };
+        });
+      },
     }),
-    // ✅ New: Get Single Product
-    getProduct: builder.query<GetProductResponse, { id: string }>({
+
+    // ➔ New: Get Product By ID
+    getProductById: builder.query<ProductDetailsResponse, { id: string }>({
       query: ({ id }) => ({
-        url: `/seller/product/${id}`,
-        method: "GET",
+        url: `/seller/product/product/get-by-id`, // <-- New backend API
+        method: "POST",
+        body: { id },
       }),
-      transformResponse: (raw: { message: string; data: GetProductResponse }) =>
-        raw.data,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      transformResponse: (raw: {
+        message: string;
+        data: any;
+      }): ProductDetailsResponse => {
+        const product = raw.data;
+
+        const images =
+          product.media
+            ?.filter((m: any) => m.type === "IMAGE")
+            .map((m: any) => m.url) || [];
+        const videoUrl =
+          product.media?.find((m: any) => m.type === "VIDEO")?.url || "";
+
+        return {
+          id: product.id,
+          name: product.name,
+          price: product.price ?? 0,
+          discountedPrice: product.discountedPrice,
+          description: product.description,
+          stock: product.quantity,
+          sku: product.sku,
+          stockStatus: product.quantity > 0 ? "in_stock" : "out_of_stock",
+          shippingClass: "",
+          taxClass: "",
+          variant: "",
+          images,
+          videoUrl,
+          status: product.status === "ACTIVE" ? "ACTIVE" : "INACTIVE",
+          categoryLinks: product.categoryLinks || [],
+          seoMetaData: {
+            title: product.seoMetaData?.title || "",
+            description: product.seoMetaData?.description || "",
+            imageUrl: product.seoMetaData?.imageUrl || "",
+          },
+        };
+      },
     }),
     // ✅ New: Update Product
     updateProduct: builder.mutation<
       { message: string; data: GetProductResponse },
-      CreateProductRequest & { id: string }
+      FormData // <-- Change here to FormData
     >({
-      query: (body) => {
-        const formData = new FormData();
-        formData.append("id", body.id);
-        formData.append("name", body.name);
-        formData.append("category", body.category);
-        formData.append("price", body.price.toString());
-        if (body.discountPrice)
-          formData.append("discountPrice", body.discountPrice.toString());
-        if (body.description) formData.append("description", body.description);
-        if (body.stock !== undefined)
-          formData.append("stock", body.stock.toString());
-        if (body.stockStatus) formData.append("stockStatus", body.stockStatus);
-        if (body.shippingClass)
-          formData.append("shippingClass", body.shippingClass);
-        if (body.taxClass) formData.append("taxClass", body.taxClass);
-        if (body.variant) formData.append("variant", body.variant);
-        if (body.images && body.images.length > 0) {
-          body.images.forEach((file) => formData.append("images", file));
-        }
-        if (body.video) {
-          formData.append("video", body.video);
-        }
+      query: (formData) => ({
+        url: `/seller/product/product/edit`,
+        method: "POST",
+        body: formData,
+      }),
+    }),
 
-        return {
-          url: `/seller/product/edit`, // <-- Update endpoint
-          method: "POST",
-          body: formData,
-        };
+    updateProductStatus: builder.mutation<
+      { message: string; data: { id: string; status: string } },
+      UpdateProductStatusRequest
+    >({
+      query: (body) => ({
+        url: `/seller/product/product/update-status`,
+        method: "POST",
+        body,
+      }),
+      // ✅ Add optimistic UI update
+      async onQueryStarted(
+        { id, status },
+        { dispatch, queryFulfilled, getState }
+      ) {
+        const state: any = getState();
+        const businessId = state.auth.userDetails?.storeLinks?.[0]?.businessId;
+
+        const patchResult = dispatch(
+          productApi.util.updateQueryData(
+            "listProducts",
+            { businessId },
+            (draft) => {
+              const product = draft.find((p) => p.id === id);
+              if (product) product.status = status;
+            }
+          )
+        );
+
+        try {
+          await queryFulfilled;
+        } catch {
+          patchResult.undo();
+        }
       },
+    }),
+
+    deleteProduct: builder.mutation<
+      { message: string; data: { id: string } },
+      { id: string }
+    >({
+      query: ({ id }) => ({
+        url: `/seller/product/product/delete`,
+        method: "POST",
+        body: { id },
+      }),
     }),
   }),
 });
@@ -281,6 +403,8 @@ export const {
   useDeleteCategoriesMutation,
   useCreateProductMutation,
   useListProductsQuery,
-  useGetProductQuery,
+  useGetProductByIdQuery,
   useUpdateProductMutation,
+  useUpdateProductStatusMutation,
+  useDeleteProductMutation,
 } = productApi;

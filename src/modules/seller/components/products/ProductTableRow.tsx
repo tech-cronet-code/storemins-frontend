@@ -3,48 +3,129 @@ import { Eye, Share2 } from "lucide-react";
 import ShareModal from "./ShareModal";
 import ProductActionsMenu from "./ProductActionsMenu";
 import DeleteConfirmModal from "./DeleteConfirmModal";
+import {
+  useDeleteProductMutation,
+  useUpdateProductStatusMutation,
+} from "../../../auth/services/productApi";
+import { showToast } from "../../../../common/utils/showToast";
+import { useAuth } from "../../../auth/contexts/AuthContext";
 
 interface ProductRowProps {
-  id: string; // ✅ Add id prop properly
+  id: string;
   image: string;
   title: string;
   subtitle: string;
+  variant: string;
   price: number;
-  mrp: number; // ✅ Remove optional. Always pass `0` if missing.
+  discountedPrice: number;
+  mrp: number;
   inventory: number | string;
   isActive: boolean;
   checked: boolean;
   onCheckboxChange: (checked: boolean) => void;
   onEdit: (id: string) => void;
+  onDeleteComplete?: (
+    deletedId: string,
+    shouldGoToPreviousPage?: boolean
+  ) => void;
+  isLastItemOnPage?: boolean; // ✅ Add this prop to decide pagination logic
 }
 
 const ProductTableRow: React.FC<ProductRowProps> = ({
-  id, 
+  id,
   image,
   title,
   subtitle,
+  variant,
   price,
-  mrp,
+  discountedPrice,
+  // mrp,
   inventory,
   isActive,
   checked,
   onCheckboxChange,
   onEdit,
+  onDeleteComplete,
+  isLastItemOnPage = false, // default to false
 }) => {
+  const { userDetails } = useAuth();
+
+  const businessId = userDetails?.storeLinks?.[0]?.businessId;
   const [active, setActive] = useState(isActive);
+  const [updateProductStatus] = useUpdateProductStatusMutation();
   const [isShareModalOpen, setShareModalOpen] = useState(false);
   const [isDeleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [isVisible, setIsVisible] = useState(true);
+  const [deleteProduct, { isLoading }] = useDeleteProductMutation();
 
-  const toggleStatus = () => {
-    const newStatus = !active;
-    setActive(newStatus);
+  const toggleStatus = async () => {
+    if (!businessId) {
+      showToast({
+        type: "error",
+        message: "Business ID not found",
+        showClose: true,
+      });
+      return;
+    }
+
+    const newStatus = active ? "INACTIVE" : "ACTIVE";
+    setActive(!active);
+
+    try {
+      await updateProductStatus({ id, status: newStatus, businessId }).unwrap();
+      showToast({
+        type: "success",
+        message: `Product marked as ${newStatus}`,
+        showClose: true,
+      });
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    } catch (err) {
+      console.log(err, "err");
+
+      setActive(active); // revert on failure
+      showToast({
+        type: "error",
+        message: "Failed to update product status",
+        showClose: true,
+      });
+    }
   };
 
   const validatedTitle = title.length < 3 ? "-" : title.slice(0, 200);
 
+  const handleDelete = async () => {
+    try {
+      const res = await deleteProduct({ id }).unwrap();
+      showToast({
+        type: "success",
+        message: res.message || "Product deleted successfully",
+        showClose: true,
+      });
+
+      setIsVisible(false);
+
+      setTimeout(() => {
+        setDeleteModalOpen(false);
+        onDeleteComplete?.(id, isLastItemOnPage); // ✅ notify with page info
+      }, 300);
+    } catch (error) {
+      showToast({
+        type: "error",
+        message: "Failed to delete product",
+        showClose: true,
+      });
+      console.error("❌ Delete error:", error);
+    }
+  };
+
+  if (!isVisible) return null;
+
   return (
     <>
-      <div className="w-full grid grid-cols-[40px_2.5fr_1fr_1fr_1fr_1fr_1fr] gap-4 px-2 py-3 border-t text-sm border-gray-200 text-gray-700 bg-white hover:bg-gray-50">
+      <div
+        className="w-full grid grid-cols-[40px_2.5fr_1fr_1fr_1fr_1fr_1fr] gap-4 px-2 py-3 border-t text-sm border-gray-200 text-gray-700 bg-white hover:bg-gray-50 transition-opacity duration-300 ease-in-out"
+        style={{ opacity: isVisible ? 1 : 0 }}
+      >
         {/* Checkbox */}
         <div className="flex items-center justify-center">
           <input
@@ -80,21 +161,30 @@ const ProductTableRow: React.FC<ProductRowProps> = ({
         </div>
 
         {/* Price */}
-        {/* Price */}
         <div className="flex flex-col justify-center ml-2">
-          <p className="font-semibold text-black">₹{price.toLocaleString()}</p>
-          {/* Only show MRP if it’s greater than 0 */}
-          {mrp > 0 && mrp > price && (
-            <p className="line-through text-gray-400 text-xs">
-              ₹{mrp.toLocaleString()}
+          <div className="flex items-center gap-2">
+            <p className="font-semibold text-black">
+              ₹{discountedPrice.toLocaleString()}
+            </p>
+
+            {/* Discount Badge */}
+            {price > discountedPrice && (
+              <span className="text-[11px] font-semibold bg-orange-500 text-white px-2 py-0.5 rounded">
+                {Math.round(((price - discountedPrice) / price) * 100)}% OFF
+              </span>
+            )}
+          </div>
+
+          {/* Original Price */}
+          {price > discountedPrice && (
+            <p className="line-through text-gray-400 text-xs mt-0.5">
+              ₹{price.toLocaleString()}
             </p>
           )}
         </div>
 
-        {/* Category */}
-        <div className="flex items-center text-sm text-gray-600">
-          {subtitle}
-        </div>
+        {/* variant */}
+        <div className="flex items-center text-sm text-gray-600">{variant}</div>
 
         {/* Inventory */}
         <div className="flex items-center text-sm font-medium text-gray-700">
@@ -147,7 +237,6 @@ const ProductTableRow: React.FC<ProductRowProps> = ({
             <Share2 className="w-[18px] h-[18px]" />
           </button>
           <ProductActionsMenu
-            // onEdit={() => console.log("Edit product")}
             onEdit={() => onEdit(id)}
             onDuplicate={() => console.log("Duplicate product")}
             onDelete={() => setDeleteModalOpen(true)}
@@ -162,14 +251,11 @@ const ProductTableRow: React.FC<ProductRowProps> = ({
         title={title}
       />
 
-      {/* Delete Confirmation Modal */}
       <DeleteConfirmModal
         visible={isDeleteModalOpen}
         onClose={() => setDeleteModalOpen(false)}
-        onConfirm={() => {
-          setDeleteModalOpen(false);
-          console.log("Product deleted"); // Replace with real delete logic
-        }}
+        onConfirm={handleDelete}
+        loading={isLoading}
       />
     </>
   );

@@ -40,6 +40,13 @@ const CategorySelectModal: React.FC<CategorySelectModalProps> = ({
   const [expandedCategories, setExpandedCategories] = useState<string[]>([]);
   const modalRef = useRef<HTMLDivElement>(null);
 
+  // ✅ FIX: Sync selected categories when modal opens
+  useEffect(() => {
+    if (open) {
+      setLocalSelected(selectedCategoryIds);
+    }
+  }, [open, selectedCategoryIds]);
+
   useEffect(() => {
     const handleEsc = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
@@ -103,7 +110,13 @@ const CategorySelectModal: React.FC<CategorySelectModalProps> = ({
             ? "bg-blue-50 border border-blue-200"
             : "hover:bg-gray-50"
         }`}
-        onClick={() => toggleCategory(cat.id)}
+        onClick={(e) => {
+          const isArrowClick = (e.target as HTMLElement).closest(
+            ".expand-arrow"
+          );
+          if (isArrowClick) return; // Prevent category select if arrow clicked
+          toggleCategory(cat.id);
+        }}
       >
         <div className="flex items-center space-x-4 flex-1">
           {cat.image && (
@@ -118,14 +131,20 @@ const CategorySelectModal: React.FC<CategorySelectModalProps> = ({
               <span className="font-medium text-gray-800">{cat.name}</span>
               {cat.subcategories && (
                 <button
-                  className="text-gray-500 hover:text-gray-800 transform transition-transform"
-                  onClick={(e) => toggleExpand(cat.id, e)}
+                  type="button"
+                  className="expand-arrow text-gray-500 hover:text-gray-800 transform transition-transform"
+                  onClick={(e) => {
+                    e.stopPropagation(); // prevents bubbling
+                    toggleExpand(cat.id, e);
+                  }}
                 >
-                  {expandedCategories.includes(cat.id) ? (
-                    <span className="rotate-90">➤</span>
-                  ) : (
-                    <span>➤</span>
-                  )}
+                  <span className="inline-block">
+                    {expandedCategories.includes(cat.id) ? (
+                      <span className="rotate-90 inline-block">➤</span>
+                    ) : (
+                      <span className="inline-block">➤</span>
+                    )}
+                  </span>
                 </button>
               )}
             </div>

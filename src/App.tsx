@@ -11,7 +11,7 @@ import PublicRoute from "./routes/PublicRoute";
 import SellerRoute from "./routes/SellerRoute";
 
 // Pages
-import AuthFormPage from "./modules/auth/pages/AuthFormPage";
+// import AuthFormPage from "./modules/auth/pages/AuthFormPage";
 import AuthOTPVerifyPage from "./modules/auth/pages/AuthOTPVerifyPage";
 import SellerStoreDetailsPage from "./modules/auth/pages/SellerStoreDetailsPage";
 import SellerUnlockStorePage from "./modules/auth/pages/SellerUnlockStorePage";

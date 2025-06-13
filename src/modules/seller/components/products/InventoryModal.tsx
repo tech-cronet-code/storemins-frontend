@@ -5,14 +5,20 @@ interface InventoryModalProps {
   open: boolean;
   onClose: () => void;
   onSave: (qty: string) => void;
+  initialQuantity?: string; // 🆕 New prop
 }
 
 const InventoryModal: React.FC<InventoryModalProps> = ({
   open,
   onClose,
   onSave,
+  initialQuantity = "",
 }) => {
   const [quantity, setQuantity] = useState("");
+
+  useEffect(() => {
+    setQuantity(initialQuantity); // 🆕 prefill on open
+  }, [initialQuantity, open]);
 
   useEffect(() => {
     document.body.style.overflow = open ? "hidden" : "auto";
