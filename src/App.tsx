@@ -28,6 +28,8 @@ import SellerProductsOrdersPage from "./modules/seller/pages/SellerProductsOrder
 import ScrollToTop from "./modules/seller/common/components/ScrollToTop";
 import LoginPage from "./modules/auth/pages/LoginPage";
 import RegisterPage from "./modules/auth/pages/RegisterPage";
+import AddStoreSettingPage from "./modules/seller/pages/store-appearance/AddStoreSettingPage";
+import AddStoreDisplaySettingPage from "./modules/seller/pages/store-appearance/AddStoreDiplaySettingPage";
 // import AuthFormPage from "./modules/auth/pages/AuthForm";
 
 const App = () => {
@@ -100,6 +102,24 @@ const App = () => {
               path="/seller/orders"
               element={<SellerProductsOrdersPage />}
             />
+            {/* Store Appearance */}
+            <Route
+              path="/seller/appearance/store-Setting"
+              element={<AddStoreSettingPage section="store-setting" />}
+            />
+            <Route
+              path="/seller/appearance/store-setting/store-domain"
+              element={<AddStoreSettingPage section="store-domain" />}
+            />
+            <Route
+              path="/seller/appearance/store-setting/store-timings"
+              element={<AddStoreSettingPage section="store-timings" />}
+            />
+            <Route
+              path="/seller/appearance/display-setting"
+              element={<AddStoreDisplaySettingPage section="display-setting" />}
+            />
+
           </Route>
           <Route element={<AdminRoute />}>
             <Route path="/admin/*" element={<AdminDashboard />} />
