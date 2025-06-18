@@ -1,7 +1,9 @@
 // src/modules/user/auth/pages/Register.tsx
 
 // import RegisterContainer from "../components/containers/RegisterContainer";
+import AdFormContainer from "../containers/AdFormContainer";
 import RegisterContainer from "../containers/RegisterContainer";
+import "./Register.css";
 
 // interface RegisterPageProps {
 //   onSwitch: () => void;
@@ -43,14 +45,16 @@ const RegisterPage = () =>
     return (
       <>
         {/* Right: Register Part */}
-        {/* <div className="min-h-screen flex flex-col lg:flex-row">
+        <div className="min-h-screen flex flex-col lg:flex-row">
           {/* Left: Ad Part */}
-          {/* <div className="w-full lg:w-1/2 flex">
-            <AdFormContainer /> */}
-          {/* </div> */}
-          <RegisterContainer />
+          <div className="w-full flex">
+            <AdFormContainer />
+          </div>
+          <div className="w-full">
+            <RegisterContainer />
+          </div>
           {/* <LoginContainer /> */}
-        {/* </div> */}
+        </div>
       </>
     );
   };

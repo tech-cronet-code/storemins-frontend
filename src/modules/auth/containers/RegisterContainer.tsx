@@ -43,7 +43,7 @@ const RegisterContainer = () =>
     };
 
     return (
-      <div>
+      <>
         <RegisterForm
           // onSwitch={onSwitch}
           onSubmit={handleSubmit}
@@ -52,7 +52,7 @@ const RegisterContainer = () =>
           <p className="text-gray-500 text-sm mt-2">Registering...</p>
         )}
         {error && <p className="text-red-500 text-sm mt-2">{error}</p>}
-      </div>
+      </>
     );
   };
 

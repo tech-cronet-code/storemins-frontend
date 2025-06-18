@@ -26,6 +26,8 @@ import OtpRoute from "./routes/OtpRoute";
 import SellerProductsInventoryPage from "./modules/seller/pages/SellerProductsInventoryPage";
 import SellerProductsOrdersPage from "./modules/seller/pages/SellerProductsOrdersPage";
 import ScrollToTop from "./modules/seller/common/components/ScrollToTop";
+import LoginPage from "./modules/auth/pages/LoginPage";
+import RegisterPage from "./modules/auth/pages/RegisterPage";
 // import AuthFormPage from "./modules/auth/pages/AuthForm";
 
 const App = () => {
@@ -36,8 +38,8 @@ const App = () => {
         {/* ✅ Public Routes */}
         <Route element={<PublicRoute />}>
           <Route path="/home" element={<AuthFormPage />} />
-          {/* <Route path="/login" element={<LoginPage />} />
-          <Route path="/register" element={<RegisterPage />} /> */}
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/register" element={<RegisterPage />} />
           {/* <Route path="/register" element={<RegisterPage onSwitch={function (): void {
             throw new Error("Function not implemented.");
           }} />} />

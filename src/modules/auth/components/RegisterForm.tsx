@@ -51,7 +51,6 @@ const RegisterForm = ({ onSubmit }: RegisterFormProps) => {
 
   return (
     <>
-
       {/* Form */}
       <form className="space-y-4" onSubmit={handleSubmit(onSubmit)}>
         <input type="hidden" value="SELLER" {...register("role")} />
@@ -91,7 +90,11 @@ const RegisterForm = ({ onSubmit }: RegisterFormProps) => {
             onClick={() => setShowPasswords(!showPasswords)}
             className="absolute inset-y-0 right-3 flex items-center text-gray-500"
           >
-            {showPasswords ? <IoEyeOutline size={18} /> : <IoEyeOffOutline size={18} />}
+            {showPasswords ? (
+              <IoEyeOutline size={18} />
+            ) : (
+              <IoEyeOffOutline size={18} />
+            )}
           </button>
           {errors.pass_hash && (
             <p className="text-red-500 text-sm">{errors.pass_hash.message}</p>
@@ -111,7 +114,11 @@ const RegisterForm = ({ onSubmit }: RegisterFormProps) => {
             onClick={() => setShowPasswords(!showPasswords)}
             className="absolute inset-y-0 right-3 flex items-center text-gray-500"
           >
-            {showPasswords ? <IoEyeOutline size={18} /> : <IoEyeOffOutline size={18} />}
+            {showPasswords ? (
+              <IoEyeOutline size={18} />
+            ) : (
+              <IoEyeOffOutline size={18} />
+            )}
           </button>
           {errors.confirmPassword && (
             <p className="text-red-500 text-sm">
@@ -119,8 +126,6 @@ const RegisterForm = ({ onSubmit }: RegisterFormProps) => {
             </p>
           )}
         </div>
-
-
 
         <label className="flex items-start gap-2 text-sm text-gray-600">
           <input
@@ -153,29 +158,30 @@ const RegisterForm = ({ onSubmit }: RegisterFormProps) => {
 
       {/* FORM */}
 
-      <div className="flex gap-4">
+      <div className="flex gap-4 flex-col">
         {/* Social Login */}
         <div className="flex items-center justify-center mt-6">
-          <hr className="border-t border-gray-200 w-full" />
-          <span className="px-3 text-sm text-gray-500">Or register with</span>
-          <hr className="border-t border-gray-200 w-full" />
+          <hr className="border-t border-[#EAECF0] w-4/10" />
+          <span className="px-3 text-sm text-[#475467] w-2/10 text-center ">
+            Or register with
+          </span>
+          <hr className="border-t border-[#EAECF0] w-4/10" />
         </div>
 
-        <div className="flex justify-center gap-4 mt-4">
-          <button className="border border-gray-300 px-4 py-2 rounded-md text-sm hover:bg-gray-50 transition">
-            <FaGoogle className="text-[#EA4335] text-base" />
+        <div className="flex justify-center gap-4 mt-4 w-full">
+          <button className="border border-[#D0D5DD] px-12 py-2.5 rounded-md text-sm hover:bg-gray-50 transition cursor-pointer">
+            <FaGoogle className="text-[#EA4335] text-xl" />
           </button>
-          <button className="border border-gray-300 px-4 py-2 rounded-md text-sm hover:bg-gray-50 transition">
-            <FaFacebookF className="text-[#1877F2] text-base" />
+          <button className="border border-[#D0D5DD] px-12 py-2.5 rounded-md text-sm hover:bg-gray-50 transition cursor-pointer">
+            <FaFacebookF className="text-[#1877F2] text-xl" />
           </button>
-          <button className="border border-gray-300 px-4 py-2 rounded-md text-sm hover:bg-gray-50 transition">
-            <FaXTwitter className="text-base" />
+          <button className="border border-[#D0D5DD] px-12 py-2.5 rounded-md text-sm hover:bg-gray-50 transition cursor-pointer">
+            <FaXTwitter className="text-xl" />
           </button>
-          <button className="border border-gray-300 px-4 py-2 rounded-md text-sm hover:bg-gray-50 transition">
-            <FaApple className="text-base" />
+          <button className="border border-[#D0D5DD] px-12 py-2.5 rounded-md text-sm hover:bg-gray-50 transition cursor-pointer">
+            <FaApple className="text-xl" />
           </button>
         </div>
-
       </div>
       {/* Already have an account */}
       <div>
