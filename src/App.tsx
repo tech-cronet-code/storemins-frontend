@@ -11,7 +11,7 @@ import PublicRoute from "./routes/PublicRoute";
 import SellerRoute from "./routes/SellerRoute";
 
 // Pages
-import AuthFormPage from "./modules/auth/pages/AuthFormPage";
+// import AuthFormPage from "./modules/auth/pages/AuthFormPage";
 import AuthOTPVerifyPage from "./modules/auth/pages/AuthOTPVerifyPage";
 import SellerStoreDetailsPage from "./modules/auth/pages/SellerStoreDetailsPage";
 import SellerUnlockStorePage from "./modules/auth/pages/SellerUnlockStorePage";
@@ -28,6 +28,8 @@ import SellerProductsOrdersPage from "./modules/seller/pages/SellerProductsOrder
 import ScrollToTop from "./modules/seller/common/components/ScrollToTop";
 import LoginPage from "./modules/auth/pages/LoginPage";
 import RegisterPage from "./modules/auth/pages/RegisterPage";
+import AddStoreSettingPage from "./modules/seller/pages/store-appearance/AddStoreSettingPage";
+import AddStoreDisplaySettingPage from "./modules/seller/pages/store-appearance/AddStoreDiplaySettingPage";
 // import AuthFormPage from "./modules/auth/pages/AuthForm";
 
 const App = () => {
@@ -37,7 +39,7 @@ const App = () => {
       <Routes>
         {/* ✅ Public Routes */}
         <Route element={<PublicRoute />}>
-          <Route path="/home" element={<AuthFormPage />} />
+          {/* <Route path="/home" element={<AuthFormPage />} /> */}
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
           {/* <Route path="/register" element={<RegisterPage onSwitch={function (): void {
@@ -99,6 +101,23 @@ const App = () => {
             <Route
               path="/seller/orders"
               element={<SellerProductsOrdersPage />}
+            />
+            {/* Store Appearance */}
+            <Route
+              path="/seller/appearance/store-Setting"
+              element={<AddStoreSettingPage section="store-setting" />}
+            />
+            <Route
+              path="/seller/appearance/store-setting/store-domain"
+              element={<AddStoreSettingPage section="store-domain" />}
+            />
+            <Route
+              path="/seller/appearance/store-setting/store-timings"
+              element={<AddStoreSettingPage section="store-timings" />}
+            />
+            <Route
+              path="/seller/appearance/display-setting"
+              element={<AddStoreDisplaySettingPage section="display-setting" />}
             />
           </Route>
           <Route element={<AdminRoute />}>

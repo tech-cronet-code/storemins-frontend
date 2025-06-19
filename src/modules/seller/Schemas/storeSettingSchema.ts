@@ -2,7 +2,7 @@ import { z } from "zod";
 
 const maxFileSize = 5 * 1024 * 1024; // 5MB
 
-export const productSchema = z.object({
+export const storeSettingSchema = z.object({
   name: z.string().min(1, "Product name is required"),
 
   categoryLinks: z
@@ -92,4 +92,4 @@ export const productSchema = z.object({
   seoImage: z.any().optional(),
 });
 
-export type ProductFormValues = z.infer<typeof productSchema>;
+export type storeSettingFormValues = z.infer<typeof storeSettingSchema>;

@@ -102,16 +102,20 @@ const menuItems = [
     active: false,
   },
   {
-    label: "Store Appearance",
-    icon: <Layout />,
-    path: "/appearance",
-    whiteDot: false,
-    hasChildren: true,
-    active: false,
-    children: [
-      { label: "Themes", path: "/appearance/themes" },
-      { label: "Layouts", path: "/appearance/layouts" },
-    ],
+  label: "Store Appearance",
+  icon: <Layout />,
+  path: "/seller/appearance/store-setting/media", // default or first child route
+  whiteDot: false,
+  hasChildren: true,
+  active: false,
+  children: [
+    { label: "Store Setting", path: "/seller/appearance/store-setting" },
+    { label: "Dispaly Setting", path: "/seller/appearance/display-setting" },
+    { label: "Themes", path: "/seller/appearance/themes" },
+    { label: "Store Blog", path: "/seller/appearance/store-blog" },
+    { label: "Store Pages", path: "/seller/appearance/store-page" },
+
+  ],
   },
   { label: "Delivery", icon: <Truck />, path: "/delivery", active: false },
   { label: "Customers", icon: <Users />, path: "/customers", active: false },

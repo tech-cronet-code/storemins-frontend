@@ -1,11 +1,10 @@
+import { ChevronDown, ChevronUp } from "lucide-react";
 import React, { useState } from "react";
 import { useFormContext } from "react-hook-form";
-import { ChevronUp, ChevronDown } from "lucide-react";
 import InventoryModal from "./InventoryModal"; // ✅ import your modal
 
 const InventorySection: React.FC = () => {
   const {
-    register,
     setValue,
     watch,
     formState: { errors },
@@ -25,6 +24,7 @@ const InventorySection: React.FC = () => {
         open={modalOpen}
         onClose={() => setModalOpen(false)}
         onSave={(qty) => setValue("stock", qty)}
+        initialQuantity={quantity?.toString() || ""} // 🆕 pass quantity
       />
 
       <div className="bg-white border border-gray-200 rounded-xl shadow-sm transition-all">
@@ -76,14 +76,15 @@ const InventorySection: React.FC = () => {
               </div>
 
               {/* SKU ID Input */}
+              {/* SKU ID Input */}
               <div className="flex flex-col gap-1">
                 <label className="text-sm font-medium text-gray-800">
                   SKU ID
                 </label>
                 <input
                   type="text"
-                  {...register("sku")}
-                  defaultValue={sku || ""}
+                  value={sku || ""}
+                  onChange={(e) => setValue("sku", e.target.value)}
                   placeholder="Eg. 1000000001"
                   className="w-full h-[48px] px-4 py-2 text-sm rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder-gray-400"
                 />

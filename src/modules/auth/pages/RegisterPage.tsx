@@ -43,19 +43,19 @@ const RegisterPage = () =>
     // const [isRegister, setIsRegister] = useState(false);
 
     return (
-      <>
+      <div className="w-full h-full flex flex-col border-2 lg:flex-row lg:h-screen">
         {/* Right: Register Part */}
         <div className="min-h-screen flex flex-col lg:flex-row">
           {/* Left: Ad Part */}
-          <div className="w-full flex">
+          <div className="w-full h-full flex">
             <AdFormContainer />
           </div>
-          <div className="w-full">
+          <div className="w-full h-full border-2 flex justify-center items-center">
             <RegisterContainer />
           </div>
           {/* <LoginContainer /> */}
         </div>
-      </>
+      </div>
     );
   };
 

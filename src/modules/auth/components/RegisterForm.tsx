@@ -5,6 +5,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { IoEyeOutline, IoEyeOffOutline } from "react-icons/io5";
 import { FaGoogle, FaFacebookF, FaXTwitter, FaApple } from "react-icons/fa6";
 import { UserRoleName } from "../constants/userRoles";
+import { useNavigate } from "react-router-dom";
 // import RegisterLoginToggleBtn from "../../../components/UI/Toggles/RegisterLoginToggle";
 
 // eslint-disable-next-line react-refresh/only-export-components
@@ -41,6 +42,8 @@ const RegisterForm = ({ onSubmit }: RegisterFormProps) => {
   // const [isRegister, setIsRegister] = useState(false);
   const [showPasswords, setShowPasswords] = useState(false);
 
+  const Navigate = useNavigate();
+
   const {
     register,
     handleSubmit,
@@ -52,7 +55,10 @@ const RegisterForm = ({ onSubmit }: RegisterFormProps) => {
   return (
     <>
       {/* Form */}
-      <form className="space-y-4" onSubmit={handleSubmit(onSubmit)}>
+      <form
+        className="border-3 border-amber-900 space-y-4 w-full"
+        onSubmit={handleSubmit(onSubmit)}
+      >
         <input type="hidden" value="SELLER" {...register("role")} />
 
         <div className="flex-1">
@@ -158,7 +164,7 @@ const RegisterForm = ({ onSubmit }: RegisterFormProps) => {
 
       {/* FORM */}
 
-      <div className="flex gap-4 flex-col">
+      <div className="flex gap-4 border-2 border-amber-600 w-full">
         {/* Social Login */}
         <div className="flex items-center justify-center mt-6">
           <hr className="border-t border-[#EAECF0] w-4/10" />
@@ -185,12 +191,13 @@ const RegisterForm = ({ onSubmit }: RegisterFormProps) => {
       </div>
       {/* Already have an account */}
       <div>
-        <p className="text-center text-sm mt-6">
+        <p className="text-center text-sm mt-6 w-full">
           Already have an account?{" "}
           <button
             type="button"
             // onClick={() => setIsRegister(false)}
-            className="text-[#7F56D9] underline"
+            onClick={() => Navigate("/login")}
+            className="text-[#7F56D9] "
           >
             Login
           </button>
