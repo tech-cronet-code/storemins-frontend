@@ -119,7 +119,6 @@ const App = () => {
               path="/seller/appearance/display-setting"
               element={<AddStoreDisplaySettingPage section="display-setting" />}
             />
-
           </Route>
           <Route element={<AdminRoute />}>
             <Route path="/admin/*" element={<AdminDashboard />} />

@@ -3,6 +3,7 @@
 // import RegisterContainer from "../components/containers/RegisterContainer";
 import AdFormContainer from "../containers/AdFormContainer";
 import RegisterContainer from "../containers/RegisterContainer";
+import "./Register.css";
 
 // interface RegisterPageProps {
 //   onSwitch: () => void;
@@ -44,16 +45,16 @@ const RegisterPage = () =>
     return (
       <div className="w-full h-full flex flex-col border-2 lg:flex-row lg:h-screen">
         {/* Right: Register Part */}
-        {/* <div className="min-h-screen flex flex-col lg:flex-row">
+        <div className="min-h-screen flex flex-col lg:flex-row">
           {/* Left: Ad Part */}
-        <div className="w-full h-full flex">
-          <AdFormContainer />
+          <div className="w-full h-full flex">
+            <AdFormContainer />
+          </div>
+          <div className="w-full h-full border-2 flex justify-center items-center">
+            <RegisterContainer />
+          </div>
+          {/* <LoginContainer /> */}
         </div>
-        <div className="w-full h-full border-2 flex justify-center items-center">
-          <RegisterContainer />
-        </div>
-        {/* <LoginContainer /> */}
-        {/* </div> */}
       </div>
     );
   };
