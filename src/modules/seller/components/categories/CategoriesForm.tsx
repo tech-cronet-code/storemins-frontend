@@ -7,8 +7,8 @@ import SEOCategorySection from "./SEOCategorySection";
 import { useSellerProduct } from "../../hooks/useSellerProduct";
 import { useAuth } from "../../../auth/contexts/AuthContext";
 import { showToast } from "../../../../common/utils/showToast";
-import { CategoriesSchema } from "../../Schemas/categoriesSchema";
-import { useNavigate } from "react-router-dom";
+import { CategoriesSchema } from "../../Schemas/CategoriesSchema";
+import { useLocation, useNavigate } from "react-router-dom";
 import HeaderSubmitButton from "./HeaderButton";
 
 type CategoriesFormValues = z.infer<typeof CategoriesSchema>;
@@ -16,12 +16,14 @@ type CategoriesFormValues = z.infer<typeof CategoriesSchema>;
 interface CategoriesFormProps {
   categoryId?: string; // 📝 For Edit Mode
   type?: string;
+  parentId?: string;   // 🆕
   onSuccess?: () => void; // ✅ On Save Success
 }
 
 const CategoriesForm: React.FC<CategoriesFormProps> = ({
   categoryId,
   type,
+  parentId,
   onSuccess,
 }) => {
   const navigate = useNavigate();
@@ -34,7 +36,9 @@ const CategoriesForm: React.FC<CategoriesFormProps> = ({
     mode: "onChange",
     defaultValues: {
       name: "",
-      isSubcategory: false,
+      // isSubcategory: false,
+      isSubcategory: !!parentId,       // 🆕 pre-check for new subcat
+      category: parentId || "",        // 🆕 pre-select parent
       image: undefined,
       bannerDesktop: undefined,
       bannerMobile: undefined,
@@ -46,7 +50,22 @@ const CategoriesForm: React.FC<CategoriesFormProps> = ({
   });
 
   //   const { isValid, isSubmitting } = methods.formState;
-  const { reset: resetForm } = methods;
+  const { reset: resetForm , watch } = methods;
+const nameValue = watch("name");
+console.log(nameValue, "nameValue")
+  
+// useEffect(() => {
+//   if (!categoryId && !parentId && !nameValue) {
+//     resetForm();           
+//   }
+// }, [categoryId, parentId, nameValue, resetForm]);
+
+// const location = useLocation();
+
+// useEffect(() => {
+//   resetForm();
+// }, [location.key, resetForm]);
+
 
   // 👇 Lazy Query for Get Category (one-time)
   const {
@@ -69,15 +88,19 @@ const CategoriesForm: React.FC<CategoriesFormProps> = ({
   // 👇 Reset form with fetched data
   useEffect(() => {
     if (data) {
+      const isSub = data.categoryType === "SUB";
+
       resetForm({
         name: data.name || "",
         description: data.description || "",
-        isSubcategory: data.categoryType === "SUB",
+        isSubcategory: isSub,               // ✅ force set from backend
+        category: isSub ? data.parentCategory?.id || "" : "",
         seoTitle: data.seoMetaData?.title || "",
         seoDescription: data.seoMetaData?.description || "",
       });
     }
   }, [data, resetForm]);
+
 
   // 👇 Show error toast
   useEffect(() => {
@@ -89,6 +112,12 @@ const CategoriesForm: React.FC<CategoriesFormProps> = ({
       });
     }
   }, [isError, error]);
+
+  useEffect(() => {
+    if (parentId) {
+      methods.setValue("isSubcategory", true);
+    }
+  }, [parentId]);
 
   // 👇 Form Submit Handler
   const onSubmit = async (formData: CategoriesFormValues) => {
@@ -103,21 +132,28 @@ const CategoriesForm: React.FC<CategoriesFormProps> = ({
         return;
       }
 
+
+      const isEditMode = !!categoryId;
+
+      // 🧠 Reliable source of truth
+      const isSub = isEditMode
+        ? type === "SUB"
+        : formData.isSubcategory || !!parentId;
+
+
       const payload = {
         name: formData.name,
         description: formData.description || undefined,
         status: "ACTIVE" as const,
-        categoryType: formData.isSubcategory
-          ? ("SUB" as const)
-          : ("PARENT" as const),
+        categoryType: isSub ? "SUB" : "PARENT",
         businessId,
         parentId: formData.isSubcategory ? formData.category : undefined,
         seoMetaData:
           formData.seoTitle || formData.seoDescription
             ? {
-                title: formData.seoTitle || "",
-                description: formData.seoDescription || "",
-              }
+              title: formData.seoTitle || "",
+              description: formData.seoDescription || "",
+            }
             : undefined,
         imageId: undefined,
       };

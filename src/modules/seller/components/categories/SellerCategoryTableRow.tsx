@@ -12,6 +12,7 @@ import classNames from "classnames";
 import ShareModal from "../products/ShareModal";
 import { Category } from "../../types/category";
 import { useSellerProduct } from "../../hooks/useSellerProduct";
+import { useNavigate } from "react-router-dom";
 
 interface Props {
   category: Category;
@@ -34,6 +35,8 @@ const SellerCategoryTableRow: React.FC<Props> = ({
   onEdit,
   onRefresh,
 }) => {
+  const navigate = useNavigate();
+
   const [active, setActive] = useState(category.status);
   const [isShareModalOpen, setShareModalOpen] = useState(false);
   const [isDeleteModalOpen, setDeleteModalOpen] = useState(false);
@@ -153,20 +156,17 @@ const SellerCategoryTableRow: React.FC<Props> = ({
               onChange={toggleStatus}
             />
             <div
-              className={`w-10 h-5 rounded-full transition-colors duration-300 ${
-                active ? "bg-blue-600" : "bg-gray-300"
-              }`}
+              className={`w-10 h-5 rounded-full transition-colors duration-300 ${active ? "bg-blue-600" : "bg-gray-300"
+                }`}
             />
             <div
-              className={`absolute left-0.5 top-0.5 w-4 h-4 bg-white rounded-full shadow-md transform transition-transform duration-300 ${
-                active ? "translate-x-5" : ""
-              }`}
+              className={`absolute left-0.5 top-0.5 w-4 h-4 bg-white rounded-full shadow-md transform transition-transform duration-300 ${active ? "translate-x-5" : ""
+                }`}
             />
           </label>
           <span
-            className={`text-sm font-medium ${
-              active ? "text-green-600" : "text-red-500"
-            }`}
+            className={`text-sm font-medium ${active ? "text-green-600" : "text-red-500"
+              }`}
           >
             {active ? "Active" : "Hidden"}
           </span>
@@ -204,10 +204,13 @@ const SellerCategoryTableRow: React.FC<Props> = ({
                 {!isSub && (
                   <button
                     className="w-full px-4 py-2 text-left hover:bg-gray-100 text-gray-700"
-                    // onClick={() => {
-                    //   setIsMenuOpen(false);
-                    //   alert("Add subcategory clicked");
-                    // }}
+                    onClick={() => {
+                                    setIsMenuOpen(false);
+                                    /* go to creation page with parent id + flag */
+                                      navigate(
+                                         `/seller/catalogue/categories/create?parentId=${category.id}&type=SUB`
+                                        );
+                                  }}
                   >
                     Add subcategory
                   </button>
@@ -277,11 +280,10 @@ const SellerCategoryTableRow: React.FC<Props> = ({
               </button>
 
               <button
-                className={`text-sm px-4 py-2 rounded text-white flex items-center justify-center gap-2 ${
-                  (!isSub && !confirmDelete) || deleting
+                className={`text-sm px-4 py-2 rounded text-white flex items-center justify-center gap-2 ${(!isSub && !confirmDelete) || deleting
                     ? "bg-red-300 cursor-not-allowed"
                     : "bg-red-600 hover:bg-red-700"
-                }`}
+                  }`}
                 disabled={(!isSub && !confirmDelete) || deleting}
                 onClick={async () => {
                   setDeleting(true);

@@ -6,7 +6,7 @@ export const CategoriesSchema = z.object({
     .min(3, "Category name must be at least 3 characters long")
     .max(50, "Category name must not exceed 50 characters"),
   isSubcategory: z.boolean().optional(),
-  category: z.string().optional(),
+   category: z.string().optional(),
   image: z.any().optional(),
   bannerDesktop: z.any().optional(),
   bannerMobile: z.any().optional(),

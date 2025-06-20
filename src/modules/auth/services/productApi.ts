@@ -30,6 +30,11 @@ export interface ProductCategoryResponse {
     description: string;
     keywords?: string;
   };
+
+  parentCategory?: {
+    id: string;
+    name: string;
+  };
 }
 
 export interface ProductCategoryListResponse {

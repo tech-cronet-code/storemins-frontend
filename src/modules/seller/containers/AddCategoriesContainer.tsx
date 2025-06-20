@@ -7,9 +7,10 @@ import CategoriesForm from "../components/categories/CategoriesForm";
 interface Props {
   categoryId?: string; // 👈 accept optional categoryId
   type?: string; // 👈 add type
+  parentId?: string;
 }
 
-const AddCategoriesContainer: React.FC<Props> = ({ categoryId, type }) => {
+const AddCategoriesContainer: React.FC<Props> = ({ categoryId, type, parentId }) => {
   const navigate = useNavigate();
   const formContainerRef = useRef<HTMLDivElement>(null!);
 
@@ -64,7 +65,12 @@ const AddCategoriesContainer: React.FC<Props> = ({ categoryId, type }) => {
             ref={formContainerRef}
             className="flex-1 overflow-y-auto px-4 py-4 scroll-smooth"
           >
-            <CategoriesForm categoryId={categoryId} type={type} />
+            <CategoriesForm
+              key={`${categoryId ?? "new"}--${parentId ?? "none"}`}  // 👈 ensures fresh mount
+              categoryId={categoryId}
+              type={type}
+              parentId={parentId}
+            />
           </div>
         </div>
       </div>
