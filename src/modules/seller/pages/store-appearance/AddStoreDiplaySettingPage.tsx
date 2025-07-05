@@ -5,10 +5,33 @@ import Layout from "../../../dashboard/components/Layout";
 import GeneralSettings from "../../components/store-appearance/GeneralSettings";
 import HeaderSettings from "../../components/store-appearance/HeaderSettings";
 import StorePreview from "../../components/store-appearance/StorePreview";
-
-const StoreDisplaySettingsPage: React.FC = () => {
+import TermsOfServiceSettings from "../../components/store-appearance/TermsOfServiceSettings";
+interface StoreDisplaySettingsPageProps {
+  section?: string;
+}
+const StoreDisplaySettingsPage: React.FC<StoreDisplaySettingsPageProps> = ({ section }) => {
   const [selectedTab, setSelectedTab] = useState("general");
   const formContainerRef = useRef<HTMLDivElement>(null!);
+
+  interface PolicySettings {
+    termsText: string
+    shippingPolicy: string
+    paymentPolicy: string
+    returnPolicy: string
+    privacyPolicy: string
+  }
+
+
+  // state
+  const [policySettings, setPolicySettings] = useState<PolicySettings>({
+    termsText: '',
+    shippingPolicy: '',
+    paymentPolicy: '',
+    returnPolicy: '',
+    privacyPolicy: '',
+  })
+
+
 
   useEffect(() => {
     document.body.style.overflow = "hidden";
@@ -26,12 +49,31 @@ const StoreDisplaySettingsPage: React.FC = () => {
     showWhatsApp: true,
   });
 
-  const [headerSettings, setHeaderSettings] = useState({
+  const [headerSettings, setHeaderSettings] = useState<{
+    showAnnouncement: boolean;
+    message: string;
+    barColor: string;
+    fontColor: string;
+    showStoreLogo?: boolean;
+    storeLogo?: string;
+    showStoreName?: boolean;
+    storeName?: string;
+    businessMotto?: string;
+    contentAlignment?: "left" | "center";
+    favicon?: string; // ✅ add this line
+  }>({
     showAnnouncement: true,
     message: "this is announced bar test it out",
     barColor: "#296fc2",
     fontColor: "#FFFFFF",
+    showStoreLogo: true,
+    storeLogo: "https://your-url.com/logo.png",
+    showStoreName: true,
+    storeName: "Nomi",
+    contentAlignment: "center",
+    favicon: "https://your-url.com/favicon.png", // ✅ initialize with default favicon or ""
   });
+
 
   const handleSave = () => {
     console.log("Saved Data:", { generalSettings, headerSettings });
@@ -60,6 +102,13 @@ const StoreDisplaySettingsPage: React.FC = () => {
             onChange={setHeaderSettings}
           />
         );
+      case 'terms':
+        return (
+          <TermsOfServiceSettings
+            policySettings={policySettings}
+            onChange={setPolicySettings}
+          />
+        );
       default:
         return null;
     }
@@ -67,14 +116,15 @@ const StoreDisplaySettingsPage: React.FC = () => {
 
   return (
     <Layout role={UserRoleName.SELLER}>
-      <div className="flex h-screen w-full bg-[#f9fafb] overflow-hidden">
+      <div className="flex h-screen w-full bg-[#f9fafb] overflow-hidden flex-col md:flex-row">
         {/* Left Settings Panel */}
-        <div className="w-[50%] flex flex-col p-6 bg-white border-r border-gray-200 overflow-hidden">
+        <div className="w-full md:w-[50%] flex flex-col p-6 bg-white border-r border-gray-200 overflow-hidden">
           {/* Tabs */}
           <div className="flex gap-6 border-b border-gray-300 mb-6 text-sm font-semibold text-gray-700">
             {[
               { label: "General", key: "general" },
               { label: "Header", key: "header" },
+              { label: "Footer", key: "footer" },
               { label: "Home Page", key: "home" },
               { label: "About Us", key: "about" },
               { label: "Terms Of Service", key: "terms" },
@@ -82,11 +132,10 @@ const StoreDisplaySettingsPage: React.FC = () => {
               <button
                 key={tab.key}
                 onClick={() => setSelectedTab(tab.key)}
-                className={`relative pb-3 transition-all duration-200 ${
-                  selectedTab === tab.key
-                    ? "text-blue-600 after:content-[''] after:absolute after:bottom-0 after:left-0 after:w-full after:h-[2px] after:bg-blue-600"
-                    : "text-gray-500 hover:text-blue-600"
-                }`}
+                className={`relative pb-3 transition-all duration-200 ${selectedTab === tab.key
+                  ? "text-blue-600 after:content-[''] after:absolute after:bottom-0 after:left-0 after:w-full after:h-[2px] after:bg-blue-600"
+                  : "text-gray-500 hover:text-blue-600"
+                  }`}
               >
                 {tab.label}
               </button>
@@ -119,7 +168,7 @@ const StoreDisplaySettingsPage: React.FC = () => {
         </div>
 
         {/* Right Preview Panel */}
-        <div className="w-[50%] p-6 bg-gradient-to-b from-gray-50 to-white overflow-y-auto shadow-inner rounded-l-lg">
+        <div className="hidden md:block w-[50%] p-6 bg-gradient-to-b from-gray-50 to-white overflow-y-auto shadow-inner rounded-l-lg">
           <StorePreview
             generalSettings={generalSettings}
             headerSettings={headerSettings}

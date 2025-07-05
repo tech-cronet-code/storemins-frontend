@@ -1,4 +1,5 @@
 import { UserRoleName } from "../constants/userRoles";
+import { StoreLinkDto } from "./profileTypes";
 
 // src/common/types/user.ts
 export type User = {
@@ -15,7 +16,7 @@ export type User = {
   refresh_token?: string;
   mobile_confirmed?: boolean; // ✅ Add this
   otpExpiresAt?: string; // ✅ add this
-  storeLinks?: StoreLink[];
+  storeLinks?: StoreLinkDto[];
   isDomainLinked?: boolean;
 };
 

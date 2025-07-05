@@ -17,22 +17,6 @@ const StoreSettingDomainForm: React.FC<StoreSettingDomainFormProps> = ({ storeId
           <ConnectExternalDomainCard />
       </section>
 
-      {/* <section id="store-setting" className="scroll-mt-24">
-        <StoreSettingInfoSection />
-      </section>
-
-      <section id="business-info" className="scroll-mt-24">
-        <BusinessInformationSection />
-      </section>
-
-      <section id="contact-info" className="scroll-mt-24">
-        <ContactInformationSection />
-      </section>
-
-      <section id="social-links" className="scroll-mt-24">
-        <SocialLinksSection />
-      </section> */}
-
       <div className="flex justify-end mt-6 pb-15 pt-1">
         <button
           type="submit"

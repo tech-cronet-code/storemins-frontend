@@ -21,7 +21,6 @@ const isSubcategory = watch("isSubcategory") || type === "SUB";
 
 
 
-
   const [showModal, setShowModal] = useState(false);
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>(
     () => (parentCategory ? String(parentCategory) : "")

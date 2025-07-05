@@ -11,11 +11,15 @@ import ShortcutModal from "../components/ShortcutModal";
 import StoreLinkCard from "../components/StoreLinkCard";
 import StoreSetupChecklist from "../components/StoreSetupChecklist";
 import WalletAlert from "../components/WalletAlert";
+import { useAuth } from "../../auth/contexts/AuthContext";
+import { buildStoreUrl, getSuggestedDomain } from "../../../common/utils/buildStoreUrl";
 
 const SellerDashboard = () => {
 
-    // const {  userDetails } = useAuth(); // ✅ from context
-  
+  const { userDetails } = useAuth();
+
+
+
   const initialShortcuts = [
     {
       label: "Facebook Pixel",
@@ -127,6 +131,7 @@ const SellerDashboard = () => {
     },
   ];
 
+
   const [shortcuts, setShortcuts] = useState(initialShortcuts);
   const [isShortcutModalOpen, setShortcutModalOpen] = useState(false);
 
@@ -135,6 +140,41 @@ const SellerDashboard = () => {
       prev.map((item) =>
         item.label === label ? { ...item, added: !item.added } : item
       )
+    );
+  };
+
+
+  /* ------------ helper to pick active link & card JSX ------------ */
+  const renderStoreLinkCard = () => {
+    // 1️⃣  Guard clauses
+    if (!userDetails?.storeLinks?.length) return null;
+
+    const activeLink = userDetails.storeLinks.find(
+      (l) => l.domain?.isActive
+    );
+    if (!activeLink?.domain) return null;
+
+    // 2️⃣  Derive URLs with utilities
+    const storeUrl = buildStoreUrl(activeLink.domain);
+    const suggestedDomain = getSuggestedDomain(activeLink.domain);
+
+    // 3️⃣  Return the actual card
+    return (
+      <StoreLinkCard
+        storeUrl={storeUrl}
+        suggestedDomain={suggestedDomain}
+        onCopy={() => navigator.clipboard.writeText(storeUrl)}
+        onClose={() => console.log("Closed")}
+        onShare={(platform) => {
+          const encoded = encodeURIComponent(storeUrl);
+          const shareUrl =
+            platform === "whatsapp"
+              ? `https://wa.me/?text=${encoded}`
+              : `https://www.facebook.com/sharer/sharer.php?u=${encoded}`;
+          window.open(shareUrl, "_blank", "noopener,noreferrer");
+        }}
+        onGetNow={() => console.log("Get Now clicked:", suggestedDomain)}
+      />
     );
   };
 
@@ -237,16 +277,7 @@ const SellerDashboard = () => {
         </div>
 
         {/* Store Links Cards */}
-        <StoreLinkCard
-          storeUrl={"https://cakestore.storemins.com"}
-          suggestedDomain="cake-store.com"
-          onCopy={() =>
-            navigator.clipboard.writeText("https://cakestore.storemins.com")
-          }
-          onClose={() => console.log("Closed")}
-          onShare={(platform) => console.log("Shared to:", platform)}
-          onGetNow={() => console.log("Get Now Clicked")}
-        />
+        {renderStoreLinkCard()}
 
         {/* Feature + Checklist */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4 mb-6">

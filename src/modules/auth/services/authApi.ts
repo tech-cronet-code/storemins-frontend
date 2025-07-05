@@ -1,8 +1,8 @@
 //  apiClient.ts for REGISTER
 
 import { createApi } from "@reduxjs/toolkit/query/react";
+import { StoreResponse, UpdateStorePayload } from "../../seller/types/storeTypes";
 import { UserRoleName } from "../constants/userRoles";
-import { User } from "../types/authTypes";
 import {
   AddUpdateBusinessCategoryRequestDto,
   AddUpdateBusinessCategoryResponseDto,
@@ -11,13 +11,14 @@ import {
   BusinessDetailsResponseDto,
   BusinessTypeResponseDto,
 } from "../types/businessStoreTypes";
-import { baseQueryWithReauth } from "./baseQueryWithReauth";
 import {
   DomainRequestDto,
   DomainResponseDto,
+  DomainWithSSLResponseDto,
   ListDomainsParams,
 } from "../types/domainTypes";
-import { ApiResponse } from "../types/common";
+import { GetMyProfileDto } from "../types/profileTypes";
+import { baseQueryWithReauth } from "./baseQueryWithReauth";
 
 export interface RegisterPayload {
   name: string;
@@ -130,11 +131,17 @@ export const apiClient = createApi({
         };
       },
     }),
-    getUserDetails: builder.query<ApiResponse<User>, void>({
+    getUserDetails: builder.query<GetMyProfileDto, void>({
       query: () => ({
         url: "/my-profile",
         method: "GET",
       }),
+      transformResponse: (raw: {
+        success: boolean;
+        message: string;
+        statusCode: number;
+        data: GetMyProfileDto;
+      }) => raw.data, // 👈 unwrap so hook returns clean DTO
     }),
     confirmOtp: builder.mutation<
       ConfirmMobileOtpResponse,
@@ -297,7 +304,49 @@ export const apiClient = createApi({
         body,
       }),
     }),
+
+    /* ───────── GET /seller/business/stores/me ───────── */
+    getMyStore: builder.query<StoreResponse, void>({
+      query: () => ({
+        url: '/seller/business/stores/me',
+        method: 'GET',
+      }),
+      transformResponse: (raw: {
+        success: boolean;
+        message: string;
+        statusCode: number;
+        data: StoreResponse;
+      }) => raw.data,
+    }),
+
+    /* ───────── POST /seller/business/stores/update ───── */
+    updateStore: builder.mutation<StoreResponse, UpdateStorePayload>({
+      query: (body) => ({
+        url: '/seller/business/stores/update',
+        method: 'POST',
+        body,
+      }),
+      transformResponse: (raw: {
+        success: boolean;
+        message: string;
+        statusCode: number;
+        data: StoreResponse;
+      }) => raw.data,
+    }),
+
+    // ───────── GET /seller/business/domains/me ─────────
+    getMyDomain: builder.query<DomainWithSSLResponseDto, void>({
+      query: () => ({
+        url: "/seller/business/domains/me",
+        method: "GET",
+      }),
+      transformResponse: (raw: {
+        message: string;
+        data: DomainWithSSLResponseDto;
+      }) => raw.data,
+    }),
   }),
+
 });
 
 export const {
@@ -314,4 +363,7 @@ export const {
   useLazyListDomainsQuery,
   useCreateOrUpdateDomainMutation,
   useUpdateUserProfileMutation,
+  useGetMyStoreQuery,
+  useUpdateStoreMutation,
+  useGetMyDomainQuery,
 } = apiClient;

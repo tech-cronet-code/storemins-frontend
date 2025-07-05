@@ -26,12 +26,14 @@ import {
   BusinessDetailsResponseDto,
 } from "../types/businessStoreTypes";
 import { DomainRequestDto, DomainResponseDto } from "../types/domainTypes";
+import { GetMyProfileDto } from "../types/profileTypes"; // ⬅️ new
 
+/* ---------- Context typings ---------- */
 interface AuthContextType {
   user: User | null;
-  userDetails: User | undefined;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  refetchUserDetails: () => Promise<any>; // ✅ Add this line
+  userDetails: GetMyProfileDto | undefined;          // ⬅️ updated
+  refetchUserDetails: () => Promise<any>;
+
   login: (
     email: string,
     password: string
@@ -39,6 +41,7 @@ interface AuthContextType {
     needsOtp: boolean;
     role: UserRoleName[] | UserRoleName;
   }>;
+
   register: (payload: {
     name: string;
     mobile: string;
@@ -46,20 +49,24 @@ interface AuthContextType {
     role: UserRoleName;
     isTermAndPrivarcyEnable: boolean;
   }) => Promise<{ needsOtp: boolean; quickLoginEnable: boolean }>;
+
   confirmOtp: (code: string) => Promise<void>;
   logout: () => void;
   loading: boolean;
   error: string | null;
+
   createOrUpdateBusinessDetails: (
     payload: BusinessDetailsRequestDto
   ) => Promise<BusinessDetailsResponseDto>;
 
   checkDomainAvailability: (slug: string) => Promise<"available" | "taken">;
   saveDomain: (dto: DomainRequestDto) => Promise<DomainResponseDto>;
+
   quickLoginEnabledFlag: boolean;
-  updateProfile: (name: string) => Promise<void>; // <--- added here
+  updateProfile: (name: string) => Promise<void>;
 }
 
+/* ---------- Provider ---------- */
 const AuthContext = createContext<AuthContextType | null>(null);
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
@@ -69,86 +76,84 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   );
   const [quickLoginEnabledFlag, setQuickLoginEnabledFlag] = useState(false);
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const {
-    createOrUpdate,
-    // isLoading: savingBusiness,
-    // error: businessError,
-  } = useBusinessDetails();
-
+  const { createOrUpdate } = useBusinessDetails();
   const loginHook = useLogin();
   const registerHook = useRegister(setQuickLoginEnabledFlag);
   const confirmOtpHook = useConfirmOtp();
-  // ➊ pull in domain helpers
   const { checkDomainAvailability, saveDomain } = useDomain();
 
-  const { data: userDetails, refetch } = useGetUserDetailsQuery(undefined, {
-    skip: !token,
-  });
-  const userFromResponse = userDetails?.data;
+  const {
+    data: userDetails,
+    refetch,
+  } = useGetUserDetailsQuery(undefined, { skip: !token });
 
+  const userFromResponse = userDetails;
+
+  /* ---------- token expiry watchdog ---------- */
   useEffect(() => {
-    if (token) {
-      try {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const decoded: any = jwtDecode(token);
-        const now = Date.now() / 1000;
+    if (!token) return;
 
-        if (decoded.exp && decoded.exp < now) {
-          console.warn("Access token expired. Logging out...");
-          dispatch(logout());
-        }
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      } catch (err) {
-        console.error("Failed to decode token. Logging out...");
+    try {
+      const decoded: any = jwtDecode(token);
+      const now = Date.now() / 1000;
+      if (decoded.exp && decoded.exp < now) {
+        console.warn("Access token expired. Logging out…");
         dispatch(logout());
       }
+    } catch {
+      console.error("Failed to decode token. Logging out…");
+      dispatch(logout());
     }
   }, [token, dispatch]);
 
+  /* ---------- re-fetch profile whenever token changes ---------- */
   useEffect(() => {
-    if (token) {
-      refetch();
-    }
+    if (token) refetch();
   }, [token, refetch]);
 
+  /* ---------- sync profile → Redux auth.user ---------- */
   useEffect(() => {
-    if (
-      token &&
-      userFromResponse &&
-      userFromResponse.id &&
-      (!user || user.id !== userFromResponse.id)
-    ) {
-      dispatch(setUser(userFromResponse));
-    }
-  }, [token, userDetails, user, dispatch, userFromResponse]);
+ if (
+  token &&
+  userFromResponse?.id &&
+  (!user || user.id !== userFromResponse.id)
+) {
+  const mappedUser: User = {
+    ...userFromResponse,
+    role: userFromResponse.role as UserRoleName[], // ✅ optional cast
+    storeLinks: userFromResponse.storeLinks,       // ✅ now valid
+  };
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+  dispatch(setUser(mappedUser));
+}
+  }, [token, userFromResponse, user, dispatch]);
+
+  /* ---------- logout handler ---------- */
   const handleLogout = () => {
     const persistedQuickLogin = localStorage.getItem("quick_login_enabled");
+    dispatch(logout());
     if (persistedQuickLogin) {
-      dispatch(logout()); //  Redux logout
       setTimeout(() => {
         localStorage.removeItem("quick_login_enabled");
-        window.location.href = "/home"; // 🔁 Full reload with delay
-      }, 100); // slight delay to let Redux update
-    } else {
-      dispatch(logout()); //  Redux logout
+        window.location.href = "/home";
+      }, 100);
     }
   };
 
+  /* ---------- update profile ---------- */
   const [updateUserProfileApi] = useUpdateUserProfileMutation();
 
   const updateProfile = async (name: string): Promise<void> => {
     await updateUserProfileApi({ name }).unwrap();
-    await refetch(); // Refresh user details
+    await refetch();
   };
 
+  /* ---------- memoised context ---------- */
   const contextValue = useMemo<AuthContextType>(
     () => ({
       user,
       userDetails: userFromResponse,
-      refetchUserDetails: refetch, // ✅ expose here
+      refetchUserDetails: refetch,
       login: loginHook.login,
       register: registerHook.register,
       confirmOtp: confirmOtpHook.confirm,
@@ -184,9 +189,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   );
 };
 
-// eslint-disable-next-line react-refresh/only-export-components
+/* ---------- hook ---------- */
 export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (!context) throw new Error("useAuth must be used within an AuthProvider");
-  return context;
+  const ctx = useContext(AuthContext);
+  if (!ctx) throw new Error("useAuth must be used within an AuthProvider");
+  return ctx;
 };

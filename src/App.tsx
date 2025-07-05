@@ -30,6 +30,7 @@ import LoginPage from "./modules/auth/pages/LoginPage";
 import RegisterPage from "./modules/auth/pages/RegisterPage";
 import AddStoreSettingPage from "./modules/seller/pages/store-appearance/AddStoreSettingPage";
 import AddStoreDisplaySettingPage from "./modules/seller/pages/store-appearance/AddStoreDiplaySettingPage";
+import AuthFormPage from "./modules/auth/pages/AuthFormPage";
 // import AuthFormPage from "./modules/auth/pages/AuthForm";
 
 const App = () => {
@@ -39,9 +40,9 @@ const App = () => {
       <Routes>
         {/* ✅ Public Routes */}
         <Route element={<PublicRoute />}>
-          {/* <Route path="/home" element={<AuthFormPage />} /> */}
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/register" element={<RegisterPage />} />
+          <Route path="/home" element={<AuthFormPage />} />
+          {/* <Route path="/login" element={<LoginPage />} />
+          <Route path="/register" element={<RegisterPage />} /> */}
           {/* <Route path="/register" element={<RegisterPage onSwitch={function (): void {
             throw new Error("Function not implemented.");
           }} />} />
@@ -124,7 +125,7 @@ const App = () => {
             <Route path="/admin/*" element={<AdminDashboard />} />
           </Route>
         </Route>
-
+            
         {/* 🔁 Fallback */}
         <Route path="*" element={<Navigate to="/home" replace />} />
       </Routes>
