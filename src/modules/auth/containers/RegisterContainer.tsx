@@ -43,7 +43,7 @@ const RegisterContainer = () =>
     };
 
     return (
-      <div className="border-2 p-6 w-9/10 md:w-8/10 h-full flex flex-col justify-center items-center">
+      <div className="px-9 w-9/10 md:w-8/10 h-full flex flex-col justify-center items-center">
         <RegisterForm
           // onSwitch={onSwitch}
           onSubmit={handleSubmit}

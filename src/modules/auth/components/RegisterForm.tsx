@@ -55,10 +55,7 @@ const RegisterForm = ({ onSubmit }: RegisterFormProps) => {
   return (
     <>
       {/* Form */}
-      <form
-        className="border-3 border-amber-900 space-y-4 w-full"
-        onSubmit={handleSubmit(onSubmit)}
-      >
+      <form className="space-y-4 w-full" onSubmit={handleSubmit(onSubmit)}>
         <input type="hidden" value="SELLER" {...register("role")} />
 
         <div className="flex-1">
@@ -164,31 +161,31 @@ const RegisterForm = ({ onSubmit }: RegisterFormProps) => {
 
       {/* FORM */}
 
-      <div className="flex gap-4 border-2 border-amber-600 w-full">
-        {/* Social Login */}
-        <div className="flex items-center justify-center mt-6">
-          <hr className="border-t border-[#EAECF0] w-4/10" />
-          <span className="px-3 text-sm text-[#475467] w-2/10 text-center ">
-            Or register with
-          </span>
-          <hr className="border-t border-[#EAECF0] w-4/10" />
-        </div>
-
-        <div className="flex justify-center gap-4 mt-4 w-full">
-          <button className="border border-[#D0D5DD] px-12 py-2.5 rounded-md text-sm hover:bg-gray-50 transition cursor-pointer">
-            <FaGoogle className="text-[#EA4335] text-xl" />
-          </button>
-          <button className="border border-[#D0D5DD] px-12 py-2.5 rounded-md text-sm hover:bg-gray-50 transition cursor-pointer">
-            <FaFacebookF className="text-[#1877F2] text-xl" />
-          </button>
-          <button className="border border-[#D0D5DD] px-12 py-2.5 rounded-md text-sm hover:bg-gray-50 transition cursor-pointer">
-            <FaXTwitter className="text-xl" />
-          </button>
-          <button className="border border-[#D0D5DD] px-12 py-2.5 rounded-md text-sm hover:bg-gray-50 transition cursor-pointer">
-            <FaApple className="text-xl" />
-          </button>
-        </div>
+      {/* Text Divider */}
+      <div className="flex items-center justify-center mt-6 w-full">
+        <hr className="border-t border-[#EAECF0] w-2/5" />
+        <span className="px-3 text-sm text-[#475467] whitespace-nowrap">
+          Or register with
+        </span>
+        <hr className="border-t border-[#EAECF0] w-2/5" />
       </div>
+
+      {/* Social Icons */}
+      <div className="flex justify-center gap-4 mt-4 w-full">
+        <button className="border border-[#D0D5DD] px-12 py-2.5 rounded-md text-sm hover:bg-gray-50 transition cursor-pointer">
+          <FaGoogle className="text-[#EA4335] text-xl" />
+        </button>
+        <button className="border border-[#D0D5DD] px-12 py-2.5 rounded-md text-sm hover:bg-gray-50 transition cursor-pointer">
+          <FaFacebookF className="text-[#1877F2] text-xl" />
+        </button>
+        <button className="border border-[#D0D5DD] px-12 py-2.5 rounded-md text-sm hover:bg-gray-50 transition cursor-pointer">
+          <FaXTwitter className="text-xl" />
+        </button>
+        <button className="border border-[#D0D5DD] px-12 py-2.5 rounded-md text-sm hover:bg-gray-50 transition cursor-pointer">
+          <FaApple className="text-xl" />
+        </button>
+      </div>
+
       {/* Already have an account */}
       <div>
         <p className="text-center text-sm mt-6 w-full">
