@@ -1,7 +1,10 @@
 //  apiClient.ts for REGISTER
 
 import { createApi } from "@reduxjs/toolkit/query/react";
-import { StoreResponse, UpdateStorePayload } from "../../seller/types/storeTypes";
+import {
+  StoreResponse,
+  UpdateStorePayload,
+} from "../../seller/types/storeTypes";
 import { UserRoleName } from "../constants/userRoles";
 import {
   AddUpdateBusinessCategoryRequestDto,
@@ -19,6 +22,10 @@ import {
 } from "../types/domainTypes";
 import { GetMyProfileDto } from "../types/profileTypes";
 import { baseQueryWithReauth } from "./baseQueryWithReauth";
+import {
+  UploadedFileResponse,
+  UploadImagePayload,
+} from "../types/imageUploadTypes";
 
 export interface RegisterPayload {
   name: string;
@@ -308,8 +315,8 @@ export const apiClient = createApi({
     /* ───────── GET /seller/business/stores/me ───────── */
     getMyStore: builder.query<StoreResponse, void>({
       query: () => ({
-        url: '/seller/business/stores/me',
-        method: 'GET',
+        url: "/seller/business/stores/me",
+        method: "GET",
       }),
       transformResponse: (raw: {
         success: boolean;
@@ -322,8 +329,8 @@ export const apiClient = createApi({
     /* ───────── POST /seller/business/stores/update ───── */
     updateStore: builder.mutation<StoreResponse, UpdateStorePayload>({
       query: (body) => ({
-        url: '/seller/business/stores/update',
-        method: 'POST',
+        url: "/seller/business/stores/update",
+        method: "POST",
         body,
       }),
       transformResponse: (raw: {
@@ -345,8 +352,17 @@ export const apiClient = createApi({
         data: DomainWithSSLResponseDto;
       }) => raw.data,
     }),
-  }),
 
+    // Image Upload
+    // Image Upload
+    uploadImage: builder.mutation<UploadedFileResponse[], UploadImagePayload>({
+      query: ({ formData }) => ({
+        url: "/files",
+        method: "POST",
+        body: formData,
+      }),
+    }),
+  }),
 });
 
 export const {
@@ -366,4 +382,5 @@ export const {
   useGetMyStoreQuery,
   useUpdateStoreMutation,
   useGetMyDomainQuery,
+  useUploadImageMutation,
 } = apiClient;

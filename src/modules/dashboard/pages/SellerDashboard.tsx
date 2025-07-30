@@ -12,13 +12,13 @@ import StoreLinkCard from "../components/StoreLinkCard";
 import StoreSetupChecklist from "../components/StoreSetupChecklist";
 import WalletAlert from "../components/WalletAlert";
 import { useAuth } from "../../auth/contexts/AuthContext";
-import { buildStoreUrl, getSuggestedDomain } from "../../../common/utils/buildStoreUrl";
+import {
+  buildStoreUrl,
+  getSuggestedDomain,
+} from "../../../common/utils/buildStoreUrl";
 
 const SellerDashboard = () => {
-
   const { userDetails } = useAuth();
-
-
 
   const initialShortcuts = [
     {
@@ -131,7 +131,6 @@ const SellerDashboard = () => {
     },
   ];
 
-
   const [shortcuts, setShortcuts] = useState(initialShortcuts);
   const [isShortcutModalOpen, setShortcutModalOpen] = useState(false);
 
@@ -143,15 +142,12 @@ const SellerDashboard = () => {
     );
   };
 
-
   /* ------------ helper to pick active link & card JSX ------------ */
   const renderStoreLinkCard = () => {
     // 1️⃣  Guard clauses
     if (!userDetails?.storeLinks?.length) return null;
 
-    const activeLink = userDetails.storeLinks.find(
-      (l) => l.domain?.isActive
-    );
+    const activeLink = userDetails.storeLinks.find((l) => l.domain?.isActive);
     if (!activeLink?.domain) return null;
 
     // 2️⃣  Derive URLs with utilities
@@ -180,6 +176,7 @@ const SellerDashboard = () => {
 
   return (
     <Layout role={UserRoleName.SELLER}>
+      {/* <UploadImage /> */}
       <div className="w-full overflow-x-hidden">
         {/* Credits */}
         <CreditsBanner

@@ -12,25 +12,23 @@ import SellerRoute from "./routes/SellerRoute";
 
 // Pages
 // import AuthFormPage from "./modules/auth/pages/AuthFormPage";
+import AuthFormPage from "./modules/auth/pages/AuthFormPage";
 import AuthOTPVerifyPage from "./modules/auth/pages/AuthOTPVerifyPage";
 import SellerStoreDetailsPage from "./modules/auth/pages/SellerStoreDetailsPage";
 import SellerUnlockStorePage from "./modules/auth/pages/SellerUnlockStorePage";
 import AdminDashboard from "./modules/dashboard/pages/AdminDashboard";
 import SellerDashboard from "./modules/dashboard/pages/SellerDashboard";
+import ScrollToTop from "./modules/seller/common/components/ScrollToTop";
 import AddCategoriesPage from "./modules/seller/pages/AddCategoriesPage";
 import AddProductPage from "./modules/seller/pages/AddProductPage";
 import SellerProductsCategoriesPage from "./modules/seller/pages/SellerProductsCategoriesPage";
-import SellerProductsPage from "./modules/seller/pages/SellerProductsPage";
-import UserSettingsPage from "./modules/seller/pages/UserSettingsPage";
-import OtpRoute from "./routes/OtpRoute";
 import SellerProductsInventoryPage from "./modules/seller/pages/SellerProductsInventoryPage";
 import SellerProductsOrdersPage from "./modules/seller/pages/SellerProductsOrdersPage";
-import ScrollToTop from "./modules/seller/common/components/ScrollToTop";
-import LoginPage from "./modules/auth/pages/LoginPage";
-import RegisterPage from "./modules/auth/pages/RegisterPage";
-import AddStoreSettingPage from "./modules/seller/pages/store-appearance/AddStoreSettingPage";
+import SellerProductsPage from "./modules/seller/pages/SellerProductsPage";
 import AddStoreDisplaySettingPage from "./modules/seller/pages/store-appearance/AddStoreDiplaySettingPage";
-import AuthFormPage from "./modules/auth/pages/AuthFormPage";
+import AddStoreSettingPage from "./modules/seller/pages/store-appearance/AddStoreSettingPage";
+import UserSettingsPage from "./modules/seller/pages/UserSettingsPage";
+import OtpRoute from "./routes/OtpRoute";
 // import AuthFormPage from "./modules/auth/pages/AuthForm";
 
 const App = () => {

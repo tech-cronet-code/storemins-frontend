@@ -5,6 +5,9 @@ import { MdNotificationsNone } from "react-icons/md";
 import { RiSettings3Fill } from "react-icons/ri";
 import { useLocation, useNavigate } from "react-router-dom";
 import UserProfileMenu from "./UserProfileMenu";
+import { useAuth } from "../../auth/contexts/AuthContext";
+import { useImageUpload } from "../../auth/hooks/useImageUpload";
+import { getImageUrlsById } from "../../../common/utils/getImageUrlsById";
 
 interface HeaderProps {
   collapsed?: boolean;
@@ -17,6 +20,8 @@ const Header = ({}: HeaderProps) => {
   const [showProfile, setShowProfile] = useState(false);
   const [imageError, setImageError] = useState(false);
   const profileRef = useRef<HTMLDivElement>(null);
+  const { userDetails } = useAuth(); // ✅ from context
+
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -83,6 +88,17 @@ const Header = ({}: HeaderProps) => {
     };
   }, []);
 
+  const { imageUrl, imageDiskName } = useImageUpload();
+
+  // Safely get full image URLs if disk name is available
+  // Resolved preview disk name
+  const resolvedDiskName = imageDiskName ?? userDetails?.image;
+
+  // Generate variant URLs only if we have a disk name
+  const fullImageUrls = resolvedDiskName
+    ? getImageUrlsById(resolvedDiskName)
+    : null;
+
   return (
     <header className="bg-white px-4 py-2 shadow top-0 z-[999] w-full relative">
       <div className="flex items-center justify-between gap-4 w-full overflow-visible">
@@ -143,7 +159,11 @@ const Header = ({}: HeaderProps) => {
           <div className="relative" ref={profileRef}>
             {!imageError ? (
               <img
-                src="https://randomuser.me/api/portraits/men/32.jpg"
+                src={
+                  imageUrl ||
+                  fullImageUrls?.thumbnail ||
+                  "https://randomuser.me/api/portraits/men/32.jpg"
+                }
                 alt="User"
                 className="w-9 h-9 rounded-full object-cover cursor-pointer hover:ring-2 hover:ring-blue-400"
                 onClick={() => setShowProfile((prev) => !prev)}

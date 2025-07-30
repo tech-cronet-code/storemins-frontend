@@ -32,6 +32,7 @@ import { GetMyProfileDto } from "../types/profileTypes"; // ⬅️ new
 interface AuthContextType {
   user: User | null;
   userDetails: GetMyProfileDto | undefined;          // ⬅️ updated
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   refetchUserDetails: () => Promise<any>;
 
   login: (
@@ -63,7 +64,7 @@ interface AuthContextType {
   saveDomain: (dto: DomainRequestDto) => Promise<DomainResponseDto>;
 
   quickLoginEnabledFlag: boolean;
-  updateProfile: (name: string) => Promise<void>;
+  updateProfile: (name: string, imageId: string) => Promise<void>;
 }
 
 /* ---------- Provider ---------- */
@@ -92,8 +93,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   /* ---------- token expiry watchdog ---------- */
   useEffect(() => {
     if (!token) return;
-
     try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const decoded: any = jwtDecode(token);
       const now = Date.now() / 1000;
       if (decoded.exp && decoded.exp < now) {

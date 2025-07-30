@@ -1,15 +1,17 @@
 import { Pencil } from "lucide-react";
-import { useAuth } from "../../auth/contexts/AuthContext";
-import { useState, useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
+import * as z from "zod";
+import { getImageUrlsById } from "../../../common/utils/getImageUrlsById";
 import { showToast } from "../../../common/utils/showToast";
-import * as z from "zod"; // ✅ import Zod
+import { useAuth } from "../../auth/contexts/AuthContext";
+import { useImageUpload } from "../../auth/hooks/useImageUpload";
 
-// ✅ Updated Zod Schema (Only Letters and Spaces Allowed)
+// ✅ Zod name schema
 const nameSchema = z
   .string()
   .min(3, "Name must be at least 3 characters long.")
   .max(50, "Name cannot be more than 50 characters.")
-  .regex(/^[A-Za-z\s]+$/, "Name must contain only letters and spaces."); // ✅ Strong regex
+  .regex(/^[A-Za-z\s]+$/, "Name must contain only letters and spaces.");
 
 const UserSettingsForm = () => {
   const { userDetails, updateProfile } = useAuth();
@@ -17,17 +19,21 @@ const UserSettingsForm = () => {
   const [nameError, setNameError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  // ✅ Validate name on change — no condition, always at top
+  const { imageUrl, handleImageUpload, imageId, imageDiskName } =
+    useImageUpload();
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   useEffect(() => {
     if (userDetails) {
-      setName(userDetails.name); // set initial name
+      setName(userDetails.name);
     }
   }, [userDetails]);
 
   useEffect(() => {
     try {
       nameSchema.parse(name);
-      setNameError(null); // No error
+      setNameError(null);
     } catch (error) {
       if (error instanceof z.ZodError) {
         setNameError(error.errors[0]?.message || "Invalid name");
@@ -35,27 +41,38 @@ const UserSettingsForm = () => {
     }
   }, [name]);
 
-  // ✅ Now safe to return
   if (!userDetails) {
     return <div>Loading...</div>;
   }
 
+  // ✅ Check if form has any changes
   const isNameChanged = name.trim() !== (userDetails?.name || "").trim();
+  const isFormChanged = isNameChanged || !!imageId;
+
+  const onFileButtonClick = () => fileInputRef.current?.click();
+
+  // ✅ Prefer uploaded imageDiskName, fallback to DB-stored imageId
+  const resolvedDiskName = imageDiskName ?? userDetails?.image;
+  const fullImageUrls = resolvedDiskName
+    ? getImageUrlsById(resolvedDiskName)
+    : null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      nameSchema.parse(name); // validate before submit
-      if (!isNameChanged) {
+      nameSchema.parse(name);
+      if (!isFormChanged) {
         showToast({
           type: "error",
-          message: "Name is unchanged.",
+          message: "Nothing to update.",
           showClose: true,
         });
         return;
       }
+
       setLoading(true);
-      await updateProfile(name);
+      await updateProfile(name, imageId ?? userDetails?.image);
+
       showToast({
         type: "success",
         message: "Profile updated successfully!",
@@ -91,12 +108,28 @@ const UserSettingsForm = () => {
         <div className="md:col-span-2 flex flex-col items-center justify-start">
           <div className="relative w-24 h-24">
             <img
-              src="https://randomuser.me/api/portraits/women/44.jpg"
+              src={
+                imageUrl ||
+                fullImageUrls?.thumbnail ||
+                "https://randomuser.me/api/portraits/men/32.jpg"
+              }
               alt="User"
-              className="w-full h-full rounded-full object-cover border shadow"
+              className="w-full h-full rounded-full object-cover shadow"
+            />
+            <input
+              type="file"
+              accept="image/*"
+              ref={fileInputRef}
+              className="hidden"
+              onChange={(e) => {
+                if (e.target.files?.[0]) {
+                  handleImageUpload(e.target.files[0], "userProfile");
+                }
+              }}
             />
             <button
               type="button"
+              onClick={onFileButtonClick}
               className="absolute bottom-0 right-0 w-6 h-6 rounded-full bg-blue-600 flex items-center justify-center shadow hover:bg-blue-700"
             >
               <Pencil className="text-white w-3 h-3" />
@@ -106,7 +139,6 @@ const UserSettingsForm = () => {
 
         {/* Form Fields */}
         <div className="md:col-span-10 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4 w-full">
-          {/* Editable Name Field */}
           <div>
             <label className="text-sm font-medium text-gray-700">
               Your Name
@@ -123,7 +155,6 @@ const UserSettingsForm = () => {
             )}
           </div>
 
-          {/* Readonly Fields */}
           <div>
             <label className="text-sm font-medium text-gray-700">Mobile</label>
             <input
@@ -170,16 +201,16 @@ const UserSettingsForm = () => {
         </div>
       </div>
 
-      {/* Submit Button */}
+      {/* Submit */}
       <div className="text-right mt-8">
         <button
           type="submit"
           className={`bg-blue-600 text-white px-8 py-2 rounded-lg transition ${
-            loading || !isNameChanged || nameError
+            loading || !isFormChanged || nameError
               ? "opacity-50 cursor-not-allowed"
               : "hover:bg-blue-700"
           }`}
-          disabled={loading || !isNameChanged || !!nameError}
+          disabled={loading || !isFormChanged || !!nameError}
         >
           {loading ? "Saving..." : "Save"}
         </button>

@@ -8,6 +8,8 @@ import {
 } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../auth/contexts/AuthContext"; // ✅ adjust path as needed
+import { useImageUpload } from "../../auth/hooks/useImageUpload";
+import { getImageUrlsById } from "../../../common/utils/getImageUrlsById";
 
 interface UserProfileMenuProps {
   onClose?: () => void;
@@ -42,12 +44,27 @@ const UserProfileMenu: React.FC<UserProfileMenuProps> = ({ onClose }) => {
     onClose?.(); // ✅ close the dropdown
   };
 
+  const { imageUrl, imageDiskName } = useImageUpload();
+
+  // Safely get full image URLs if disk name is available
+  // Resolved preview disk name
+  const resolvedDiskName = imageDiskName ?? userDetails?.image;
+
+  // Generate variant URLs only if we have a disk name
+  const fullImageUrls = resolvedDiskName
+    ? getImageUrlsById(resolvedDiskName)
+    : null;
+
   return (
     <div className="w-72 bg-white rounded-2xl shadow-xl border border-gray-200 p-4 relative">
       {/* Profile Info */}
       <div className="flex items-center gap-3 mb-4">
         <img
-          src="https://randomuser.me/api/portraits/men/32.jpg"
+          src={
+            imageUrl ||
+            fullImageUrls?.thumbnail ||
+            "https://randomuser.me/api/portraits/men/32.jpg"
+          }
           alt="Profile"
           className="w-12 h-12 rounded-full object-cover"
         />
@@ -59,7 +76,6 @@ const UserProfileMenu: React.FC<UserProfileMenuProps> = ({ onClose }) => {
             {userDetails?.mobile || "No mobile number"}
           </span>
         </div>
-
       </div>
 
       {/* Menu */}
@@ -101,19 +117,21 @@ const UserProfileMenu: React.FC<UserProfileMenuProps> = ({ onClose }) => {
             <div className="absolute top-2 left-[180px] bg-white border border-gray-200 rounded-xl shadow-md py-1 w-24 z-50">
               <button
                 onClick={() => setNotificationSetting("allow")}
-                className={`block w-full text-left px-4 py-1 text-sm rounded hover:bg-gray-100 ${notificationSetting === "allow"
+                className={`block w-full text-left px-4 py-1 text-sm rounded hover:bg-gray-100 ${
+                  notificationSetting === "allow"
                     ? "text-green-600 font-semibold"
                     : "text-gray-700"
-                  }`}
+                }`}
               >
                 Allow
               </button>
               <button
                 onClick={() => setNotificationSetting("mute")}
-                className={`block w-full text-left px-4 py-1 text-sm rounded hover:bg-gray-100 ${notificationSetting === "mute"
+                className={`block w-full text-left px-4 py-1 text-sm rounded hover:bg-gray-100 ${
+                  notificationSetting === "mute"
                     ? "text-red-500 font-semibold"
                     : "text-gray-700"
-                  }`}
+                }`}
               >
                 Mute
               </button>

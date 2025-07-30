@@ -42,7 +42,8 @@ const adminBase = fetchBaseQuery({
 const isAdminEndpoint = (url: string) =>
   url.startsWith("/super-admin/") ||
   url.startsWith("/seller/business") ||
-  url.startsWith("/seller/product");
+  url.startsWith("/seller/product") ||
+  url.startsWith("/files");
 
 // ➍ The wrapper
 export const baseQueryWithReauth: typeof authBase = async (

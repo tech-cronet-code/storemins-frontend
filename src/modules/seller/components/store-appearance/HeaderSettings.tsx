@@ -15,6 +15,7 @@ interface HeaderSettingsProps {
     /** ─── NEW ─── */
     favicon?: string;       // base64 | url
   };
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   onChange: (data: any) => void;
 }
 
@@ -50,7 +51,7 @@ const HeaderSettings: React.FC<HeaderSettingsProps> = ({
   onChange,
 }) => {
   const colorKeys = ["barColor", "fontColor"] as const;
-  type ColorKey = (typeof colorKeys)[number];
+  // type ColorKey = (typeof colorKeys)[number];
 
   return (
     <div className="space-y-6 rounded-xl border border-gray-200 bg-white p-5">
