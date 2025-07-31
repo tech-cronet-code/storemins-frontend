@@ -5,6 +5,7 @@ import {
   FaBell,
   FaCog,
   FaChevronRight,
+  FaUserCircle,
 } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../auth/contexts/AuthContext"; // ✅ adjust path as needed
@@ -18,6 +19,7 @@ interface UserProfileMenuProps {
 const UserProfileMenu: React.FC<UserProfileMenuProps> = ({ onClose }) => {
   const navigate = useNavigate();
   const { logout, userDetails } = useAuth(); // ✅ from context
+  const [imageError, setImageError] = useState(false); // ✅ Track image load failure
 
   const [showNotificationOptions, setShowNotificationOptions] = useState(false);
   const [notificationSetting, setNotificationSetting] = useState<
@@ -59,15 +61,24 @@ const UserProfileMenu: React.FC<UserProfileMenuProps> = ({ onClose }) => {
     <div className="w-72 bg-white rounded-2xl shadow-xl border border-gray-200 p-4 relative">
       {/* Profile Info */}
       <div className="flex items-center gap-3 mb-4">
-        <img
-          src={
-            imageUrl ||
-            fullImageUrls?.thumbnail ||
-            "https://randomuser.me/api/portraits/men/32.jpg"
-          }
-          alt="Profile"
-          className="w-12 h-12 rounded-full object-cover"
-        />
+        {!imageError ? (
+          <img
+            src={
+              imageUrl ||
+              fullImageUrls?.thumbnail ||
+              "https://randomuser.me/api/portraits/men/32.jpg"
+            }
+            alt="Profile"
+            className="w-12 h-12 rounded-full object-cover cursor-pointer hover:ring-2 hover:ring-blue-400"
+            onClick={() => setShowNotificationOptions(false)}
+            onError={() => setImageError(true)}
+          />
+        ) : (
+          <FaUserCircle
+            className="w-12 h-12 text-gray-400 hover:text-blue-500 cursor-pointer"
+            onClick={() => setShowNotificationOptions(false)}
+          />
+        )}
         <div className="flex flex-col leading-tight">
           <span className="text-sm font-medium text-gray-900 truncate">
             {userDetails?.name || "Unnamed User"}

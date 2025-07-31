@@ -5,6 +5,7 @@ import { getImageUrlsById } from "../../../common/utils/getImageUrlsById";
 import { showToast } from "../../../common/utils/showToast";
 import { useAuth } from "../../auth/contexts/AuthContext";
 import { useImageUpload } from "../../auth/hooks/useImageUpload";
+import { FaUserCircle } from "react-icons/fa";
 
 // ✅ Zod name schema
 const nameSchema = z
@@ -18,6 +19,7 @@ const UserSettingsForm = () => {
   const [name, setName] = useState(userDetails?.name || "");
   const [nameError, setNameError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [imageError, setImageError] = useState(false);
 
   const { imageUrl, handleImageUpload, imageId, imageDiskName } =
     useImageUpload();
@@ -107,15 +109,21 @@ const UserSettingsForm = () => {
         {/* Profile Image */}
         <div className="md:col-span-2 flex flex-col items-center justify-start">
           <div className="relative w-24 h-24">
-            <img
-              src={
-                imageUrl ||
-                fullImageUrls?.thumbnail ||
-                "https://randomuser.me/api/portraits/men/32.jpg"
-              }
-              alt="User"
-              className="w-full h-full rounded-full object-cover shadow"
-            />
+            {!imageError ? (
+              <img
+                src={
+                  imageUrl ||
+                  fullImageUrls?.thumbnail ||
+                  "https://randomuser.me/api/portraits/men/32.jpg"
+                }
+                alt="User"
+                className="w-full h-full rounded-full object-cover shadow"
+                onError={() => setImageError(true)}
+              />
+            ) : (
+              <FaUserCircle className="w-full h-full text-gray-400 rounded-full shadow" />
+            )}
+
             <input
               type="file"
               accept="image/*"
@@ -124,9 +132,11 @@ const UserSettingsForm = () => {
               onChange={(e) => {
                 if (e.target.files?.[0]) {
                   handleImageUpload(e.target.files[0], "userProfile");
+                  setImageError(false); // ✅ reset error state on new upload
                 }
               }}
             />
+
             <button
               type="button"
               onClick={onFileButtonClick}
