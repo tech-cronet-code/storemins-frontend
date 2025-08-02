@@ -1,23 +1,24 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import React, { useEffect } from "react";
-import { FormProvider, useForm } from "react-hook-form";
+import React, { useEffect, useRef } from "react";
+import { FormProvider, useForm, useWatch } from "react-hook-form";
+import { useNavigate } from "react-router-dom";
 import { z } from "zod";
-import CategoriesInfoSection from "./CategoriesInfoSection";
-import SEOCategorySection from "./SEOCategorySection";
-import { useSellerProduct } from "../../hooks/useSellerProduct";
-import { useAuth } from "../../../auth/contexts/AuthContext";
 import { showToast } from "../../../../common/utils/showToast";
+import { useAuth } from "../../../auth/contexts/AuthContext";
+import { useImageUpload } from "../../../auth/hooks/useImageUpload";
+import { useSellerProduct } from "../../hooks/useSellerProduct";
 import { CategoriesSchema } from "../../Schemas/CategoriesSchema";
-import { useLocation, useNavigate } from "react-router-dom";
+import CategoriesInfoSection from "./CategoriesInfoSection";
 import HeaderSubmitButton from "./HeaderButton";
+import SEOCategorySection from "./SEOCategorySection";
 
 type CategoriesFormValues = z.infer<typeof CategoriesSchema>;
 
 interface CategoriesFormProps {
-  categoryId?: string; // 📝 For Edit Mode
+  categoryId?: string;
   type?: string;
-  parentId?: string;   // 🆕
-  onSuccess?: () => void; // ✅ On Save Success
+  parentId?: string;
+  onSuccess?: () => void;
 }
 
 const CategoriesForm: React.FC<CategoriesFormProps> = ({
@@ -27,18 +28,16 @@ const CategoriesForm: React.FC<CategoriesFormProps> = ({
   onSuccess,
 }) => {
   const navigate = useNavigate();
-
-  const { createCategory, updateCategory, getCategory } = useSellerProduct(); // CRUD APIs
-  const { userDetails } = useAuth(); // User Info
+  const { createCategory, updateCategory, getCategory } = useSellerProduct();
+  const { userDetails } = useAuth();
 
   const methods = useForm<CategoriesFormValues>({
     resolver: zodResolver(CategoriesSchema),
     mode: "onChange",
     defaultValues: {
       name: "",
-      // isSubcategory: false,
-      isSubcategory: !!parentId,       // 🆕 pre-check for new subcat
-      category: parentId || "",        // 🆕 pre-select parent
+      isSubcategory: !!parentId,
+      category: parentId || "",
       image: undefined,
       bannerDesktop: undefined,
       bannerMobile: undefined,
@@ -49,25 +48,15 @@ const CategoriesForm: React.FC<CategoriesFormProps> = ({
     },
   });
 
-  //   const { isValid, isSubmitting } = methods.formState;
-  const { reset: resetForm , watch } = methods;
-const nameValue = watch("name");
-console.log(nameValue, "nameValue")
-  
-// useEffect(() => {
-//   if (!categoryId && !parentId && !nameValue) {
-//     resetForm();           
-//   }
-// }, [categoryId, parentId, nameValue, resetForm]);
+  const { reset: resetForm, watch } = methods;
+  const imageFileList =
+    useWatch({ name: "image", control: methods.control }) ?? [];
+  const imageFile = imageFileList?.[0];
 
-// const location = useLocation();
+  const isSubcategory = watch("isSubcategory") || type === "SUB";
+  const role = isSubcategory ? "productCategory:sub" : "productCategory:parent";
+  const { imageUrl, handleImageUpload, setImageUrl } = useImageUpload(role);
 
-// useEffect(() => {
-//   resetForm();
-// }, [location.key, resetForm]);
-
-
-  // 👇 Lazy Query for Get Category (one-time)
   const {
     getCategory: fetchCategory,
     data,
@@ -75,34 +64,35 @@ console.log(nameValue, "nameValue")
     error,
     isLoading,
   } = getCategory;
-  // 👇 Fetch Category on Mount
+
+  const didFetchRef = useRef(false);
+
   useEffect(() => {
-    if (categoryId && type) {
+    if (!didFetchRef.current && categoryId && type) {
+      didFetchRef.current = true;
       const categoryType = type === "PARENT" ? "PARENT" : "SUB";
       fetchCategory(categoryId, categoryType);
     }
-    // 👇 fetchCategory ko dependency se hatao
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [categoryId, type]);
+  }, [categoryId, type, fetchCategory]);
 
-  // 👇 Reset form with fetched data
   useEffect(() => {
-    if (data) {
-      const isSub = data.categoryType === "SUB";
-
+    if (categoryId && data?.id === categoryId) {
       resetForm({
         name: data.name || "",
         description: data.description || "",
-        isSubcategory: isSub,               // ✅ force set from backend
-        category: isSub ? data.parentCategory?.id || "" : "",
+        isSubcategory: data.categoryType === "SUB",
+        category: data.parentCategory?.id || "",
+        image: undefined,
+        bannerDesktop: undefined,
+        bannerMobile: undefined,
         seoTitle: data.seoMetaData?.title || "",
         seoDescription: data.seoMetaData?.description || "",
+        seoImage: undefined,
       });
+      methods.setValue("image", undefined);
     }
-  }, [data, resetForm]);
+  }, [categoryId, data, methods, resetForm]);
 
-
-  // 👇 Show error toast
   useEffect(() => {
     if (isError && error) {
       showToast({
@@ -117,9 +107,8 @@ console.log(nameValue, "nameValue")
     if (parentId) {
       methods.setValue("isSubcategory", true);
     }
-  }, [parentId]);
+  }, [methods, parentId]);
 
-  // 👇 Form Submit Handler
   const onSubmit = async (formData: CategoriesFormValues) => {
     try {
       const businessId = userDetails?.storeLinks?.[0]?.businessId;
@@ -132,46 +121,105 @@ console.log(nameValue, "nameValue")
         return;
       }
 
-
       const isEditMode = !!categoryId;
+      const categoryType: "PARENT" | "SUB" = isEditMode
+        ? (type as "PARENT" | "SUB")
+        : formData.isSubcategory || parentId
+        ? "SUB"
+        : "PARENT";
 
-      // 🧠 Reliable source of truth
-      const isSub = isEditMode
-        ? type === "SUB"
-        : formData.isSubcategory || !!parentId;
+      let newCategoryId = categoryId;
+      let uploadedImageId: string | undefined = undefined;
 
+      // ---- EDIT FLOW ----
+      if (isEditMode) {
+        // Upload image first if selected
+        if (imageFile) {
+          try {
+            const uploadRes = await handleImageUpload(
+              imageFile,
+              role,
+              categoryId
+            );
+            uploadedImageId = uploadRes?.id;
+          } catch (uploadError) {
+            console.warn("Image upload failed:", uploadError);
+          }
+        }
 
-      const payload = {
-        name: formData.name,
-        description: formData.description || undefined,
-        status: "ACTIVE" as const,
-        categoryType: isSub ? "SUB" : "PARENT",
-        businessId,
-        parentId: formData.isSubcategory ? formData.category : undefined,
-        seoMetaData:
-          formData.seoTitle || formData.seoDescription
-            ? {
-              title: formData.seoTitle || "",
-              description: formData.seoDescription || "",
-            }
-            : undefined,
-        imageId: undefined,
-      };
-
-      if (categoryId) {
-        // ✅ Update Mode
         const response = await updateCategory.updateCategory({
-          ...payload,
           id: categoryId,
+          name: formData.name,
+          description: formData.description || undefined,
+          status: "ACTIVE",
+          categoryType,
+          businessId,
+          parentId: categoryType === "SUB" ? formData.category : undefined,
+          imageId: uploadedImageId,
+          seoMetaData:
+            formData.seoTitle || formData.seoDescription
+              ? {
+                  title: formData.seoTitle || "",
+                  description: formData.seoDescription || "",
+                }
+              : undefined,
         });
+
         showToast({
           type: "success",
           message: response.message || "Category updated successfully!",
           showClose: true,
         });
-      } else {
-        // ➕ Create Mode
-        const response = await createCategory(payload);
+      }
+
+      // ---- CREATE FLOW ----
+      else {
+        const response = await createCategory({
+          name: formData.name,
+          description: formData.description || undefined,
+          status: "ACTIVE",
+          categoryType,
+          businessId,
+          parentId: categoryType === "SUB" ? formData.category : undefined,
+          seoMetaData:
+            formData.seoTitle || formData.seoDescription
+              ? {
+                  title: formData.seoTitle || "",
+                  description: formData.seoDescription || "",
+                }
+              : undefined,
+        });
+
+        newCategoryId = response.data?.data.id;
+
+        if (!newCategoryId) {
+          throw new Error("Failed to create category.");
+        }
+
+        // Upload image after create
+        if (imageFile) {
+          try {
+            const uploadRes = await handleImageUpload(
+              imageFile,
+              role,
+              newCategoryId
+            );
+            uploadedImageId = uploadRes?.id;
+
+            if (uploadedImageId) {
+              await updateCategory.updateCategory({
+                id: newCategoryId,
+                imageId: uploadedImageId,
+                name: formData.name,
+                businessId,
+                categoryType,
+              });
+            }
+          } catch (uploadError) {
+            console.warn("Image upload failed after create:", uploadError);
+          }
+        }
+
         showToast({
           type: "success",
           message: response.data?.message || "Category created successfully!",
@@ -179,24 +227,25 @@ console.log(nameValue, "nameValue")
         });
       }
 
-      resetForm(); // Reset Form
-      if (onSuccess) {
-        onSuccess();
-      }
-      navigate("/seller/catalogue/categories"); // 👈 redirects to main listing
-
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      resetForm();
+      if (onSuccess) onSuccess();
+      navigate("/seller/catalogue/categories");
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
-      const errorMessage =
-        error?.data?.message || "Something went wrong. Please try again.";
       console.error("Failed to save category:", error);
-
       showToast({
         type: "error",
-        message: errorMessage,
+        message:
+          error?.data?.message || "Something went wrong. Please try again.",
         showClose: true,
       });
     }
+  };
+
+  const handleImagePreview = (file: File) => {
+    const localUrl = URL.createObjectURL(file);
+    setImageUrl(localUrl);
+    methods.setValue("image", [file], { shouldValidate: true });
   };
 
   return (
@@ -215,6 +264,10 @@ console.log(nameValue, "nameValue")
             <CategoriesInfoSection
               categoryId={categoryId}
               type={type as "PARENT" | "SUB"}
+              imageUrl={imageUrl}
+              onImageFileChange={handleImagePreview}
+              imageId={undefined}
+              imageDiskName={data?.imageUrl}
             />
           </section>
 

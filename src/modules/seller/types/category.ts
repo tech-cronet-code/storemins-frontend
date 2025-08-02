@@ -2,7 +2,7 @@
 export interface Category {
   id: string;
   name: string;
-  image: string;
+  imageUrl: string;
   status: boolean;
   products: number;
   subCategories?: Category[];

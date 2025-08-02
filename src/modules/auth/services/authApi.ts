@@ -354,7 +354,6 @@ export const apiClient = createApi({
     }),
 
     // Image Upload
-    // Image Upload
     uploadImage: builder.mutation<UploadedFileResponse[], UploadImagePayload>({
       query: ({ formData }) => ({
         url: "/files",
