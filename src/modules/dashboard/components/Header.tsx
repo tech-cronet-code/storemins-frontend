@@ -4,10 +4,9 @@ import { FaUserCircle } from "react-icons/fa";
 import { MdNotificationsNone } from "react-icons/md";
 import { RiSettings3Fill } from "react-icons/ri";
 import { useLocation, useNavigate } from "react-router-dom";
-import UserProfileMenu from "./UserProfileMenu";
 import { useAuth } from "../../auth/contexts/AuthContext";
-import { useImageUpload } from "../../auth/hooks/useImageUpload";
-import { getImageUrlsById } from "../../../common/utils/getImageUrlsById";
+import UserProfileMenu from "./UserProfileMenu";
+import { convertPath } from "../../auth/utils/useImagePath";
 
 interface HeaderProps {
   collapsed?: boolean;
@@ -20,7 +19,7 @@ const Header = ({}: HeaderProps) => {
   const [showProfile, setShowProfile] = useState(false);
   const [imageError, setImageError] = useState(false);
   const profileRef = useRef<HTMLDivElement>(null);
-  const { userDetails } = useAuth(); // ✅ from context
+  const { userDetails } = useAuth(); // ⬅️ from context (has top-level imageId: "<fileId>.webp")
 
   const location = useLocation();
   const navigate = useNavigate();
@@ -83,21 +82,26 @@ const Header = ({}: HeaderProps) => {
       }
     };
     document.addEventListener("click", handleClickOutside);
-    return () => {
-      document.removeEventListener("click", handleClickOutside);
-    };
+    return () => document.removeEventListener("click", handleClickOutside);
   }, []);
 
-  const { imageUrl, imageDiskName } = useImageUpload();
+  //  Build image URLs from top-level imageId ("<fileId>.webp")
+  // const serverDiskName = userDetails?.image ?? undefined; // already includes .webp
+  // const fullImageUrls = serverDiskName
+  //   ? getImageUrlsById(serverDiskName)
+  //   : null;
+  // const avatarSrc = !imageError
+  //   ? fullImageUrls?.original ||
+  //     "https://randomuser.me/api/portraits/men/32.jpg"
+  //   : undefined;
 
-  // Safely get full image URLs if disk name is available
-  // Resolved preview disk name
-  const resolvedDiskName = imageDiskName ?? userDetails?.image;
+  const serverImageDiskName = userDetails?.image ?? undefined; // already has .webp
+  const serverThumbUrl = serverImageDiskName
+    ? convertPath(serverImageDiskName, "original/auth")
+    : undefined;
 
-  // Generate variant URLs only if we have a disk name
-  const fullImageUrls = resolvedDiskName
-    ? getImageUrlsById(resolvedDiskName)
-    : null;
+  const avatarSrc =
+    serverThumbUrl || "https://randomuser.me/api/portraits/men/32.jpg"; // fallback handled by onError UI
 
   return (
     <header className="bg-white px-4 py-2 shadow top-0 z-[999] w-full relative">
@@ -157,13 +161,9 @@ const Header = ({}: HeaderProps) => {
           </div>
 
           <div className="relative" ref={profileRef}>
-            {!imageError ? (
+            {!imageError && avatarSrc ? (
               <img
-                src={
-                  imageUrl ||
-                  fullImageUrls?.thumbnail ||
-                  "https://randomuser.me/api/portraits/men/32.jpg"
-                }
+                src={avatarSrc}
                 alt="User"
                 className="w-9 h-9 rounded-full object-cover cursor-pointer hover:ring-2 hover:ring-blue-400"
                 onClick={() => setShowProfile((prev) => !prev)}

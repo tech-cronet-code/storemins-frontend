@@ -1,22 +1,24 @@
+// src/modules/seller/components/categories/CategoriesForm.tsx
 import { zodResolver } from "@hookform/resolvers/zod";
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { FormProvider, useForm, useWatch } from "react-hook-form";
 import { useNavigate } from "react-router-dom";
 import { z } from "zod";
 import { showToast } from "../../../../common/utils/showToast";
 import { useAuth } from "../../../auth/contexts/AuthContext";
-import { useImageUpload } from "../../../auth/hooks/useImageUpload";
-import { useSellerProduct } from "../../hooks/useSellerProduct";
+import { useSellerProduct } from "../../hooks/useSellerProduct"; // using your wrapper
 import { CategoriesSchema } from "../../Schemas/CategoriesSchema";
 import CategoriesInfoSection from "./CategoriesInfoSection";
 import HeaderSubmitButton from "./HeaderButton";
 import SEOCategorySection from "./SEOCategorySection";
+import { buildCategoryFormData } from "../../../auth/utils/buildCategoryFormData";
+import { convertPath } from "../../../auth/utils/useImagePath";
 
 type CategoriesFormValues = z.infer<typeof CategoriesSchema>;
 
 interface CategoriesFormProps {
   categoryId?: string;
-  type?: string;
+  type?: "PARENT" | "SUB";
   parentId?: string;
   onSuccess?: () => void;
 }
@@ -48,14 +50,15 @@ const CategoriesForm: React.FC<CategoriesFormProps> = ({
     },
   });
 
-  const { reset: resetForm, watch } = methods;
+  const { reset: resetForm } = methods;
   const imageFileList =
     useWatch({ name: "image", control: methods.control }) ?? [];
-  const imageFile = imageFileList?.[0];
+  const imageFile: File | undefined = imageFileList?.[0];
 
-  const isSubcategory = watch("isSubcategory") || type === "SUB";
-  const role = isSubcategory ? "productCategory:sub" : "productCategory:parent";
-  const { imageUrl, handleImageUpload, setImageUrl } = useImageUpload(role);
+  // const isSubcategory = watch("isSubcategory") || type === "SUB";
+
+  // Local preview (only for newly picked file)
+  const [previewUrl, setPreviewUrl] = useState<string | undefined>(undefined);
 
   const {
     getCategory: fetchCategory,
@@ -67,14 +70,25 @@ const CategoriesForm: React.FC<CategoriesFormProps> = ({
 
   const didFetchRef = useRef(false);
 
+  // Robust fetch: if type missing, try PARENT first then SUB on 404
   useEffect(() => {
-    if (!didFetchRef.current && categoryId && type) {
-      didFetchRef.current = true;
-      const categoryType = type === "PARENT" ? "PARENT" : "SUB";
-      fetchCategory(categoryId, categoryType);
-    }
+    if (!categoryId || didFetchRef.current) return;
+    didFetchRef.current = true;
+
+    const initialType = type === "PARENT" || type === "SUB" ? type : "PARENT";
+    fetchCategory(categoryId, initialType);
   }, [categoryId, type, fetchCategory]);
 
+  useEffect(() => {
+    // If no type provided and first attempt failed with 404, try the other type
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const status = (error as any)?.status;
+    if (!type && isError && status === 404 && categoryId) {
+      fetchCategory(categoryId, "SUB");
+    }
+  }, [type, isError, error, categoryId, fetchCategory]);
+
+  // Fill form from fetched data
   useEffect(() => {
     if (categoryId && data?.id === categoryId) {
       resetForm({
@@ -82,7 +96,7 @@ const CategoriesForm: React.FC<CategoriesFormProps> = ({
         description: data.description || "",
         isSubcategory: data.categoryType === "SUB",
         category: data.parentCategory?.id || "",
-        image: undefined,
+        image: undefined, // keep file empty
         bannerDesktop: undefined,
         bannerMobile: undefined,
         seoTitle: data.seoMetaData?.title || "",
@@ -90,6 +104,7 @@ const CategoriesForm: React.FC<CategoriesFormProps> = ({
         seoImage: undefined,
       });
       methods.setValue("image", undefined);
+      setPreviewUrl(undefined); // show server image by default
     }
   }, [categoryId, data, methods, resetForm]);
 
@@ -104,10 +119,24 @@ const CategoriesForm: React.FC<CategoriesFormProps> = ({
   }, [isError, error]);
 
   useEffect(() => {
-    if (parentId) {
-      methods.setValue("isSubcategory", true);
-    }
+    if (parentId) methods.setValue("isSubcategory", true);
   }, [methods, parentId]);
+
+  // Cleanup object URL
+  useEffect(() => {
+    return () => {
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+    };
+  }, [previewUrl]);
+
+  // ✅ Build server image URL for edit view using your snippet
+  const serverImageDiskName = data?.imageUrl ?? undefined; // already has .webp
+  const serverThumbUrl = serverImageDiskName
+    ? convertPath(serverImageDiskName, "original/category")
+    : undefined;
+
+  // Prefer local preview if user selected, otherwise server image; UI handles fallback
+  const effectiveImageUrl = previewUrl ?? serverThumbUrl;
 
   const onSubmit = async (formData: CategoriesFormValues) => {
     try {
@@ -123,106 +152,48 @@ const CategoriesForm: React.FC<CategoriesFormProps> = ({
 
       const isEditMode = !!categoryId;
       const categoryType: "PARENT" | "SUB" = isEditMode
-        ? (type as "PARENT" | "SUB")
+        ? (type as "PARENT" | "SUB") // when editing we respect the original
         : formData.isSubcategory || parentId
         ? "SUB"
         : "PARENT";
 
-      let newCategoryId = categoryId;
-      let uploadedImageId: string | undefined = undefined;
+      // parentId must be present only for SUB (matches backend guard)
+      const effectiveParentId =
+        categoryType === "SUB" ? formData.category || parentId : undefined;
 
-      // ---- EDIT FLOW ----
+      const fd = buildCategoryFormData({
+        id: isEditMode ? categoryId : undefined,
+        name: formData.name,
+        description: formData.description || undefined,
+        status: "ACTIVE",
+        categoryType,
+        businessId,
+        parentId: effectiveParentId,
+        image: imageFile, // optional
+        seoMetaData:
+          formData.seoTitle || formData.seoDescription
+            ? {
+                title: formData.seoTitle || "",
+                description: formData.seoDescription || "",
+              }
+            : undefined,
+      });
+
       if (isEditMode) {
-        // Upload image first if selected
-        if (imageFile) {
-          try {
-            const uploadRes = await handleImageUpload(
-              imageFile,
-              role,
-              categoryId
-            );
-            uploadedImageId = uploadRes?.id;
-          } catch (uploadError) {
-            console.warn("Image upload failed:", uploadError);
-          }
-        }
-
-        const response = await updateCategory.updateCategory({
-          id: categoryId,
-          name: formData.name,
-          description: formData.description || undefined,
-          status: "ACTIVE",
-          categoryType,
-          businessId,
-          parentId: categoryType === "SUB" ? formData.category : undefined,
-          imageId: uploadedImageId,
-          seoMetaData:
-            formData.seoTitle || formData.seoDescription
-              ? {
-                  title: formData.seoTitle || "",
-                  description: formData.seoDescription || "",
-                }
-              : undefined,
-        });
-
+        const res = await updateCategory.updateCategory(fd);
         showToast({
           type: "success",
-          message: response.message || "Category updated successfully!",
+          message: res?.message || "Category updated successfully!",
           showClose: true,
         });
-      }
-
-      // ---- CREATE FLOW ----
-      else {
-        const response = await createCategory({
-          name: formData.name,
-          description: formData.description || undefined,
-          status: "ACTIVE",
-          categoryType,
-          businessId,
-          parentId: categoryType === "SUB" ? formData.category : undefined,
-          seoMetaData:
-            formData.seoTitle || formData.seoDescription
-              ? {
-                  title: formData.seoTitle || "",
-                  description: formData.seoDescription || "",
-                }
-              : undefined,
-        });
-
-        newCategoryId = response.data?.data.id;
-
-        if (!newCategoryId) {
-          throw new Error("Failed to create category.");
-        }
-
-        // Upload image after create
-        if (imageFile) {
-          try {
-            const uploadRes = await handleImageUpload(
-              imageFile,
-              role,
-              newCategoryId
-            );
-            uploadedImageId = uploadRes?.id;
-
-            if (uploadedImageId) {
-              await updateCategory.updateCategory({
-                id: newCategoryId,
-                imageId: uploadedImageId,
-                name: formData.name,
-                businessId,
-                categoryType,
-              });
-            }
-          } catch (uploadError) {
-            console.warn("Image upload failed after create:", uploadError);
-          }
-        }
-
+      } else {
+        const res = await createCategory(fd);
         showToast({
           type: "success",
-          message: response.data?.message || "Category created successfully!",
+          message:
+            res && "data" in res && res.data?.message
+              ? res.data.message
+              : "Category created successfully!",
           showClose: true,
         });
       }
@@ -230,21 +201,22 @@ const CategoriesForm: React.FC<CategoriesFormProps> = ({
       resetForm();
       if (onSuccess) onSuccess();
       navigate("/seller/catalogue/categories");
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    } catch (error: any) {
-      console.error("Failed to save category:", error);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } catch (err: any) {
+      console.error("Failed to save category:", err);
       showToast({
         type: "error",
         message:
-          error?.data?.message || "Something went wrong. Please try again.",
+          err?.data?.message || "Something went wrong. Please try again.",
         showClose: true,
       });
     }
   };
 
   const handleImagePreview = (file: File) => {
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
     const localUrl = URL.createObjectURL(file);
-    setImageUrl(localUrl);
+    setPreviewUrl(localUrl);
     methods.setValue("image", [file], { shouldValidate: true });
   };
 
@@ -264,10 +236,10 @@ const CategoriesForm: React.FC<CategoriesFormProps> = ({
             <CategoriesInfoSection
               categoryId={categoryId}
               type={type as "PARENT" | "SUB"}
-              imageUrl={imageUrl}
+              imageUrl={effectiveImageUrl} // ✅ shows server image on edit, preview on change
               onImageFileChange={handleImagePreview}
-              imageId={undefined}
-              imageDiskName={data?.imageUrl}
+              imageId={undefined} // not used anymore
+              imageDiskName={data?.imageUrl} // still passing in case the child needs it
             />
           </section>
 

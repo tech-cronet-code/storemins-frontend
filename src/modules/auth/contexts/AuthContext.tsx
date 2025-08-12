@@ -31,7 +31,7 @@ import { GetMyProfileDto } from "../types/profileTypes"; // ⬅️ new
 /* ---------- Context typings ---------- */
 interface AuthContextType {
   user: User | null;
-  userDetails: GetMyProfileDto | undefined;          // ⬅️ updated
+  userDetails: GetMyProfileDto | undefined; // ⬅️ updated
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   refetchUserDetails: () => Promise<any>;
 
@@ -64,7 +64,7 @@ interface AuthContextType {
   saveDomain: (dto: DomainRequestDto) => Promise<DomainResponseDto>;
 
   quickLoginEnabledFlag: boolean;
-  updateProfile: (name: string, imageId: string) => Promise<void>;
+  updateProfile: (name: string, avatarFile?: File) => Promise<void>;
 }
 
 /* ---------- Provider ---------- */
@@ -83,10 +83,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const confirmOtpHook = useConfirmOtp();
   const { checkDomainAvailability, saveDomain } = useDomain();
 
-  const {
-    data: userDetails,
-    refetch,
-  } = useGetUserDetailsQuery(undefined, { skip: !token });
+  const { data: userDetails, refetch } = useGetUserDetailsQuery(undefined, {
+    skip: !token,
+  });
 
   const userFromResponse = userDetails;
 
@@ -114,19 +113,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   /* ---------- sync profile → Redux auth.user ---------- */
   useEffect(() => {
- if (
-  token &&
-  userFromResponse?.id &&
-  (!user || user.id !== userFromResponse.id)
-) {
-  const mappedUser: User = {
-    ...userFromResponse,
-    role: userFromResponse.role as UserRoleName[], // ✅ optional cast
-    storeLinks: userFromResponse.storeLinks,       // ✅ now valid
-  };
+    if (
+      token &&
+      userFromResponse?.id &&
+      (!user || user.id !== userFromResponse.id)
+    ) {
+      const mappedUser: User = {
+        ...userFromResponse,
+        role: userFromResponse.role as UserRoleName[], // ✅ optional cast
+        storeLinks: userFromResponse.storeLinks, // ✅ now valid
+      };
 
-  dispatch(setUser(mappedUser));
-}
+      dispatch(setUser(mappedUser));
+    }
   }, [token, userFromResponse, user, dispatch]);
 
   /* ---------- logout handler ---------- */
@@ -144,9 +143,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   /* ---------- update profile ---------- */
   const [updateUserProfileApi] = useUpdateUserProfileMutation();
 
-  const updateProfile = async (name: string): Promise<void> => {
-    await updateUserProfileApi({ name }).unwrap();
-    await refetch();
+  const updateProfile = async (
+    name: string,
+    avatarFile?: File
+  ): Promise<void> => {
+    const form = new FormData();
+    form.append("name", name);
+    if (avatarFile) form.append("avatar", avatarFile); // must match backend FileFieldsInterceptor name
+
+    await updateUserProfileApi(form).unwrap(); // ⬅️ pass FormData
+    await refetch(); // refresh profile so userDetails.imageId reflects latest
   };
 
   /* ---------- memoised context ---------- */

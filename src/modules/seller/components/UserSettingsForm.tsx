@@ -1,11 +1,10 @@
 import { Pencil } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { FaUserCircle } from "react-icons/fa";
 import * as z from "zod";
-import { getImageUrlsById } from "../../../common/utils/getImageUrlsById";
 import { showToast } from "../../../common/utils/showToast";
 import { useAuth } from "../../auth/contexts/AuthContext";
-import { useImageUpload } from "../../auth/hooks/useImageUpload";
-import { FaUserCircle } from "react-icons/fa";
+import { convertPath } from "../../auth/utils/useImagePath"; // keep your existing util
 
 // ✅ Zod name schema
 const nameSchema = z
@@ -21,17 +20,18 @@ const UserSettingsForm = () => {
   const [loading, setLoading] = useState(false);
   const [imageError, setImageError] = useState(false);
 
-  const { imageUrl, handleImageUpload, imageId, imageDiskName } =
-    useImageUpload();
+  // 🔻 New: track the picked file + preview URL
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // keep name in sync with userDetails
   useEffect(() => {
-    if (userDetails) {
-      setName(userDetails.name);
-    }
+    if (userDetails) setName(userDetails.name);
   }, [userDetails]);
 
+  // validate name live
   useEffect(() => {
     try {
       nameSchema.parse(name);
@@ -43,21 +43,43 @@ const UserSettingsForm = () => {
     }
   }, [name]);
 
-  if (!userDetails) {
-    return <div>Loading...</div>;
-  }
+  // cleanup preview object URL
+  useEffect(() => {
+    return () => {
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+    };
+  }, [previewUrl]);
 
-  // ✅ Check if form has any changes
+  if (!userDetails) return <div>Loading...</div>;
+
+  //  Form change checks
   const isNameChanged = name.trim() !== (userDetails?.name || "").trim();
-  const isFormChanged = isNameChanged || !!imageId;
+  const isImageChanged = !!avatarFile;
+  const isFormChanged = isNameChanged || isImageChanged;
 
   const onFileButtonClick = () => fileInputRef.current?.click();
 
-  // ✅ Prefer uploaded imageDiskName, fallback to DB-stored imageId
-  const resolvedDiskName = imageDiskName ?? userDetails?.image;
-  const fullImageUrls = resolvedDiskName
-    ? getImageUrlsById(resolvedDiskName)
-    : null;
+  //  Resolve current image URL (preview takes priority)
+  // Backend returns: top-level "imageId": "<fileId>.webp"
+  const serverImageDiskName = userDetails?.image ?? undefined; // already has .webp
+  const serverThumbUrl = serverImageDiskName
+    ? convertPath(serverImageDiskName, "original/auth")
+    : undefined;
+
+  const currentImgSrc = previewUrl || serverThumbUrl || undefined; // fallback handled by onError UI
+
+  const handleFileChange: React.ChangeEventHandler<HTMLInputElement> = (e) => {
+    const file = e.target.files?.[0] || null;
+    setAvatarFile(file);
+    setImageError(false);
+    // local preview for instant UX
+    if (file) {
+      const url = URL.createObjectURL(file);
+      setPreviewUrl(url);
+    } else {
+      setPreviewUrl(null);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -71,9 +93,13 @@ const UserSettingsForm = () => {
         });
         return;
       }
-
       setLoading(true);
-      await updateProfile(name, imageId ?? userDetails?.image);
+
+      //  NEW: send multipart (name + optional avatarFile)
+      const resp = await updateProfile(name, avatarFile || undefined);
+
+      // Update succeeded; clear transient preview file
+      setAvatarFile(null);
 
       showToast({
         type: "success",
@@ -109,13 +135,9 @@ const UserSettingsForm = () => {
         {/* Profile Image */}
         <div className="md:col-span-2 flex flex-col items-center justify-start">
           <div className="relative w-24 h-24">
-            {!imageError ? (
+            {!imageError && currentImgSrc ? (
               <img
-                src={
-                  imageUrl ||
-                  fullImageUrls?.thumbnail ||
-                  "https://randomuser.me/api/portraits/men/32.jpg"
-                }
+                src={currentImgSrc}
                 alt="User"
                 className="w-full h-full rounded-full object-cover shadow"
                 onError={() => setImageError(true)}
@@ -129,12 +151,7 @@ const UserSettingsForm = () => {
               accept="image/*"
               ref={fileInputRef}
               className="hidden"
-              onChange={(e) => {
-                if (e.target.files?.[0]) {
-                  handleImageUpload(e.target.files[0], "userProfile");
-                  setImageError(false); // ✅ reset error state on new upload
-                }
-              }}
+              onChange={handleFileChange}
             />
 
             <button

@@ -29,6 +29,16 @@ import AddStoreDisplaySettingPage from "./modules/seller/pages/store-appearance/
 import AddStoreSettingPage from "./modules/seller/pages/store-appearance/AddStoreSettingPage";
 import UserSettingsPage from "./modules/seller/pages/UserSettingsPage";
 import OtpRoute from "./routes/OtpRoute";
+import CustomerRoute from "./routes/CustomerRoute";
+import CustomerHome from "./modules/customer/pages/CustomerHome";
+import CustomerAccount from "./modules/customer/components/CustomerAccount";
+import CustomerContactUs from "./modules/customer/components/CustomerContactUs";
+import ProductDetail from "./modules/customer/components/ProductDetail";
+import CartEmptyDetail from "./modules/customer/components/CartEmptyDetail";
+import CartDetail from "./modules/customer/components/CartDetail";
+import CustomerAddress from "./modules/customer/components/CustomerAddress";
+import OrderSuccess from "./modules/customer/components/OrderSuccess";
+import CategoryPage from "./modules/customer/pages/CategoryPage";
 // import AuthFormPage from "./modules/auth/pages/AuthForm";
 
 const App = () => {
@@ -123,7 +133,37 @@ const App = () => {
             <Route path="/admin/*" element={<AdminDashboard />} />
           </Route>
         </Route>
-            
+
+        {/* everything under /customer will use the CustomerRoute guard */}
+        <Route path="customer" element={<CustomerRoute />}>
+          {/* GET  /customer/ */}
+          <Route index element={<CustomerHome />} />
+
+          {/* GET  /customer/cart-detail-empty */}
+          <Route path="cart-detail-empty" element={<CartEmptyDetail />} />
+
+          {/* GET  /customer/account */}
+          <Route path="account" element={<CustomerAccount />} />
+
+          {/* GET  /customer/contact-us */}
+          <Route path="contact-us" element={<CustomerContactUs />} />
+
+          {/* GET  /customer/product-details/:id */}
+          <Route path="product-details/:id" element={<ProductDetail />} />
+
+          {/* GET  /customer/cart-detail */}
+          <Route path="cart-detail" element={<CartDetail />} />
+
+          <Route path="address" element={<CustomerAddress />} />
+          <Route path="order-success" element={<OrderSuccess />} />
+          <Route path="categories" element={<CategoryPage />} />
+
+          {/* <Route path="payment" element={<CustomerPayment />} /> */}
+
+          {/* fallback for any other /customer/... */}
+          {/* <Route path="*" element={<NotFound />} /> */}
+        </Route>
+
         {/* 🔁 Fallback */}
         <Route path="*" element={<Navigate to="/home" replace />} />
       </Routes>

@@ -10,7 +10,11 @@ interface Props {
   parentId?: string;
 }
 
-const AddCategoriesContainer: React.FC<Props> = ({ categoryId, type, parentId }) => {
+const AddCategoriesContainer: React.FC<Props> = ({
+  categoryId,
+  type,
+  parentId,
+}) => {
   const navigate = useNavigate();
   const formContainerRef = useRef<HTMLDivElement>(null!);
 
@@ -66,7 +70,7 @@ const AddCategoriesContainer: React.FC<Props> = ({ categoryId, type, parentId })
             className="flex-1 overflow-y-auto px-4 py-4 scroll-smooth"
           >
             <CategoriesForm
-              key={`${categoryId ?? "new"}--${parentId ?? "none"}`}  // 👈 ensures fresh mount
+              key={`${categoryId ?? "new"}--${parentId ?? "none"}`} // 👈 ensures fresh mount
               categoryId={categoryId}
               type={type}
               parentId={parentId}

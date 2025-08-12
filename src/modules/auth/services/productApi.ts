@@ -10,7 +10,7 @@ export interface ProductCategoryRequest {
   categoryType: "PARENT" | "SUB";
   businessId: string;
   parentId?: string;
-  imageId?: string;
+  // imageId?: string;
   seoMetaData?: {
     title: string;
     description: string;
@@ -180,12 +180,12 @@ export const productApi = createApi({
   endpoints: (builder) => ({
     createCategory: builder.mutation<
       { message: string; data: ProductCategoryResponse },
-      ProductCategoryRequest
+      FormData
     >({
-      query: (body) => ({
-        url: `/seller/product/product-category/create`, // ⬅️ NO /auth
+      query: (formData) => ({
+        url: `/seller/product/product-category/create`,
         method: "POST",
-        body,
+        body: formData,
       }),
     }),
     listCategories: builder.query<
@@ -204,14 +204,15 @@ export const productApi = createApi({
 
     updateCategory: builder.mutation<
       { message: string; data: ProductCategoryResponse },
-      ProductCategoryRequest & { id: string } // id is required to update
+      FormData
     >({
-      query: (body) => ({
+      query: (formData) => ({
         url: `/seller/product/product-category/edit`,
         method: "POST",
-        body,
+        body: formData,
       }),
     }),
+
     //  getCategory endpoint
     getCategory: builder.query<
       ProductCategoryResponse,

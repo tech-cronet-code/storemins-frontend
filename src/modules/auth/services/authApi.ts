@@ -107,6 +107,7 @@ interface UpdateProfileResponseDto {
   id: string;
   name: string;
   mobile: string;
+   imageId?: string | null; // "<fileId>.webp"
 }
 
 export const apiClient = createApi({
@@ -301,15 +302,18 @@ export const apiClient = createApi({
       }
     ),
     // ⬇️ Add this mutation
-    updateUserProfile: builder.mutation<
-      UpdateProfileResponseDto,
-      UpdateProfileRequestDto
-    >({
-      query: (body) => ({
-        url: "/my-profile", // Your backend path
+    updateUserProfile: builder.mutation<UpdateProfileResponseDto, FormData>({
+      query: (form) => ({
+        url: "/my-profile",
         method: "PUT",
-        body,
+        body: form, // ⬅️ FormData, DON'T set Content-Type manually
       }),
+      transformResponse: (raw: {
+        success: boolean;
+        message: string;
+        statusCode: number;
+        data: UpdateProfileResponseDto;
+      }) => raw.data, // ⬅️ unwrap
     }),
 
     /* ───────── GET /seller/business/stores/me ───────── */

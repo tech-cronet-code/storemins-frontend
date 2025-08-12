@@ -216,12 +216,13 @@ const ProductForm: React.FC<ProductFormProps> = ({ productId }) => {
   return (
     <FormProvider {...methods}>
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
-        <section id="product-info" className="scroll-mt-24">
-          <ProductInfoSection />
-        </section>
         <section id="product-media" className="scroll-mt-24">
           <ProductMediaSection />
         </section>
+        <section id="product-info" className="scroll-mt-24">
+          <ProductInfoSection />
+        </section>
+
         <section id="inventory" className="scroll-mt-24">
           <InventorySection />
         </section>

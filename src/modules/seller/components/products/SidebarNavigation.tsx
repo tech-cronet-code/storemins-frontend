@@ -16,8 +16,8 @@ interface Props {
 }
 
 const navItems = [
-  { label: "Product Information", id: "product-info", icon: Info },
   { label: "Product Media", id: "product-media", icon: Image },
+  { label: "Product Information", id: "product-info", icon: Info },
   { label: "Inventory", id: "inventory", icon: Package },
   { label: "Shipping & Tax", id: "shipping-tax", icon: Truck },
   { label: "Variants", id: "variants", icon: Layers },

@@ -9,8 +9,7 @@ import {
 } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../auth/contexts/AuthContext"; // ✅ adjust path as needed
-import { useImageUpload } from "../../auth/hooks/useImageUpload";
-import { getImageUrlsById } from "../../../common/utils/getImageUrlsById";
+import { convertPath } from "../../auth/utils/useImagePath";
 
 interface UserProfileMenuProps {
   onClose?: () => void;
@@ -46,16 +45,24 @@ const UserProfileMenu: React.FC<UserProfileMenuProps> = ({ onClose }) => {
     onClose?.(); // ✅ close the dropdown
   };
 
-  const { imageUrl, imageDiskName } = useImageUpload();
+  // const { imageUrl, imageDiskName } = useImageUpload();
 
   // Safely get full image URLs if disk name is available
   // Resolved preview disk name
-  const resolvedDiskName = imageDiskName ?? userDetails?.image;
+  // const resolvedDiskName = imageDiskName ?? userDetails?.image;
 
   // Generate variant URLs only if we have a disk name
-  const fullImageUrls = resolvedDiskName
-    ? getImageUrlsById(resolvedDiskName)
-    : null;
+  // const fullImageUrls = resolvedDiskName
+  //   ?  (resolvedDiskName)
+  //   : null;
+
+  const serverImageDiskName = userDetails?.image ?? undefined; // already has .webp
+  const serverThumbUrl = serverImageDiskName
+    ? convertPath(serverImageDiskName, "original/auth")
+    : undefined;
+
+  const currentImgSrc =
+    serverThumbUrl || "https://randomuser.me/api/portraits/men/32.jpg"; // fallback handled by onError UI
 
   return (
     <div className="w-72 bg-white rounded-2xl shadow-xl border border-gray-200 p-4 relative">
@@ -63,11 +70,7 @@ const UserProfileMenu: React.FC<UserProfileMenuProps> = ({ onClose }) => {
       <div className="flex items-center gap-3 mb-4">
         {!imageError ? (
           <img
-            src={
-              imageUrl ||
-              fullImageUrls?.thumbnail ||
-              "https://randomuser.me/api/portraits/men/32.jpg"
-            }
+            src={currentImgSrc}
             alt="Profile"
             className="w-12 h-12 rounded-full object-cover cursor-pointer hover:ring-2 hover:ring-blue-400"
             onClick={() => setShowNotificationOptions(false)}
