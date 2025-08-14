@@ -1,10 +1,9 @@
-// src/common/utils/buildCategoryFormData.ts
 export type CategoryType = "PARENT" | "SUB";
 export type CategoryStatus = "ACTIVE" | "INACTIVE";
 
 export interface BuildCategoryFormInput {
   // Common
-  id?: string; // required for edit
+  id?: string;
   name: string;
   description?: string;
   status?: CategoryStatus;
@@ -12,14 +11,16 @@ export interface BuildCategoryFormInput {
   businessId: string;
   parentId?: string;
 
-  // File
+  // Files
   image?: File;
+  seoImage?: File; // ✅ NEW
 
   // Nested
   seoMetaData?: {
     title?: string;
     description?: string;
     keywords?: string;
+    // DO NOT put a file here
   };
 }
 
@@ -40,11 +41,11 @@ export function buildCategoryFormData(input: BuildCategoryFormInput) {
       input.seoMetaData.description ||
       input.seoMetaData.keywords)
   ) {
-    // Backend’s DTO accepts an object; send JSON (your OptionalObjectProperty handles parsing).
     fd.append("seoMetaData", JSON.stringify(input.seoMetaData));
   }
 
   if (input.image) fd.append("image", input.image);
+  if (input.seoImage) fd.append("seoImage", input.seoImage); // ✅ send file as its own field
 
   return fd;
 }

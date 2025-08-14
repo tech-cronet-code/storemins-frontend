@@ -1,4 +1,3 @@
-// src/modules/seller/components/categories/CategoriesForm.tsx
 import { zodResolver } from "@hookform/resolvers/zod";
 import React, { useEffect, useRef, useState } from "react";
 import { FormProvider, useForm, useWatch } from "react-hook-form";
@@ -6,7 +5,7 @@ import { useNavigate } from "react-router-dom";
 import { z } from "zod";
 import { showToast } from "../../../../common/utils/showToast";
 import { useAuth } from "../../../auth/contexts/AuthContext";
-import { useSellerProduct } from "../../hooks/useSellerProduct"; // using your wrapper
+import { useSellerProduct } from "../../hooks/useSellerProduct";
 import { CategoriesSchema } from "../../Schemas/CategoriesSchema";
 import CategoriesInfoSection from "./CategoriesInfoSection";
 import HeaderSubmitButton from "./HeaderButton";
@@ -46,7 +45,8 @@ const CategoriesForm: React.FC<CategoriesFormProps> = ({
       description: "",
       seoTitle: "",
       seoDescription: "",
-      seoImage: undefined,
+      seoKeywords: "",
+      seoImage: undefined, // file (new upload)
     },
   });
 
@@ -55,9 +55,11 @@ const CategoriesForm: React.FC<CategoriesFormProps> = ({
     useWatch({ name: "image", control: methods.control }) ?? [];
   const imageFile: File | undefined = imageFileList?.[0];
 
-  // const isSubcategory = watch("isSubcategory") || type === "SUB";
+  // ✅ watch seo file list
+  const seoFileList =
+    useWatch({ name: "seoImage", control: methods.control }) ?? [];
+  const seoFile: File | undefined = seoFileList?.[0];
 
-  // Local preview (only for newly picked file)
   const [previewUrl, setPreviewUrl] = useState<string | undefined>(undefined);
 
   const {
@@ -70,7 +72,6 @@ const CategoriesForm: React.FC<CategoriesFormProps> = ({
 
   const didFetchRef = useRef(false);
 
-  // Robust fetch: if type missing, try PARENT first then SUB on 404
   useEffect(() => {
     if (!categoryId || didFetchRef.current) return;
     didFetchRef.current = true;
@@ -80,7 +81,6 @@ const CategoriesForm: React.FC<CategoriesFormProps> = ({
   }, [categoryId, type, fetchCategory]);
 
   useEffect(() => {
-    // If no type provided and first attempt failed with 404, try the other type
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const status = (error as any)?.status;
     if (!type && isError && status === 404 && categoryId) {
@@ -96,15 +96,17 @@ const CategoriesForm: React.FC<CategoriesFormProps> = ({
         description: data.description || "",
         isSubcategory: data.categoryType === "SUB",
         category: data.parentCategory?.id || "",
-        image: undefined, // keep file empty
+        image: undefined,
         bannerDesktop: undefined,
         bannerMobile: undefined,
         seoTitle: data.seoMetaData?.title || "",
         seoDescription: data.seoMetaData?.description || "",
-        seoImage: undefined,
+        seoKeywords: data.seoMetaData?.keywords || "",
+        seoImage: undefined, // keep empty so user can upload new one
       });
       methods.setValue("image", undefined);
-      setPreviewUrl(undefined); // show server image by default
+      methods.setValue("seoImage", undefined); // ✅
+      setPreviewUrl(undefined);
     }
   }, [categoryId, data, methods, resetForm]);
 
@@ -122,21 +124,24 @@ const CategoriesForm: React.FC<CategoriesFormProps> = ({
     if (parentId) methods.setValue("isSubcategory", true);
   }, [methods, parentId]);
 
-  // Cleanup object URL
   useEffect(() => {
     return () => {
       if (previewUrl) URL.revokeObjectURL(previewUrl);
     };
   }, [previewUrl]);
 
-  // ✅ Build server image URL for edit view using your snippet
-  const serverImageDiskName = data?.imageUrl ?? undefined; // already has .webp
+  // Main image (server) for edit view
+  const serverImageDiskName = data?.imageUrl ?? undefined;
   const serverThumbUrl = serverImageDiskName
     ? convertPath(serverImageDiskName, "original/category")
     : undefined;
-
-  // Prefer local preview if user selected, otherwise server image; UI handles fallback
   const effectiveImageUrl = previewUrl ?? serverThumbUrl;
+
+  // ✅ SEO image (server) for edit view
+  const serverSeoDiskName = data?.seoMetaData?.imageUrl ?? undefined; // e.g. /files/original/category/seo/xxxx.webp
+  const serverSeoUrl = serverSeoDiskName
+    ? convertPath(serverSeoDiskName, "original/category/seo")
+    : undefined;
 
   const onSubmit = async (formData: CategoriesFormValues) => {
     try {
@@ -152,12 +157,11 @@ const CategoriesForm: React.FC<CategoriesFormProps> = ({
 
       const isEditMode = !!categoryId;
       const categoryType: "PARENT" | "SUB" = isEditMode
-        ? (type as "PARENT" | "SUB") // when editing we respect the original
+        ? (type as "PARENT" | "SUB")
         : formData.isSubcategory || parentId
         ? "SUB"
         : "PARENT";
 
-      // parentId must be present only for SUB (matches backend guard)
       const effectiveParentId =
         categoryType === "SUB" ? formData.category || parentId : undefined;
 
@@ -169,12 +173,14 @@ const CategoriesForm: React.FC<CategoriesFormProps> = ({
         categoryType,
         businessId,
         parentId: effectiveParentId,
-        image: imageFile, // optional
+        image: imageFile,
+        seoImage: seoFile,
         seoMetaData:
-          formData.seoTitle || formData.seoDescription
+          formData.seoTitle || formData.seoDescription || formData.seoKeywords
             ? {
                 title: formData.seoTitle || "",
                 description: formData.seoDescription || "",
+                keywords: formData.seoKeywords || "",
               }
             : undefined,
       });
@@ -236,15 +242,15 @@ const CategoriesForm: React.FC<CategoriesFormProps> = ({
             <CategoriesInfoSection
               categoryId={categoryId}
               type={type as "PARENT" | "SUB"}
-              imageUrl={effectiveImageUrl} // ✅ shows server image on edit, preview on change
+              imageUrl={effectiveImageUrl}
               onImageFileChange={handleImagePreview}
-              imageId={undefined} // not used anymore
-              imageDiskName={data?.imageUrl} // still passing in case the child needs it
+              imageId={undefined}
+              imageDiskName={data?.imageUrl}
             />
           </section>
 
           <section id="seo" className="scroll-mt-24">
-            <SEOCategorySection />
+            <SEOCategorySection serverSeoImageUrl={serverSeoUrl} /> {/* ✅ */}
           </section>
 
           <div className="flex justify-end mt-6 pb-15 pt-1">

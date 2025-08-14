@@ -29,6 +29,7 @@ export interface ProductCategoryResponse {
     title: string;
     description: string;
     keywords?: string;
+    imageUrl?: string;
   };
 
   parentCategory?: {
@@ -48,6 +49,7 @@ export interface ProductCategoryListResponse {
     title: string;
     description: string;
     keywords?: string;
+    imageUrl?: string;
   };
   subCategories?: Array<{
     id: string;
@@ -59,6 +61,7 @@ export interface ProductCategoryListResponse {
       title: string;
       description: string;
       keywords?: string;
+      imageUrl?: string;
     };
   }>;
 }
@@ -338,7 +341,7 @@ export const productApi = createApi({
         };
       },
     }),
-    // ✅ New: Update Product
+    //  New: Update Product
     updateProduct: builder.mutation<
       { message: string; data: GetProductResponse },
       FormData // <-- Change here to FormData

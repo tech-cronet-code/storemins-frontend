@@ -9,7 +9,7 @@ import { useParams } from "react-router-dom";
 
 const AddProductPage = () => {
   const navigate = useNavigate();
-  const { id } = useParams<{ id: string }>(); // 👈 catch product id (undefined if creating)
+  const { id } = useParams<{ id: string }>(); //  catch product id (undefined if creating)
 
   const formContainerRef = useRef<HTMLDivElement>(null!);
 
