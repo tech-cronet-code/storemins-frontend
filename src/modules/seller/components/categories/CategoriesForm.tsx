@@ -46,18 +46,23 @@ const CategoriesForm: React.FC<CategoriesFormProps> = ({
       seoTitle: "",
       seoDescription: "",
       seoKeywords: "",
-      seoImage: undefined, // file (new upload)
+      seoImage: undefined,
     },
   });
 
   const { reset: resetForm } = methods;
-  const imageFileList =
-    useWatch({ name: "image", control: methods.control }) ?? [];
+
+  // Main image: keep as File[] semantics (your existing component expects this)
+  const imageFileList = useWatch({ name: "image", control: methods.control }) as
+    | File[]
+    | undefined;
   const imageFile: File | undefined = imageFileList?.[0];
 
-  // ✅ watch seo file list
-  const seoFileList =
-    useWatch({ name: "seoImage", control: methods.control }) ?? [];
+  // SEO image: treat as FileList (how RHF stores file inputs)
+  const seoFileList = useWatch({
+    name: "seoImage",
+    control: methods.control,
+  }) as FileList | undefined;
   const seoFile: File | undefined = seoFileList?.[0];
 
   const [previewUrl, setPreviewUrl] = useState<string | undefined>(undefined);
@@ -75,7 +80,6 @@ const CategoriesForm: React.FC<CategoriesFormProps> = ({
   useEffect(() => {
     if (!categoryId || didFetchRef.current) return;
     didFetchRef.current = true;
-
     const initialType = type === "PARENT" || type === "SUB" ? type : "PARENT";
     fetchCategory(categoryId, initialType);
   }, [categoryId, type, fetchCategory]);
@@ -102,10 +106,10 @@ const CategoriesForm: React.FC<CategoriesFormProps> = ({
         seoTitle: data.seoMetaData?.title || "",
         seoDescription: data.seoMetaData?.description || "",
         seoKeywords: data.seoMetaData?.keywords || "",
-        seoImage: undefined, // keep empty so user can upload new one
+        seoImage: undefined,
       });
       methods.setValue("image", undefined);
-      methods.setValue("seoImage", undefined); // ✅
+      methods.setValue("seoImage", undefined);
       setPreviewUrl(undefined);
     }
   }, [categoryId, data, methods, resetForm]);
@@ -130,15 +134,15 @@ const CategoriesForm: React.FC<CategoriesFormProps> = ({
     };
   }, [previewUrl]);
 
-  // Main image (server) for edit view
+  // Category display image (server) for edit
   const serverImageDiskName = data?.imageUrl ?? undefined;
   const serverThumbUrl = serverImageDiskName
     ? convertPath(serverImageDiskName, "original/category")
     : undefined;
   const effectiveImageUrl = previewUrl ?? serverThumbUrl;
 
-  // ✅ SEO image (server) for edit view
-  const serverSeoDiskName = data?.seoMetaData?.imageUrl ?? undefined; // e.g. /files/original/category/seo/xxxx.webp
+  // SEO image (server) for edit
+  const serverSeoDiskName = data?.seoMetaData?.imageUrl ?? undefined;
   const serverSeoUrl = serverSeoDiskName
     ? convertPath(serverSeoDiskName, "original/category/seo")
     : undefined;
@@ -174,7 +178,7 @@ const CategoriesForm: React.FC<CategoriesFormProps> = ({
         businessId,
         parentId: effectiveParentId,
         image: imageFile,
-        seoImage: seoFile,
+        seoImage: seoFile, // <-- append SEO file
         seoMetaData:
           formData.seoTitle || formData.seoDescription || formData.seoKeywords
             ? {
@@ -207,13 +211,12 @@ const CategoriesForm: React.FC<CategoriesFormProps> = ({
       resetForm();
       if (onSuccess) onSuccess();
       navigate("/seller/catalogue/categories");
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       console.error("Failed to save category:", err);
       showToast({
         type: "error",
-        message:
-          err?.data?.message || "Something went wrong. Please try again.",
+        message: err?.data?.message || "Something went wrong. Please try again.",
         showClose: true,
       });
     }
@@ -229,13 +232,9 @@ const CategoriesForm: React.FC<CategoriesFormProps> = ({
   return (
     <FormProvider {...methods}>
       {isLoading ? (
-        <div className="text-center py-6 text-gray-500">
-          Loading category details...
-        </div>
+        <div className="text-center py-6 text-gray-500">Loading category details...</div>
       ) : isError ? (
-        <div className="text-center py-6 text-red-500">
-          Failed to load category.
-        </div>
+        <div className="text-center py-6 text-red-500">Failed to load category.</div>
       ) : (
         <form onSubmit={methods.handleSubmit(onSubmit)} className="space-y-10">
           <section id="categories-info" className="scroll-mt-24">
@@ -250,7 +249,7 @@ const CategoriesForm: React.FC<CategoriesFormProps> = ({
           </section>
 
           <section id="seo" className="scroll-mt-24">
-            <SEOCategorySection serverSeoImageUrl={serverSeoUrl} /> {/* ✅ */}
+            <SEOCategorySection serverSeoImageUrl={serverSeoUrl} />
           </section>
 
           <div className="flex justify-end mt-6 pb-15 pt-1">

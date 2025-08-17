@@ -44,8 +44,10 @@ export function buildCategoryFormData(input: BuildCategoryFormInput) {
     fd.append("seoMetaData", JSON.stringify(input.seoMetaData));
   }
 
-  if (input.image) fd.append("image", input.image);
-  if (input.seoImage) fd.append("seoImage", input.seoImage); // ✅ send file as its own field
+
+  if (input.image) fd.append("image", input.image);         // ✅ optional
+  if (input.seoImage) fd.append("seoImage", input.seoImage); // ✅ optional
+
 
   return fd;
 }

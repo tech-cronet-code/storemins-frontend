@@ -1,45 +1,48 @@
-// SEOCategorySection.tsx
 import { ChevronDown, ChevronUp } from "lucide-react";
 import React, { useEffect, useRef, useState } from "react";
-import { useFormContext } from "react-hook-form";
+import { Controller, useFormContext } from "react-hook-form";
 
 const SEOCategorySection: React.FC<{ serverSeoImageUrl?: string }> = ({
   serverSeoImageUrl,
 }) => {
-  const { register, watch, setValue } = useFormContext();
+  const { control, register, setValue } = useFormContext();
   const [expanded, setExpanded] = useState(true);
   const [localPreview, setLocalPreview] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-  const fileList: FileList | undefined = watch("seoImage");
+  // helper: create/release object URLs
+  const setPreviewFromFile = (file?: File | null) => {
+    setLocalPreview((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return file ? URL.createObjectURL(file) : null;
+    });
+  };
+
+  // when unmounting, cleanup
   useEffect(() => {
-    if (fileList && fileList[0]) {
-      const url = URL.createObjectURL(fileList[0]);
+    return () => {
       setLocalPreview((prev) => {
         if (prev) URL.revokeObjectURL(prev);
-        return url;
+        return null;
       });
-    } else {
-      if (localPreview) URL.revokeObjectURL(localPreview);
-      setLocalPreview(null);
-    }
-    return () => {
-      if (localPreview) URL.revokeObjectURL(localPreview);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fileList?.length]);
+  }, []);
+
+  const openPicker = () => {
+    // clear value so picking the same file again still triggers onChange
+    if (fileInputRef.current) fileInputRef.current.value = "";
+    fileInputRef.current?.click();
+  };
+
+  const removeLocal = () => {
+    setPreviewFromFile(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+    // clear RHF value
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    setValue("seoImage", undefined as any, { shouldDirty: true, shouldValidate: true });
+  };
 
   const hasImage = Boolean(localPreview || serverSeoImageUrl);
-
-  const handleReplaceClick = () => fileInputRef.current?.click();
-  const handleRemoveClick = () => {
-    // Only removes the *newly selected* local image; removing a server image
-    // would require a backend flag/endpoint which we haven’t implemented.
-    if (localPreview) URL.revokeObjectURL(localPreview);
-    setLocalPreview(null);
-    if (fileInputRef.current) fileInputRef.current.value = "";
-    setValue("seoImage", undefined as any, { shouldValidate: true });
-  };
 
   return (
     <div className="bg-white border border-gray-200 rounded-md overflow-hidden">
@@ -48,12 +51,8 @@ const SEOCategorySection: React.FC<{ serverSeoImageUrl?: string }> = ({
         onClick={() => setExpanded(!expanded)}
       >
         <div>
-          <h3 className="text-sm sm:text-base font-semibold text-gray-800">
-            StoreMins SEO
-          </h3>
-          <p className="text-sm text-gray-500">
-            Optimize your category with meta tags.
-          </p>
+          <h3 className="text-sm sm:text-base font-semibold text-gray-800">StoreMins SEO</h3>
+          <p className="text-sm text-gray-500">Optimize your category with meta tags.</p>
         </div>
         {expanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
       </div>
@@ -62,9 +61,7 @@ const SEOCategorySection: React.FC<{ serverSeoImageUrl?: string }> = ({
         <div className="px-5 pb-6 space-y-5">
           {/* Title */}
           <div>
-            <label className="text-sm font-medium text-gray-700 block mb-1">
-              Title Tag
-            </label>
+            <label className="text-sm font-medium text-gray-700 block mb-1">Title Tag</label>
             <input
               type="text"
               {...register("seoTitle")}
@@ -75,9 +72,7 @@ const SEOCategorySection: React.FC<{ serverSeoImageUrl?: string }> = ({
 
           {/* Description */}
           <div>
-            <label className="text-sm font-medium text-gray-700 block mb-1">
-              Meta Description
-            </label>
+            <label className="text-sm font-medium text-gray-700 block mb-1">Meta Description</label>
             <textarea
               rows={3}
               {...register("seoDescription")}
@@ -101,38 +96,56 @@ const SEOCategorySection: React.FC<{ serverSeoImageUrl?: string }> = ({
 
           {/* SEO Image */}
           <div>
-            <label className="text-sm font-medium text-gray-700 block mb-2">
-              Seo Image
-            </label>
+            <label className="text-sm font-medium text-gray-700 block mb-2">Seo Image</label>
 
             <div className="flex flex-col md:flex-row gap-4 border border-gray-300 rounded-md p-4 bg-white">
-              {/* File input (hidden) */}
-              <input
-                type="file"
-                id="seoImage"
-                {...register("seoImage")}
-                ref={fileInputRef}
-                className="hidden"
+              {/* The file input is controlled by Controller so RHF always receives a FileList */}
+              <Controller
+                name="seoImage"
+                control={control}
+                render={({ field }) => (
+                  <>
+                    <input
+                      type="file"
+                      id="seoImage"
+                      accept="image/*"
+                      ref={(el) => {
+                        fileInputRef.current = el;
+                        // RHF wants the ref too:
+                        // @ts-expect-error RHF accepts HTMLInputElement here
+                        field.ref = el;
+                      }}
+                      className="hidden"
+                      onChange={(e) => {
+                        const fl = (e.target as HTMLInputElement).files ?? null;
+                        // push FileList (or null) into RHF
+                        field.onChange(fl);
+                        // update local preview
+                        setPreviewFromFile(fl && fl.length ? fl[0] : null);
+                      }}
+                    />
+
+                    {/* Add image (hidden when we have preview or server image) */}
+                    {!hasImage && (
+                      <label
+                        htmlFor="seoImage"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          openPicker();
+                        }}
+                        className="bg-[#FAFAFA] border border-dashed border-gray-300 rounded-md w-full sm:w-[200px] h-[112px] flex flex-col items-center justify-center text-center text-sm text-blue-600 cursor-pointer"
+                      >
+                        + Add image
+                        <p className="text-xs text-gray-400 mt-1">(Recommended: 1200 × 628 px)</p>
+                      </label>
+                    )}
+                  </>
+                )}
               />
 
-              {/* Add image button — hidden when an image exists */}
-              {!hasImage && (
-                <label
-                  htmlFor="seoImage"
-                  className="bg-[#FAFAFA] border border-dashed border-gray-300 rounded-md w-full sm:w-[200px] h-[112px] flex flex-col items-center justify-center text-center text-sm text-blue-600 cursor-pointer"
-                >
-                  + Add image
-                  <p className="text-xs text-gray-400 mt-1">
-                    (Recommended: 1200 × 628 px)
-                  </p>
-                </label>
-              )}
-
-              {/* Preview + actions */}
+              {/* Preview & actions */}
               <div className="text-sm flex-1">
-                <p className="text-[#3C3C3C] font-medium text-sm mb-2">
-                  Preview
-                </p>
+                <p className="text-[#3C3C3C] font-medium text-sm mb-2">Preview</p>
                 {hasImage ? (
                   <>
                     <img
@@ -143,17 +156,15 @@ const SEOCategorySection: React.FC<{ serverSeoImageUrl?: string }> = ({
                     <div className="flex gap-2">
                       <button
                         type="button"
-                        onClick={handleReplaceClick}
+                        onClick={openPicker}
                         className="px-3 py-1 text-xs rounded border border-gray-300 hover:bg-gray-50"
                       >
                         Replace image
                       </button>
-
-                      {/* Only show Remove when the preview is from a newly chosen file */}
                       {localPreview && (
                         <button
                           type="button"
-                          onClick={handleRemoveClick}
+                          onClick={removeLocal}
                           className="px-3 py-1 text-xs rounded border border-gray-300 hover:bg-gray-50"
                         >
                           Remove
