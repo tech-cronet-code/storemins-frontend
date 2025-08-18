@@ -1,86 +1,81 @@
-import React, { useEffect, useRef, useState } from "react";
-import { useFormContext } from "react-hook-form";
+// components/ProductForm/SEOSection.tsx
 import { ChevronDown, ChevronUp } from "lucide-react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { Controller, useFormContext } from "react-hook-form";
+import { convertPath } from "../../../auth/utils/useImagePath";
 
-const BOX_W = 320;   // 👈 set your exact placeholder width (e.g., 200)
-const BOX_H = 168;   // 👈 and height (e.g., 112)
+const BOX_W = 320;
+const BOX_H = 168;
 
 const SEOSection: React.FC = () => {
-  const { register, watch, setValue } = useFormContext();
+  const { control, register, setValue, watch } = useFormContext();
 
   const [expanded, setExpanded] = useState(true);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [imageName, setImageName] = useState<string | null>(null);
-  const objectUrlRef = useRef<string | null>(null);
-  const inputRef = useRef<HTMLInputElement | null>(null);
+  const [localPreview, setLocalPreview] = useState<string | null>(null);
+  const [localFileName, setLocalFileName] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-  // RHF values we may receive
-  const fileField = watch("seoImage"); // FileList/File when user picks
-  const urlFromSeo = watch("seoMetaData?.imageUrl"); // if you store it here
-  const urlLoose   = watch("seoImageUrl");           // or here (whichever you use)
+  const rawSeoImageUrl =
+    (watch("seoImageUrl") as string | undefined) ??
+    (watch("seoMetaData.imageUrl") as string | undefined);
 
-  // Build preview: prefer newly picked file > existing URL
+  const serverSeoImageUrl = useMemo(() => {
+    if (!rawSeoImageUrl) return undefined;
+    if (/^https?:\/\//i.test(rawSeoImageUrl) || rawSeoImageUrl.startsWith("/")) {
+      return rawSeoImageUrl; // already a full/absolute url
+    }
+    try {
+      // our BE serves: /files/original/:token
+      return convertPath(rawSeoImageUrl, "original/product/seo");
+    } catch {
+      return undefined;
+    }
+  }, [rawSeoImageUrl]);
+
+  const setPreviewFromFile = (file?: File | null) => {
+    setLocalPreview((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return file ? URL.createObjectURL(file) : null;
+    });
+    setLocalFileName(file?.name ?? null);
+  };
+
   useEffect(() => {
-    // cleanup previous object URL
-    if (objectUrlRef.current) {
-      URL.revokeObjectURL(objectUrlRef.current);
-      objectUrlRef.current = null;
-    }
-
-    // 1) user-picked file (FileList or File)
-    if (fileField instanceof FileList && fileField[0]) {
-      const f = fileField[0];
-      const url = URL.createObjectURL(f);
-      objectUrlRef.current = url;
-      setPreviewUrl(url);
-      setImageName(f.name);
-      return;
-    }
-    if (fileField instanceof File) {
-      const url = URL.createObjectURL(fileField);
-      objectUrlRef.current = url;
-      setPreviewUrl(url);
-      setImageName(fileField.name);
-      return;
-    }
-
-    // 2) existing URL (from defaults)
-    const existing = urlFromSeo || urlLoose || null;
-    setPreviewUrl(existing);
-    setImageName(existing ? existing.split("/").pop() || null : null);
-  }, [fileField, urlFromSeo, urlLoose]);
-
-  // Wire up RHF's register but override onChange to update preview instantly
-  const reg = register("seoImage");
-  const onFileChange: React.ChangeEventHandler<HTMLInputElement> = (e) => {
-    reg.onChange(e); // keep RHF in sync
-    const f = e.target.files?.[0];
-    if (f) {
-      // ensure RHF stores the FileList so it goes to FormData
-      setValue("seoImage", e.target.files as unknown as FileList, {
-        shouldDirty: true,
-        shouldValidate: true,
+    return () => {
+      setLocalPreview((prev) => {
+        if (prev) URL.revokeObjectURL(prev);
+        return null;
       });
-      // preview handled by effect
+    };
+  }, []);
+
+  const openPicker = () => {
+    if (fileInputRef.current) fileInputRef.current.value = "";
+    fileInputRef.current?.click();
+  };
+
+  const removeImage = () => {
+    if (localPreview) {
+      setPreviewFromFile(null);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      // clear RHF file field
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      setValue("seoImage", undefined as any, { shouldDirty: true, shouldValidate: true });
+      return;
+    }
+    if (serverSeoImageUrl) {
+      // clear both flat + nested keys
+      setValue("seoImageUrl", "", { shouldDirty: true, shouldValidate: true });
+      setValue("seoMetaData.imageUrl", "", { shouldDirty: true, shouldValidate: true });
     }
   };
 
-  const clearImage = () => {
-    if (inputRef.current) inputRef.current.value = "";
-    setValue("seoImage", null, { shouldDirty: true, shouldValidate: true });
-    // if you also want to tell backend to clear existing SEO image, set a flag:
-    // setValue("seoImageClear", true, { shouldDirty: true });
-    if (objectUrlRef.current) {
-      URL.revokeObjectURL(objectUrlRef.current);
-      objectUrlRef.current = null;
-    }
-    setPreviewUrl(null);
-    setImageName(null);
-  };
+  const hasAnyImage = Boolean(localPreview || serverSeoImageUrl);
+
+  
 
   return (
     <div className="bg-white border border-gray-200 rounded-md overflow-hidden">
-      {/* Header */}
       <div
         className="flex justify-between items-center px-5 py-4 cursor-pointer"
         onClick={() => setExpanded((x) => !x)}
@@ -116,70 +111,101 @@ const SEOSection: React.FC = () => {
             />
           </div>
 
-          {/* SEO image picker + preview in SAME BOX */}
+          {/* Social image */}
           <div>
             <label className="text-sm font-medium text-gray-700 block mb-2">Social sharing image</label>
 
             <div className="flex items-start gap-4">
-              {/* Box */}
+              {/* Uploader area */}
               <div
-                style={{ width: BOX_W, height: BOX_H }}
                 className="relative rounded-md border border-dashed border-gray-300 bg-[#FAFAFA] overflow-hidden"
+                style={{ width: BOX_W, height: BOX_H }}
               >
-                {/* Hidden file input */}
-                <input
-                  type="file"
-                  accept="image/*"
-                  id="seoImage"
-                  {...reg}
-                  ref={(el) => {
-                    reg.ref(el);
-                    inputRef.current = el;
-                  }}
-                  onChange={onFileChange}
-                  className="hidden"
-                />
+                <Controller
+                  name="seoImage"
+                  control={control}
+                  render={({ field }) => (
+                    <>
+                      <input
+                        type="file"
+                        id="seoImage"
+                        accept="image/*"
+                        ref={(el) => {
+                          fileInputRef.current = el;
+                          // @ts-expect-error RHF accepts HTMLInputElement
+                          field.ref = el;
+                        }}
+                        className="hidden"
+                        onChange={(e) => {
+                          const fl = (e.target as HTMLInputElement).files ?? null;
+                          field.onChange(fl);
+                          if (fl && fl.length) {
+                            // clear both url fields when user picks a new file
+                            setValue("seoImageUrl", "", { shouldDirty: true });
+                            setValue("seoMetaData.imageUrl", "", { shouldDirty: true });
+                            setPreviewFromFile(fl[0]); // instant preview
+                          } else {
+                            setPreviewFromFile(null);
+                          }
+                        }}
+                      />
 
-                {/* If preview -> show it filling the box */}
-                {previewUrl ? (
-                  <>
-                    <img
-                      src={previewUrl}
-                      alt="SEO preview"
-                      className="absolute inset-0 w-full h-full object-cover"
-                    />
-                    <button
-                      type="button"
-                      onClick={(e) => { e.preventDefault(); e.stopPropagation(); clearImage(); }}
-                      className="absolute top-1 right-1 z-10 inline-flex items-center justify-center w-6 h-6 rounded-full bg-white/95 text-gray-700 shadow hover:bg-red-50"
-                      title="Remove"
-                    >
-                      ×
-                    </button>
-                    {/* transparent click layer to open picker when clicking image */}
-                    <label htmlFor="seoImage" className="absolute inset-0 cursor-pointer" />
-                  </>
-                ) : (
-                  // Empty state (centered)
-                  <label
-                    htmlFor="seoImage"
-                    className="absolute inset-0 flex flex-col items-center justify-center text-center text-sm text-blue-600 cursor-pointer"
-                  >
-                    + Add image
-                    <span className="text-xs text-gray-400 mt-1">(Recommended: 1200 × 628 px)</span>
-                  </label>
-                )}
+                      {!hasAnyImage ? (
+                        <label
+                          htmlFor="seoImage"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            openPicker();
+                          }}
+                          className="absolute inset-0 flex flex-col items-center justify-center text-center text-sm text-blue-600 cursor-pointer"
+                        >
+                          + Add image
+                          <span className="text-xs text-gray-400 mt-1">(Recommended: 1200 × 628 px)</span>
+                        </label>
+                      ) : (
+                        <>
+                          <img
+                            src={localPreview || (serverSeoImageUrl as string)}
+                            alt="SEO preview"
+                            className="absolute inset-0 w-full h-full object-cover"
+                          />
+                          <label htmlFor="seoImage" className="absolute inset-0 cursor-pointer" />
+                        </>
+                      )}
+                    </>
+                  )}
+                />
               </div>
 
-              {/* Meta preview text */}
+              {/* Right side meta / actions */}
               <div className="text-sm">
                 <p className="text-[#3C3C3C] font-medium text-sm mb-1">Product Page Title</p>
                 <p className="text-xs text-[#6F6F6F] break-words">
                   https://storemins.io/your-store/products/your-slug
                 </p>
                 <p className="text-xs text-[#A0A0A0] mt-1">Meta Description</p>
-                {imageName && (
-                  <p className="text-xs mt-2 text-gray-500 italic">({imageName} selected)</p>
+
+                {hasAnyImage && (
+                  <div className="flex gap-2 mt-3">
+                    <button
+                      type="button"
+                      onClick={openPicker}
+                      className="px-3 py-1 text-xs rounded border border-gray-300 hover:bg-gray-50"
+                    >
+                      Replace image
+                    </button>
+                    <button
+                      type="button"
+                      onClick={removeImage}
+                      className="px-3 py-1 text-xs rounded border border-gray-300 hover:bg-gray-50"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                )}
+
+                {localFileName && (
+                  <p className="text-xs mt-2 text-gray-500 italic">({localFileName} selected)</p>
                 )}
               </div>
             </div>

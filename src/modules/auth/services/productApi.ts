@@ -149,7 +149,27 @@ interface ProductResponseDto {
   // Other fields...
 }
 
+export interface ProductListItem {
+  id: string;
+  name: string;
+  price: number;
+  discountedPrice?: number;
+  description?: string;
+  stock?: number;
+  stockStatus?: "in_stock" | "out_of_stock";
+  images?: string[];
+  status: "ACTIVE" | "INACTIVE";
+}
+
+
+export interface VariantDto {
+  optionName: string;
+  optionValues: string[];
+}
+
 export interface ProductDetailsResponse {
+  quantity: any;
+  media: never[];
   id: string;
   name: string;
   price: number;
@@ -158,18 +178,20 @@ export interface ProductDetailsResponse {
   stock?: number;
   sku?: string;
   stockStatus?: "in_stock" | "out_of_stock";
-  shippingClass?: string;
-  taxClass?: string;
-  variant?: string;
   images?: string[];
-  videoUrl?: string;
   status: "ACTIVE" | "INACTIVE";
+  shippingWeight?: number;
+  hsnCode?: string;
+  gstPercent?: number;
+  variants?: VariantDto[];
+
   categoryLinks: Array<{
     parentCategoryId?: string;
     parentCategoryName?: string;
     subCategoryId?: string;
     subCategoryName?: string;
   }>;
+
   seoMetaData?: {
     title?: string;
     description?: string;
@@ -241,116 +263,72 @@ export const productApi = createApi({
         body,
       }),
     }),
-    // ADD inside endpoints
-    createProduct: builder.mutation<
-      { message: string; data: CreateProductResponse },
-      FormData // <-- Change here to FormData
-    >({
-      query: (formData) => ({
-        url: `/seller/product/product/create`,
-        method: "POST",
-        body: formData, // send form data raw
-      }),
+   // CREATE (multipart)
+    createProduct: builder.mutation<{ message: string; data: { id: string; name: string } }, FormData>({
+      query: (formData) => ({ url: `/seller/product/product/create`, method: "POST", body: formData }),
     }),
 
-    // ✅ New: List all products
-    // ✅ List Products by Business
-    listProducts: builder.query<ProductListResponse[], { businessId: string }>({
-      query: ({ businessId }) => ({
-        url: `/seller/product/product/list-by-business`,
-        method: "POST",
-        body: { businessId },
-      }),
-      transformResponse: (raw: {
-        message: string;
-        data: ProductResponseDto[];
-      }): ProductListResponse[] => {
-        return raw.data.map((product) => {
-          const images =
-            product.media
-              ?.filter((m) => m.type === "IMAGE")
-              .map((m) => m.url) || [];
-          const video =
-            product.media?.find((m) => m.type === "VIDEO")?.url || "";
-
+     // LIST BY BUSINESS
+    listProducts: builder.query<ProductListItem[], { businessId: string }>({
+      query: ({ businessId }) => ({ url: `/seller/product/product/list-by-business`, method: "POST", body: { businessId } }),
+      transformResponse: (raw: { message: string; data: ProductResponseDto[] }): ProductListItem[] =>
+        raw.data.map((p) => {
+          const images = p.media?.filter((m) => m.type === "IMAGE").map((m) => m.url) || [];
           return {
-            id: product.id,
-            name: product.name,
-            price: product.price || 0,
-            discountedPrice: product.discountedPrice,
-            description: product.description,
-            stock: product.quantity,
-            stockStatus:
-              product.quantity && product.quantity > 0
-                ? "in_stock"
-                : "out_of_stock",
-            shippingClass: "", // Not provided by backend
-            taxClass: "", // Not provided by backend
-            variant: "", // Not provided by backend
-            images: images,
-            videoUrl: video,
-            category: "", // Not provided by backend
-            status: product.status === "ACTIVE" ? "ACTIVE" : "INACTIVE",
+            id: p.id,
+            name: p.name,
+            price: p.price ?? 0,
+            discountedPrice: p.discountedPrice,
+            description: p.description,
+            stock: p.quantity,
+            stockStatus: p.quantity && p.quantity > 0 ? "in_stock" : "out_of_stock",
+            images,
+            status: p.status === "ACTIVE" ? "ACTIVE" : "INACTIVE",
           };
-        });
-      },
+        }),
     }),
+
 
     // ➔ New: Get Product By ID
+ // GET BY ID
     getProductById: builder.query<ProductDetailsResponse, { id: string }>({
-      query: ({ id }) => ({
-        url: `/seller/product/product/get-by-id`, // <-- New backend API
-        method: "POST",
-        body: { id },
-      }),
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      transformResponse: (raw: {
-        message: string;
-        data: any;
-      }): ProductDetailsResponse => {
-        const product = raw.data;
-
-        const images =
-          product.media
-            ?.filter((m: any) => m.type === "IMAGE")
-            .map((m: any) => m.url) || [];
-        const videoUrl =
-          product.media?.find((m: any) => m.type === "VIDEO")?.url || "";
-
+      query: ({ id }) => ({ url: `/seller/product/product/get-by-id`, method: "POST", body: { id } }),
+      transformResponse: (raw: { message: string; data: any }): ProductDetailsResponse => {
+        const p = raw.data;
+        const images = p.media?.filter((m: any) => m.type === "IMAGE").map((m: any) => m.url) || [];
         return {
-          id: product.id,
-          name: product.name,
-          price: product.price ?? 0,
-          discountedPrice: product.discountedPrice,
-          description: product.description,
-          stock: product.quantity,
-          sku: product.sku,
-          stockStatus: product.quantity > 0 ? "in_stock" : "out_of_stock",
-          shippingClass: "",
-          taxClass: "",
-          variant: "",
+          id: p.id,
+          name: p.name,
+          price: p.price ?? 0,
+          discountedPrice: p.discountedPrice,
+          description: p.description,
+          stock: p.quantity,
+          sku: p.sku,
+          stockStatus: p.quantity > 0 ? "in_stock" : "out_of_stock",
           images,
-          videoUrl,
-          status: product.status === "ACTIVE" ? "ACTIVE" : "INACTIVE",
-          categoryLinks: product.categoryLinks || [],
+          status: p.status === "ACTIVE" ? "ACTIVE" : "INACTIVE",
+
+          // 🔑 Shipping & Tax
+          shippingWeight: p.shippingWeight,
+          hsnCode: p.hsnCode,
+          gstPercent: p.gstPercent,
+
+          // 🔑 Variants
+          variants: p.variants || [],
+
+          // Categories & SEO
+          categoryLinks: p.categoryLinks || [],
           seoMetaData: {
-            title: product.seoMetaData?.title || "",
-            description: product.seoMetaData?.description || "",
-            imageUrl: product.seoMetaData?.imageUrl || "",
+            title: p.seoMetaData?.title || "",
+            description: p.seoMetaData?.description || "",
+            imageUrl: p.seoMetaData?.imageUrl || "",
           },
         };
       },
     }),
-    //  New: Update Product
-    updateProduct: builder.mutation<
-      { message: string; data: GetProductResponse },
-      FormData // <-- Change here to FormData
-    >({
-      query: (formData) => ({
-        url: `/seller/product/product/edit`,
-        method: "POST",
-        body: formData,
-      }),
+  // EDIT (multipart)
+    updateProduct: builder.mutation<{ message: string; data: ProductDetailsResponse }, FormData>({
+      query: (formData) => ({ url: `/seller/product/product/edit`, method: "POST", body: formData }),
     }),
 
     updateProductStatus: builder.mutation<

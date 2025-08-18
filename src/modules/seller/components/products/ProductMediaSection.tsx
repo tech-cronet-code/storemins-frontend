@@ -1,74 +1,135 @@
-import React, { useEffect, useRef, useState } from "react";
-import { useFormContext } from "react-hook-form";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { useFormContext, useWatch } from "react-hook-form";
 import { Image as ImageIcon } from "lucide-react";
+import { convertPath } from "../../../auth/utils/useImagePath";
 
-const TILE_W = 120; // tweak to your exact size
+const LOG = "[ProductMediaSection]";
+const TILE_W = 120;
 const TILE_H = 150;
 const MAX_IMAGES = 6;
 
-type Tile = { id: string; url: string; file: File };
+type FileTile = { id: string; kind: "file"; url: string; file: File };
+type UrlTile  = { id: string; kind: "url"; url: string; token: string };
+type Tile = FileTile | UrlTile;
 
 const ProductMediaSection: React.FC = () => {
-  const { register, setValue, setError, clearErrors, formState: { errors } } = useFormContext();
+  const { register, setValue, setError, clearErrors, formState: { errors }, control } = useFormContext();
+
+  // Subscribe to form values so we see updates after reset()
+  const media = (useWatch({ control, name: "media" }) as Array<{ url: string; order?: number }>) ?? [];
+  const mediaUrls = (useWatch({ control, name: "mediaUrls" }) as string[]) ?? [];
+
+  const mediaTokensFromMedia = (Array.isArray(media) ? media : [])
+    .slice()
+    .sort((a, b) => (a?.order ?? 0) - (b?.order ?? 0))
+    .map((m) => m?.url)
+    .filter(Boolean) as string[];
+
+  const initialTokens: string[] = (mediaTokensFromMedia.length ? mediaTokensFromMedia : mediaUrls).filter(Boolean);
 
   const [tiles, setTiles] = useState<Tile[]>([]);
-  const dragFrom = useRef<number | null>(null);
-
-  // hook to RHF but we manage value manually
   const { ref: rhfRef, ...imgReg } = register("images");
+  const fileInput = useRef<HTMLInputElement | null>(null);
 
-  // sync RHF value (keeps visual order -> upload order)
+  // Guards to avoid writing [] back before we've hydrated
+  const didSeed = useRef(false);
+  const hydrated = useRef(false);
+
+  // token -> displayable URL
+  const tokenToUrl = (token: string): string => {
+    if (!token) return "";
+    if (/^https?:\/\//i.test(token) || token.startsWith("/")) return token;
+    try {
+      const u = convertPath(token, "original/product") as string | undefined;
+      if (u) return u;
+    } catch { /* empty */ }
+    // confirmed working path on your server:
+    return `/image/original/product/${token}`;
+  };
+
+  // Debug what we see from the form
   useEffect(() => {
+    console.log(LOG, "media (ordered) tokens =", mediaTokensFromMedia);
+    console.log(LOG, "mediaUrls (string[]) =", mediaUrls);
+    console.log(LOG, "initialTokens used =", initialTokens);
+  }, [mediaTokensFromMedia, mediaUrls, initialTokens]);
+
+  // Seed once when tokens arrive from reset()
+  useEffect(() => {
+    if (didSeed.current) return;
+    if (!initialTokens.length) return; // wait until tokens show up
+    didSeed.current = true;
+    hydrated.current = true; // safe to start syncing back to the form
+
+    const seeded: Tile[] = initialTokens.map((token) => ({
+      id: crypto.randomUUID(),
+      kind: "url",
+      token,
+      url: tokenToUrl(token),
+    }));
+    console.table(seeded.map((t, i) => ({ idx: i, kind: t.kind, token: (t as UrlTile).token, url: t.url })));
+    setTiles(seeded);
+  }, [initialTokens]);
+
+  // Keep RHF in sync — but only after we're hydrated.
+  useEffect(() => {
+    if (!hydrated.current) return; // don't clobber reset() values with []
+
+    const files = tiles.filter((t): t is FileTile => t.kind === "file");
+    const keptTokens = tiles.filter((t): t is UrlTile => t.kind === "url").map((t) => t.token);
+
     const dt = new DataTransfer();
-    tiles.forEach(t => dt.items.add(t.file));
+    files.forEach((t) => dt.items.add(t.file));
     setValue("images", dt.files, { shouldDirty: true, shouldValidate: true });
+    setValue("mediaUrls", keptTokens, { shouldDirty: true, shouldValidate: true });
+
     if (tiles.length > MAX_IMAGES) {
       setError("images", { type: "max", message: `You can upload up to ${MAX_IMAGES} images.` });
-    } else clearErrors("images");
+    } else {
+      clearErrors("images");
+    }
   }, [tiles, setValue, setError, clearErrors]);
 
-  // clean URLs on unmount
-  useEffect(() => () => tiles.forEach(t => URL.revokeObjectURL(t.url)), [tiles]);
+  // Cleanup object URLs
+  useEffect(
+    () => () => {
+      tiles.forEach((t) => t.kind === "file" && URL.revokeObjectURL(t.url));
+    },
+    [tiles]
+  );
 
   const addFiles = (files: File[]) => {
     if (!files.length) return;
-    const next = [...tiles];
-    for (const f of files) {
-      if (!f.type.startsWith("image/")) continue;
-      if (next.length >= MAX_IMAGES) break;
-      next.push({ id: crypto.randomUUID(), url: URL.createObjectURL(f), file: f });
-    }
-    setTiles(next);
-    if (tiles.length + files.length > MAX_IMAGES)
-      setError("images", { type: "max", message: `You can upload up to ${MAX_IMAGES} images.` });
-    else clearErrors("images");
+    hydrated.current = true; // user interaction -> safe to sync
+    setTiles((cur) => {
+      const next: Tile[] = [...cur];
+      for (const f of files) {
+        if (!f.type.startsWith("image/")) continue;
+        if (next.length >= MAX_IMAGES) break;
+        next.push({ id: crypto.randomUUID(), kind: "file", file: f, url: URL.createObjectURL(f) });
+      }
+      return next;
+    });
   };
 
-  const onPick: React.ChangeEventHandler<HTMLInputElement> = e => {
+  const onPick: React.ChangeEventHandler<HTMLInputElement> = (e) => {
     addFiles(Array.from(e.target.files ?? []));
-    e.target.value = ""; // allow picking same files again
+    if (fileInput.current) fileInput.current.value = "";
   };
 
-  const onDropUpload: React.DragEventHandler<HTMLLabelElement> = e => {
+  const onDrop: React.DragEventHandler<HTMLLabelElement> = (e) => {
     e.preventDefault();
     addFiles(Array.from(e.dataTransfer.files ?? []));
   };
 
-  const removeAt = (i: number) => {
-    setTiles(cur => {
-      const copy = [...cur];
-      const [rm] = copy.splice(i, 1);
-      if (rm) URL.revokeObjectURL(rm.url);
-      return copy;
-    });
-  };
-
+  // Drag-sort
+  const dragFrom = useRef<number | null>(null);
   const onTileDragStart = (i: number) => (dragFrom.current = i);
   const onTileDrop = (to: number) => {
     const from = dragFrom.current;
     dragFrom.current = null;
     if (from == null || from === to) return;
-    setTiles(cur => {
+    setTiles((cur) => {
       const copy = [...cur];
       const [m] = copy.splice(from, 1);
       copy.splice(to, 0, m);
@@ -76,7 +137,17 @@ const ProductMediaSection: React.FC = () => {
     });
   };
 
-  const remaining = Math.max(0, MAX_IMAGES - tiles.length);
+  const removeAt = (i: number) => {
+    hydrated.current = true; // keep syncing removals too
+    setTiles((cur) => {
+      const copy = [...cur];
+      const [rm] = copy.splice(i, 1);
+      if (rm && rm.kind === "file") URL.revokeObjectURL(rm.url);
+      return copy;
+    });
+  };
+
+  const remaining = useMemo(() => Math.max(0, MAX_IMAGES - tiles.length), [tiles.length]);
 
   return (
     <div className="bg-white border border-gray-100 rounded-lg p-6">
@@ -85,11 +156,11 @@ const ProductMediaSection: React.FC = () => {
         Upload up to {MAX_IMAGES} images. Drag tiles to change their order.
       </p>
 
-      {/* Uploader (video removed) */}
+      {/* Uploader */}
       <label
         htmlFor="images"
-        onDrop={onDropUpload}
-        onDragOver={e => e.preventDefault()}
+        onDrop={onDrop}
+        onDragOver={(e) => e.preventDefault()}
         className="inline-flex items-center justify-center w-40 h-28 border border-dashed border-gray-300 rounded-md cursor-pointer hover:border-blue-500 hover:bg-blue-50 transition"
       >
         <div className="flex flex-col items-center text-gray-600">
@@ -98,10 +169,13 @@ const ProductMediaSection: React.FC = () => {
           <input
             id="images"
             type="file"
-            accept="image/*"
             multiple
+            accept="image/*"
             {...imgReg}
-            ref={rhfRef}
+            ref={(el) => {
+              rhfRef(el);
+              fileInput.current = el;
+            }}
             onChange={onPick}
             className="hidden"
           />
@@ -112,7 +186,7 @@ const ProductMediaSection: React.FC = () => {
         <p className="text-xs text-red-500 mt-2">{errors.images.message}</p>
       )}
 
-      {/* One-line strip */}
+      {/* Thumbnails */}
       <div className="mt-4 flex flex-nowrap items-center gap-3 overflow-x-auto">
         {tiles.map((t, i) => (
           <div
@@ -121,7 +195,7 @@ const ProductMediaSection: React.FC = () => {
             className="relative group flex-none rounded-lg overflow-hidden border bg-gray-50"
             draggable
             onDragStart={() => onTileDragStart(i)}
-            onDragOver={e => e.preventDefault()}
+            onDragOver={(e) => e.preventDefault()}
             onDrop={() => onTileDrop(i)}
             title="Drag to sort"
           >
@@ -130,28 +204,31 @@ const ProductMediaSection: React.FC = () => {
               alt={`preview-${i}`}
               className="w-full h-full object-cover select-none pointer-events-none"
               draggable={false}
+              onError={(e) => {
+                if (t.kind === "url") {
+                  const el = e.currentTarget as HTMLImageElement;
+                  const fallback = `/image/original/product/${t.token}`;
+                  if (el.src !== fallback) el.src = fallback;
+                }
+              }}
             />
-
-            {/* Remove (fixed) */}
             <button
               type="button"
-              onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }} // block drag
+              onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
               onClick={() => removeAt(i)}
-              className="absolute top-1 right-1 z-10 pointer-events-auto inline-flex items-center justify-center w-6 h-6 rounded-full bg-white/95 text-gray-700 shadow hover:bg-red-50"
-              aria-label="Remove image"
+              className="absolute top-1 right-1 z-10 inline-flex items-center justify-center w-6 h-6 rounded-full bg-white/95 text-gray-700 shadow hover:bg-red-50"
               title="Remove"
+              aria-label="Remove"
             >
               ×
             </button>
-
-            {/* Hover hint (doesn't steal clicks) */}
             <div className="pointer-events-none absolute inset-0 hidden group-hover:flex items-center justify-center bg-black/30 text-white text-[11px] font-medium">
               Drag to sort
             </div>
           </div>
         ))}
 
-        {/* Placeholders to keep a single line look */}
+        {/* Placeholders */}
         {Array.from({ length: remaining }).map((_, k) => (
           <div
             key={`ph-${k}`}

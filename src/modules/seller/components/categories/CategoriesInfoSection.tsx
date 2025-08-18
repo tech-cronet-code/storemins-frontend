@@ -8,7 +8,6 @@ import React, {
 import { useFormContext } from "react-hook-form";
 import { FaImage } from "react-icons/fa6";
 import { useAuth } from "../../../auth/contexts/AuthContext";
-import { convertPath } from "../../../auth/utils/useImagePath";
 import { useSellerProduct } from "../../hooks/useSellerProduct";
 import { CategoriesFormValues } from "../../Schemas/CategoriesSchema";
 
@@ -26,7 +25,6 @@ const CategoriesInfoSection: React.FC<CategoriesInfoSectionProps> = ({
   type,
   imageUrl,
   onImageFileChange,
-  imageDiskName,
 }) => {
   const {
     register,

@@ -11,7 +11,7 @@ export type KnownImageVariantExamples =
   | "original/auth"
   | "original/category"
   | "original/categories"
-  | "original/products"
+  | "original/product"
   | "original/products/featured"
   | "original/banners"
   | "original/brands";
