@@ -8,6 +8,47 @@ const variantOption = z.object({
   optionValues: z.array(z.string().min(1)).min(1, "Add at least one value"),
 });
 
+
+/** answer type options for customer questions */
+export const AnswerTypeEnum = z.enum(["TEXT", "YES_NO", "FILE_UPLOAD"]);
+
+export const questionSchema = z
+  .object({
+    order: z.number().int().min(0).optional().default(0),
+    prompt: z.string().trim().min(1, "Prompt is required"),
+    answerType: AnswerTypeEnum,
+    isRequired: z.boolean().optional().default(false),
+
+    // file-only constraints (nullable so clearing is possible)
+    maxFiles: z.number().int().positive().nullable().optional(),
+    maxSizeMB: z.number().int().positive().nullable().optional(),
+
+    // arbitrary JSON object or null
+    metadata: z.record(z.unknown()).nullable().optional(),
+
+    isActive: z.boolean().optional().default(true),
+  })
+  .superRefine((val, ctx) => {
+    if (val.answerType === "FILE_UPLOAD") {
+      if (val.maxFiles == null) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["maxFiles"],
+          message: "Max files is required for file uploads",
+        });
+      }
+      if (val.maxSizeMB == null) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["maxSizeMB"],
+          message: "Max size (MB) is required for file uploads",
+        });
+      }
+    }
+  });
+
+export type QuestionForm = z.infer<typeof questionSchema>;
+
 export const productSchema = z.object({
   name: z.string().min(1, "Product name is required"),
 
@@ -85,6 +126,24 @@ export const productSchema = z.object({
 
   // Product type
   type: z.enum(["PHYSICAL", "DIGITAL", "MEETING", "WORKSHOP"]).optional(),
-});
+
+    // NEW
+     // flags
+    isRecommended: z.boolean().optional().default(false),
+    customerQuestionsRequired: z.boolean().optional().default(false),
+
+    // questions
+    replaceQuestions: z.boolean().optional().default(false),
+    questions: z.array(questionSchema).default([]),
+  })
+  // conditional: if toggle ON, must have at least 1 question
+  .refine(
+    (data) => !data.customerQuestionsRequired || (data.questions?.length ?? 0) > 0,
+    {
+      path: ["questions"],
+      message:
+        'Add at least one customer question or turn off "All customer questions must be answered".',
+    }
+  );
 
 export type ProductFormValues = z.infer<typeof productSchema>;

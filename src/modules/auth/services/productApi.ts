@@ -66,6 +66,24 @@ export interface ProductCategoryListResponse {
   }>;
 }
 
+
+/** ─────────────────────────────────────────────────────────────
+ *  NEW: Questions + AnswerType
+ *  ───────────────────────────────────────────────────────────*/
+export type AnswerType = "TEXT" | "YES_NO" | "FILE_UPLOAD";
+
+export interface ProductQuestionDto {
+  order?: number;
+  prompt: string;
+  answerType: AnswerType;
+  isRequired?: boolean;
+  maxFiles?: number | null;
+  maxSizeMB?: number | null;
+  metadata?: Record<string, unknown> | null;
+  // isActive?: boolean; // backend defaults to true; omit in payload unless you need it
+}
+
+
 // Extend the ProductFormValues or create a new DTO if backend requires a different shape
 export interface CreateProductRequest {
   name: string;
@@ -80,6 +98,11 @@ export interface CreateProductRequest {
   variant?: string;
   images?: File[]; // For file uploads
   video?: File; // Optional video file
+
+   // NEW
+  isRecommended?: boolean;
+  customerQuestionsRequired?: boolean;
+  questions?: ProductQuestionDto[];
 }
 
 export interface CreateProductResponse {
@@ -133,20 +156,44 @@ export interface GetProductResponse {
 interface ProductResponseDto {
   id: string;
   name: string;
-  price?: number;
-  discountedPrice?: number;
-  description?: string;
-  quantity?: number;
-  status?: string;
+  type?: "PHYSICAL" | "DIGITAL" | "MEETING" | "WORKSHOP";
+  status?: "ACTIVE" | "INACTIVE";
+  createdAt?: string;
+  updatedAt?: string;
+  isArchived?: boolean;
+
+  // NEW FLAGS
+  isRecommended?: boolean;
+  customerQuestionsRequired?: boolean;
+
+  // pricing/meta/content
+  price?: number | null;
+  discountedPrice?: number | null;
+  description?: string | null;
+  quantity?: number | null;
+  sku?: string | null;
+  shippingWeight?: number | null;
+  hsnCode?: string | null;
+  gstPercent?: number | null;
+
   media?: Array<{ type: "IMAGE" | "VIDEO"; url: string; order?: number }>;
+  variants?: Array<{ optionName: string; optionValues: string[] }>;
+
   seoMetaData?: {
     title?: string;
     description?: string;
     imageUrl?: string;
   };
-  ParentCategory?: { id: string; name: string };
-  SubCategory?: { id: string; name: string };
-  // Other fields...
+
+  categoryLinks?: Array<{
+    parentCategoryId?: string;
+    parentCategoryName?: string;
+    subCategoryId?: string;
+    subCategoryName?: string;
+  }>;
+
+  // NEW: Questions echo
+  questions?: ProductQuestionDto[];
 }
 
 export interface ProductListItem {
@@ -159,6 +206,8 @@ export interface ProductListItem {
   stockStatus?: "in_stock" | "out_of_stock";
   images?: string[];
   status: "ACTIVE" | "INACTIVE";
+   // optional surfacing of recommended in list if you want:
+  isRecommended?: boolean;
 }
 
 
@@ -168,21 +217,26 @@ export interface VariantDto {
 }
 
 export interface ProductDetailsResponse {
-  quantity: any;
-  media: never[];
   id: string;
   name: string;
+
+  // flags
+  isRecommended?: boolean;
+  customerQuestionsRequired?: boolean;
+
+  // pricing/meta/content
   price: number;
-  discountedPrice?: number;
-  description?: string;
+  discountedPrice?: number | null;
+  description?: string | null;
   stock?: number;
-  sku?: string;
+  sku?: string | null;
   stockStatus?: "in_stock" | "out_of_stock";
   images?: string[];
   status: "ACTIVE" | "INACTIVE";
-  shippingWeight?: number;
-  hsnCode?: string;
-  gstPercent?: number;
+  shippingWeight?: number | null;
+  hsnCode?: string | null;
+  gstPercent?: number | null;
+
   variants?: VariantDto[];
 
   categoryLinks: Array<{
@@ -197,6 +251,9 @@ export interface ProductDetailsResponse {
     description?: string;
     imageUrl?: string;
   };
+
+  // NEW
+  questions?: ProductQuestionDto[];
 }
 
 export const productApi = createApi({
@@ -268,22 +325,27 @@ export const productApi = createApi({
       query: (formData) => ({ url: `/seller/product/product/create`, method: "POST", body: formData }),
     }),
 
-     // LIST BY BUSINESS
+    // LIST BY BUSINESS — include isRecommended if you want it in card/list
     listProducts: builder.query<ProductListItem[], { businessId: string }>({
-      query: ({ businessId }) => ({ url: `/seller/product/product/list-by-business`, method: "POST", body: { businessId } }),
+      query: ({ businessId }) => ({
+        url: `/seller/product/product/list-by-business`,
+        method: "POST",
+        body: { businessId },
+      }),
       transformResponse: (raw: { message: string; data: ProductResponseDto[] }): ProductListItem[] =>
-        raw.data.map((p) => {
+        (raw.data || []).map((p) => {
           const images = p.media?.filter((m) => m.type === "IMAGE").map((m) => m.url) || [];
           return {
             id: p.id,
             name: p.name,
             price: p.price ?? 0,
-            discountedPrice: p.discountedPrice,
-            description: p.description,
-            stock: p.quantity,
+            discountedPrice: p.discountedPrice ?? undefined,
+            description: p.description ?? undefined,
+            stock: p.quantity ?? undefined,
             stockStatus: p.quantity && p.quantity > 0 ? "in_stock" : "out_of_stock",
             images,
             status: p.status === "ACTIVE" ? "ACTIVE" : "INACTIVE",
+            isRecommended: p.isRecommended ?? undefined,
           };
         }),
     }),
@@ -291,42 +353,50 @@ export const productApi = createApi({
 
     // ➔ New: Get Product By ID
  // GET BY ID
+
+    // GET BY ID — hydrate flags + questions
     getProductById: builder.query<ProductDetailsResponse, { id: string }>({
       query: ({ id }) => ({ url: `/seller/product/product/get-by-id`, method: "POST", body: { id } }),
-      transformResponse: (raw: { message: string; data: any }): ProductDetailsResponse => {
+      transformResponse: (raw: { message: string; data: ProductResponseDto }): ProductDetailsResponse => {
         const p = raw.data;
-        const images = p.media?.filter((m: any) => m.type === "IMAGE").map((m: any) => m.url) || [];
+        const images = p.media?.filter((m) => m.type === "IMAGE").map((m) => m.url) || [];
         return {
           id: p.id,
           name: p.name,
+          // flags
+          isRecommended: p.isRecommended ?? false,
+          customerQuestionsRequired: p.customerQuestionsRequired ?? false,
+
+          // pricing/meta/content
           price: p.price ?? 0,
-          discountedPrice: p.discountedPrice,
-          description: p.description,
-          stock: p.quantity,
-          sku: p.sku,
-          stockStatus: p.quantity > 0 ? "in_stock" : "out_of_stock",
+          discountedPrice: p.discountedPrice ?? null,
+          description: p.description ?? null,
+          stock: p.quantity ?? undefined,
+          sku: p.sku ?? null,
+          stockStatus: (p.quantity ?? 0) > 0 ? "in_stock" : "out_of_stock",
           images,
           status: p.status === "ACTIVE" ? "ACTIVE" : "INACTIVE",
 
-          // 🔑 Shipping & Tax
-          shippingWeight: p.shippingWeight,
-          hsnCode: p.hsnCode,
-          gstPercent: p.gstPercent,
+          shippingWeight: p.shippingWeight ?? null,
+          hsnCode: p.hsnCode ?? null,
+          gstPercent: p.gstPercent ?? null,
 
-          // 🔑 Variants
           variants: p.variants || [],
 
-          // Categories & SEO
           categoryLinks: p.categoryLinks || [],
+
           seoMetaData: {
             title: p.seoMetaData?.title || "",
             description: p.seoMetaData?.description || "",
             imageUrl: p.seoMetaData?.imageUrl || "",
           },
+
+          // NEW
+          questions: p.questions || [],
         };
       },
     }),
-  // EDIT (multipart)
+ // EDIT (multipart) — unchanged signature
     updateProduct: builder.mutation<{ message: string; data: ProductDetailsResponse }, FormData>({
       query: (formData) => ({ url: `/seller/product/product/edit`, method: "POST", body: formData }),
     }),

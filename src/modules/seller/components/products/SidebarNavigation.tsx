@@ -22,6 +22,8 @@ const navItems = [
   { label: "Shipping & Tax", id: "shipping-tax", icon: Truck },
   { label: "Variants", id: "variants", icon: Layers },
   { label: "Product SEO", id: "seo", icon: Search },
+  { label: "Product Flags", id: "product-flags", icon: Search },
+  { label: "Customer Questions", id: "product-questions", icon: Search },
   {
     label: "Additional Product Fields",
     id: "additional-fields",

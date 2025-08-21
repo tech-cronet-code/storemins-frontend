@@ -1,6 +1,5 @@
-// components/ProductForm/ProductForm.tsx
 import React, { useEffect } from "react";
-import { useForm, FormProvider } from "react-hook-form";
+import { useForm, FormProvider, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../../auth/contexts/AuthContext";
@@ -17,6 +16,8 @@ import InventorySection from "./InventorySection";
 import ShippingTaxSection from "./ShippingTaxSection";
 import VariantsSection from "./VariantsSection";
 import SEOSection from "./SEOSection";
+import ProductFlagsSection from "./ProductFlagsSection";
+import QuestionsSection from "./QuestionsSection";
 
 import { ProductFormValues, productSchema } from "../../Schemas/productSchema";
 
@@ -26,14 +27,12 @@ interface ProductFormProps {
 
 const LOG = "[ProductForm]";
 
-// unwrap helper
 function unwrapProduct(p: any): any {
   if (!p) return p;
   if (p.data && typeof p.data === "object") return unwrapProduct(p.data);
   return p;
 }
 
-// get gallery tokens from various API shapes
 function extractMediaTokens(obj: any): string[] {
   if (!obj) return [];
   if (Array.isArray(obj.media)) {
@@ -44,10 +43,7 @@ function extractMediaTokens(obj: any): string[] {
       .filter(Boolean);
   }
   if (Array.isArray(obj.images)) {
-    return obj.images
-      .map((x: any) => (typeof x === "string" ? x : x?.url))
-      .filter(Boolean)
-      .map(String);
+    return obj.images.map((x: any) => (typeof x === "string" ? x : x?.url)).filter(Boolean).map(String);
   }
   if (obj.data) return extractMediaTokens(obj.data);
   return [];
@@ -67,7 +63,8 @@ const ProductForm: React.FC<ProductFormProps> = ({ productId }) => {
 
   const methods = useForm<ProductFormValues>({
     resolver: zodResolver(productSchema),
-    mode: "onSubmit",
+    mode: "onChange",         // real-time validation
+    reValidateMode: "onChange",
     defaultValues: {
       name: "",
       categoryLinks: [],
@@ -80,28 +77,40 @@ const ProductForm: React.FC<ProductFormProps> = ({ productId }) => {
       stockStatus: undefined,
       shippingClass: undefined,
       taxClass: undefined,
-
       variants: undefined,
 
-      images: undefined as any, // FileList (new uploads)
-      mediaUrls: [],            // kept tokens (existing gallery)
+      images: undefined as any,
+      mediaUrls: [],
 
-      // SEO
       seoTitle: "",
       seoDescription: "",
       seoImageUrl: "",
       seoImage: undefined as any,
 
-      // Shipping & Tax
       shippingWeight: undefined,
       hsnCode: "",
       gstPercent: undefined,
 
       type: "PHYSICAL",
+
+      isRecommended: false,
+      customerQuestionsRequired: false,
+
+      replaceQuestions: false,
+      questions: [],
     } as any,
   });
 
-  const { handleSubmit, reset } = methods;
+  const { handleSubmit, reset, control, trigger } = methods;
+
+  // live watchers for instant "questions" validation
+  const mustAnswer = useWatch({ control, name: "customerQuestionsRequired" });
+  const questions = useWatch({ control, name: "questions" }) || [];
+
+  useEffect(() => {
+    // revalidate only the "questions" field when toggle/length changes
+    void trigger("questions");
+  }, [mustAnswer, questions.length, trigger]);
 
   // hydrate in edit mode
   useEffect(() => {
@@ -132,7 +141,7 @@ const ProductForm: React.FC<ProductFormProps> = ({ productId }) => {
       variants: p?.variants || undefined,
 
       images: undefined as any,
-      mediaUrls: mediaTokens, // 👈 seed kept tokens for preview + submit
+      mediaUrls: mediaTokens,
 
       seoTitle: p?.seoMetaData?.title || "",
       seoDescription: p?.seoMetaData?.description || "",
@@ -143,6 +152,23 @@ const ProductForm: React.FC<ProductFormProps> = ({ productId }) => {
       gstPercent: p?.gstPercent ?? undefined,
 
       type: p?.type || "PHYSICAL",
+
+      isRecommended: !!p?.isRecommended,
+      customerQuestionsRequired: !!p?.customerQuestionsRequired,
+
+      replaceQuestions: false,
+      questions: Array.isArray(p?.questions)
+        ? p.questions.map((q: any, i: number) => ({
+            order: typeof q.order === "number" ? q.order : i,
+            prompt: q.prompt || "",
+            answerType: q.answerType || "TEXT",
+            isRequired: !!q.isRequired,
+            maxFiles: q.maxFiles ?? null,
+            maxSizeMB: q.maxSizeMB ?? null,
+            metadata: q.metadata && typeof q.metadata === "object" && !Array.isArray(q.metadata) ? q.metadata : null,
+            isActive: true,
+          }))
+        : [],
     } as any);
   }, [productRaw, productId, reset]);
 
@@ -164,15 +190,17 @@ const ProductForm: React.FC<ProductFormProps> = ({ productId }) => {
       if (data.description) fd.append("description", data.description);
       if (data.stock != null && String(data.stock) !== "") fd.append("quantity", String(data.stock));
       if (data.sku) fd.append("sku", data.sku);
-      if (data.shippingWeight != null && String(data.shippingWeight) !== "") {
+      if (data.shippingWeight != null && String(data.shippingWeight) !== "")
         fd.append("shippingWeight", String(data.shippingWeight));
-      }
       if (data.hsnCode) fd.append("hsnCode", data.hsnCode);
-      if (data.gstPercent != null && String(data.gstPercent) !== "") {
-        fd.append("gstPercent", String(data.gstPercent));
-      }
+      if (data.gstPercent != null && String(data.gstPercent) !== "") fd.append("gstPercent", String(data.gstPercent));
       if (data.type) fd.append("type", data.type);
 
+      // flags
+      fd.append("isRecommended", String(!!data.isRecommended));
+      fd.append("customerQuestionsRequired", String(!!data.customerQuestionsRequired));
+
+      // categories
       if (data.categoryLinks !== undefined) {
         fd.append("categoryLinks", JSON.stringify(data.categoryLinks));
       }
@@ -192,26 +220,40 @@ const ProductForm: React.FC<ProductFormProps> = ({ productId }) => {
           JSON.stringify({
             title: data.seoTitle || "",
             description: data.seoDescription || "",
-            imageUrl: hasSeoFile ? "" : (data.seoImageUrl || ""),
+            imageUrl: hasSeoFile ? "" : data.seoImageUrl || "",
           })
         );
       }
 
-      // 🔑 GALLERY BEHAVIOR:
-      // Send the tokens we are keeping (so old images persist),
-      // and also append any new files.
+      // gallery kept tokens (edit)
       const keptTokens = (data.mediaUrls || []) as string[];
-
       if (productId) {
-        fd.append(
-          "media",
-          JSON.stringify(keptTokens.map((u, i) => ({ type: "IMAGE", url: u, order: i })))
-        );
+        fd.append("media", JSON.stringify(keptTokens.map((u, i) => ({ type: "IMAGE", url: u, order: i }))));
       }
 
+      // new uploads
       const files = data.images as unknown as FileList | undefined;
-      if (files && files.length) {
-        Array.from(files).forEach((f) => fd.append("images", f));
+      if (files && files.length) Array.from(files).forEach((f) => fd.append("images", f));
+
+      // questions payload
+      const shouldSendQuestions = !productId
+        ? (data.questions?.length ?? 0) > 0 || data.customerQuestionsRequired === true
+        : data.replaceQuestions === true;
+
+      if (shouldSendQuestions) {
+        const clean = (data.questions || [])
+          .filter((q) => q && q.prompt && q.answerType)
+          .map((q, i) => ({
+            order: typeof q.order === "number" ? q.order : i,
+            prompt: q.prompt,
+            answerType: q.answerType,
+            isRequired: !!q.isRequired,
+            maxFiles: q.maxFiles ?? null,
+            maxSizeMB: q.maxSizeMB ?? null,
+            metadata:
+              q.metadata && typeof q.metadata === "object" && !Array.isArray(q.metadata) ? q.metadata : null,
+          }));
+        fd.append("questions", JSON.stringify(clean));
       }
 
       if (productId) {
@@ -258,6 +300,14 @@ const ProductForm: React.FC<ProductFormProps> = ({ productId }) => {
 
         <section id="seo" className="scroll-mt-24">
           <SEOSection />
+        </section>
+
+        <section id="product-flags" className="scroll-mt-24">
+          <ProductFlagsSection isEdit={!!productId} />
+        </section>
+
+        <section id="product-questions" className="scroll-mt-24">
+          <QuestionsSection />
         </section>
 
         <div className="flex justify-end mt-6 pb-15 pt-1">
