@@ -3,6 +3,11 @@ import { z } from "zod";
 
 const maxFileSize = 5 * 1024 * 1024; // 5MB
 
+const variantOption = z.object({
+  optionName: z.string().min(1, "Option name is required"),
+  optionValues: z.array(z.string().min(1)).min(1, "Add at least one value"),
+});
+
 export const productSchema = z.object({
   name: z.string().min(1, "Product name is required"),
 
@@ -46,14 +51,7 @@ export const productSchema = z.object({
   taxClass: z.string().optional(),
 
   // ✅ Correct: array of { optionName, optionValues[] }
-  variant: z
-    .array(
-      z.object({
-        optionName: z.string().min(1, "Option name is required"),
-        optionValues: z.array(z.string().min(1)).min(1, "Add at least one value"),
-      })
-    )
-    .optional(),
+  variants: z.array(variantOption).optional(),
 
   // Gallery files (or undefined). We accept FileList OR array of URLs (strings) for edit mode.
   images: z

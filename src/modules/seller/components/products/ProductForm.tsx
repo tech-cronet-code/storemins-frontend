@@ -26,17 +26,16 @@ interface ProductFormProps {
 
 const LOG = "[ProductForm]";
 
-// --- helpers ---------------------------------------------------------------
+// unwrap helper
 function unwrapProduct(p: any): any {
-  // handles: {data:{...}}, {success:true,data:{...}}, {data:{data:{...}}}, etc.
   if (!p) return p;
   if (p.data && typeof p.data === "object") return unwrapProduct(p.data);
   return p;
 }
 
+// get gallery tokens from various API shapes
 function extractMediaTokens(obj: any): string[] {
   if (!obj) return [];
-  // preferred: media: [{ url, order }]
   if (Array.isArray(obj.media)) {
     return obj.media
       .slice()
@@ -44,18 +43,15 @@ function extractMediaTokens(obj: any): string[] {
       .map((m: any) => String(m.url))
       .filter(Boolean);
   }
-  // some APIs: images: string[] OR [{url}]
   if (Array.isArray(obj.images)) {
     return obj.images
       .map((x: any) => (typeof x === "string" ? x : x?.url))
       .filter(Boolean)
       .map(String);
   }
-  // nested
   if (obj.data) return extractMediaTokens(obj.data);
   return [];
 }
-// --------------------------------------------------------------------------
 
 const ProductForm: React.FC<ProductFormProps> = ({ productId }) => {
   const navigate = useNavigate();
@@ -87,8 +83,8 @@ const ProductForm: React.FC<ProductFormProps> = ({ productId }) => {
 
       variants: undefined,
 
-      images: undefined as any, // FileList set by media section
-      mediaUrls: [],            // tokens for existing gallery (edit)
+      images: undefined as any, // FileList (new uploads)
+      mediaUrls: [],            // kept tokens (existing gallery)
 
       // SEO
       seoTitle: "",
@@ -105,18 +101,14 @@ const ProductForm: React.FC<ProductFormProps> = ({ productId }) => {
     } as any,
   });
 
-  const { handleSubmit, reset, getValues } = methods;
+  const { handleSubmit, reset } = methods;
 
-  // ✅ Prefill in edit mode
+  // hydrate in edit mode
   useEffect(() => {
     if (!productId || !productRaw) return;
 
     const p = unwrapProduct(productRaw);
     const mediaTokens = extractMediaTokens(p);
-
-    console.log(LOG, "raw get-by-id =", productRaw);
-    console.log(LOG, "unwrapped =", p);
-    console.log(LOG, "extracted media tokens =", mediaTokens);
 
     const categoryLinks = p?.categoryLinks || [];
     const categoryName = categoryLinks
@@ -140,7 +132,7 @@ const ProductForm: React.FC<ProductFormProps> = ({ productId }) => {
       variants: p?.variants || undefined,
 
       images: undefined as any,
-      mediaUrls: mediaTokens, // 🔑 seed previews here
+      mediaUrls: mediaTokens, // 👈 seed kept tokens for preview + submit
 
       seoTitle: p?.seoMetaData?.title || "",
       seoDescription: p?.seoMetaData?.description || "",
@@ -152,11 +144,7 @@ const ProductForm: React.FC<ProductFormProps> = ({ productId }) => {
 
       type: p?.type || "PHYSICAL",
     } as any);
-
-    setTimeout(() => {
-      console.log(LOG, "after reset, mediaUrls =", getValues("mediaUrls"));
-    }, 0);
-  }, [productRaw, productId, reset, getValues]);
+  }, [productRaw, productId, reset]);
 
   const onSubmit = async (data: ProductFormValues) => {
     try {
@@ -170,13 +158,11 @@ const ProductForm: React.FC<ProductFormProps> = ({ productId }) => {
       fd.append("businessId", businessId);
       fd.append("name", data.name);
 
-      // numbers-as-strings
+      // numeric fields
       fd.append("price", String(data.price ?? ""));
       if (String(data.discountedPrice ?? "") !== "") fd.append("discountedPrice", String(data.discountedPrice));
       if (data.description) fd.append("description", data.description);
-      if (data.stock !== undefined && data.stock !== null && String(data.stock) !== "") {
-        fd.append("quantity", String(data.stock));
-      }
+      if (data.stock != null && String(data.stock) !== "") fd.append("quantity", String(data.stock));
       if (data.sku) fd.append("sku", data.sku);
       if (data.shippingWeight != null && String(data.shippingWeight) !== "") {
         fd.append("shippingWeight", String(data.shippingWeight));
@@ -191,12 +177,12 @@ const ProductForm: React.FC<ProductFormProps> = ({ productId }) => {
         fd.append("categoryLinks", JSON.stringify(data.categoryLinks));
       }
 
-      // ✅ variants (correct key)
-      if (data.variant !== undefined) {
-        fd.append("variants", JSON.stringify(data.variant));
+      // variants
+      if (data.variants !== undefined) {
+        fd.append("variants", JSON.stringify(data.variants));
       }
 
-      // SEO: file takes precedence
+      // SEO
       const seoFiles = data.seoImage as unknown as FileList | undefined;
       const hasSeoFile = !!(seoFiles && seoFiles.length);
       if (hasSeoFile) fd.append("seoImage", seoFiles[0]);
@@ -211,19 +197,22 @@ const ProductForm: React.FC<ProductFormProps> = ({ productId }) => {
         );
       }
 
-      // 🔑 GALLERY: always send kept tokens (reflect removals/reorder)
+      // 🔑 GALLERY BEHAVIOR:
+      // Send the tokens we are keeping (so old images persist),
+      // and also append any new files.
       const keptTokens = (data.mediaUrls || []) as string[];
-      fd.append(
-        "media",
-        JSON.stringify(keptTokens.map((u, i) => ({ type: "IMAGE", url: u, order: i })))
-      );
 
-      // and new files to append
+      if (productId) {
+        fd.append(
+          "media",
+          JSON.stringify(keptTokens.map((u, i) => ({ type: "IMAGE", url: u, order: i })))
+        );
+      }
+
       const files = data.images as unknown as FileList | undefined;
-      const fileCount = files?.length ?? 0;
-      if (files && files.length) Array.from(files).forEach((f) => fd.append("images", f));
-
-      console.log(LOG, "submit snapshot", { keptTokens, fileCount, id: productId });
+      if (files && files.length) {
+        Array.from(files).forEach((f) => fd.append("images", f));
+      }
 
       if (productId) {
         fd.append("id", productId);

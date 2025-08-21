@@ -3,7 +3,7 @@ import { useFormContext, useWatch } from "react-hook-form";
 import { Image as ImageIcon } from "lucide-react";
 import { convertPath } from "../../../auth/utils/useImagePath";
 
-const LOG = "[ProductMediaSection]";
+// const LOG = "[ProductMediaSection]";
 const TILE_W = 120;
 const TILE_H = 150;
 const MAX_IMAGES = 6;
@@ -15,7 +15,7 @@ type Tile = FileTile | UrlTile;
 const ProductMediaSection: React.FC = () => {
   const { register, setValue, setError, clearErrors, formState: { errors }, control } = useFormContext();
 
-  // Subscribe to form values so we see updates after reset()
+  // watch values so we see reset() updates
   const media = (useWatch({ control, name: "media" }) as Array<{ url: string; order?: number }>) ?? [];
   const mediaUrls = (useWatch({ control, name: "mediaUrls" }) as string[]) ?? [];
 
@@ -31,11 +31,10 @@ const ProductMediaSection: React.FC = () => {
   const { ref: rhfRef, ...imgReg } = register("images");
   const fileInput = useRef<HTMLInputElement | null>(null);
 
-  // Guards to avoid writing [] back before we've hydrated
+  // seed only once to avoid flicker / loops
   const didSeed = useRef(false);
-  const hydrated = useRef(false);
+  const hydrated = useRef(false); // avoid writing [] back before hydration
 
-  // token -> displayable URL
   const tokenToUrl = (token: string): string => {
     if (!token) return "";
     if (/^https?:\/\//i.test(token) || token.startsWith("/")) return token;
@@ -43,23 +42,15 @@ const ProductMediaSection: React.FC = () => {
       const u = convertPath(token, "original/product") as string | undefined;
       if (u) return u;
     } catch { /* empty */ }
-    // confirmed working path on your server:
     return `/image/original/product/${token}`;
   };
 
-  // Debug what we see from the form
-  useEffect(() => {
-    console.log(LOG, "media (ordered) tokens =", mediaTokensFromMedia);
-    console.log(LOG, "mediaUrls (string[]) =", mediaUrls);
-    console.log(LOG, "initialTokens used =", initialTokens);
-  }, [mediaTokensFromMedia, mediaUrls, initialTokens]);
-
-  // Seed once when tokens arrive from reset()
+  // seed previews when tokens land
   useEffect(() => {
     if (didSeed.current) return;
-    if (!initialTokens.length) return; // wait until tokens show up
+    if (!initialTokens.length) return;
     didSeed.current = true;
-    hydrated.current = true; // safe to start syncing back to the form
+    hydrated.current = true;
 
     const seeded: Tile[] = initialTokens.map((token) => ({
       id: crypto.randomUUID(),
@@ -67,13 +58,12 @@ const ProductMediaSection: React.FC = () => {
       token,
       url: tokenToUrl(token),
     }));
-    console.table(seeded.map((t, i) => ({ idx: i, kind: t.kind, token: (t as UrlTile).token, url: t.url })));
     setTiles(seeded);
   }, [initialTokens]);
 
-  // Keep RHF in sync — but only after we're hydrated.
+  // keep RHF in sync (FileList + kept tokens in current order)
   useEffect(() => {
-    if (!hydrated.current) return; // don't clobber reset() values with []
+    if (!hydrated.current && tiles.length === 0) return;
 
     const files = tiles.filter((t): t is FileTile => t.kind === "file");
     const keptTokens = tiles.filter((t): t is UrlTile => t.kind === "url").map((t) => t.token);
@@ -81,6 +71,8 @@ const ProductMediaSection: React.FC = () => {
     const dt = new DataTransfer();
     files.forEach((t) => dt.items.add(t.file));
     setValue("images", dt.files, { shouldDirty: true, shouldValidate: true });
+
+    // 👇 critical: send these back on submit so BE keeps old ones
     setValue("mediaUrls", keptTokens, { shouldDirty: true, shouldValidate: true });
 
     if (tiles.length > MAX_IMAGES) {
@@ -90,17 +82,14 @@ const ProductMediaSection: React.FC = () => {
     }
   }, [tiles, setValue, setError, clearErrors]);
 
-  // Cleanup object URLs
-  useEffect(
-    () => () => {
-      tiles.forEach((t) => t.kind === "file" && URL.revokeObjectURL(t.url));
-    },
-    [tiles]
-  );
+  // cleanup blob URLs
+  useEffect(() => () => {
+    tiles.forEach((t) => t.kind === "file" && URL.revokeObjectURL(t.url));
+  }, [tiles]);
 
   const addFiles = (files: File[]) => {
     if (!files.length) return;
-    hydrated.current = true; // user interaction -> safe to sync
+    hydrated.current = true;
     setTiles((cur) => {
       const next: Tile[] = [...cur];
       for (const f of files) {
@@ -122,7 +111,7 @@ const ProductMediaSection: React.FC = () => {
     addFiles(Array.from(e.dataTransfer.files ?? []));
   };
 
-  // Drag-sort
+  // drag-sort
   const dragFrom = useRef<number | null>(null);
   const onTileDragStart = (i: number) => (dragFrom.current = i);
   const onTileDrop = (to: number) => {
@@ -138,7 +127,7 @@ const ProductMediaSection: React.FC = () => {
   };
 
   const removeAt = (i: number) => {
-    hydrated.current = true; // keep syncing removals too
+    hydrated.current = true;
     setTiles((cur) => {
       const copy = [...cur];
       const [rm] = copy.splice(i, 1);
@@ -156,7 +145,7 @@ const ProductMediaSection: React.FC = () => {
         Upload up to {MAX_IMAGES} images. Drag tiles to change their order.
       </p>
 
-      {/* Uploader */}
+      {/* uploader */}
       <label
         htmlFor="images"
         onDrop={onDrop}
@@ -172,10 +161,7 @@ const ProductMediaSection: React.FC = () => {
             multiple
             accept="image/*"
             {...imgReg}
-            ref={(el) => {
-              rhfRef(el);
-              fileInput.current = el;
-            }}
+            ref={(el) => { rhfRef(el); fileInput.current = el; }}
             onChange={onPick}
             className="hidden"
           />
@@ -186,7 +172,7 @@ const ProductMediaSection: React.FC = () => {
         <p className="text-xs text-red-500 mt-2">{errors.images.message}</p>
       )}
 
-      {/* Thumbnails */}
+      {/* thumbnails */}
       <div className="mt-4 flex flex-nowrap items-center gap-3 overflow-x-auto">
         {tiles.map((t, i) => (
           <div
@@ -228,7 +214,7 @@ const ProductMediaSection: React.FC = () => {
           </div>
         ))}
 
-        {/* Placeholders */}
+        {/* placeholders */}
         {Array.from({ length: remaining }).map((_, k) => (
           <div
             key={`ph-${k}`}
