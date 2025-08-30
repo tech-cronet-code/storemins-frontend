@@ -25,6 +25,12 @@ const navItems = [
   { label: "Product Flags", id: "product-flags", icon: Search },
   { label: "Customer Questions", id: "product-questions", icon: Search },
   {
+    label: "Customer Post Purchase Note",
+    id: "post-purchase-note",
+    icon: Search,
+  },
+
+  {
     label: "Additional Product Fields",
     id: "additional-fields",
     icon: Settings,

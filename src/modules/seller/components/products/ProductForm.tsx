@@ -1,3 +1,4 @@
+// components/ProductForm/ProductForm.tsx
 import React, { useEffect } from "react";
 import { useForm, FormProvider, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -20,6 +21,7 @@ import ProductFlagsSection from "./ProductFlagsSection";
 import QuestionsSection from "./QuestionsSection";
 
 import { ProductFormValues, productSchema } from "../../Schemas/productSchema";
+import PostPurchaseNoteSection from "./PostPurchaseNoteSection";
 
 interface ProductFormProps {
   productId?: string;
@@ -43,11 +45,22 @@ function extractMediaTokens(obj: any): string[] {
       .filter(Boolean);
   }
   if (Array.isArray(obj.images)) {
-    return obj.images.map((x: any) => (typeof x === "string" ? x : x?.url)).filter(Boolean).map(String);
+    return obj.images
+      .map((x: any) => (typeof x === "string" ? x : x?.url))
+      .filter(Boolean)
+      .map(String);
   }
   if (obj.data) return extractMediaTokens(obj.data);
   return [];
 }
+
+// simple slug util for CHOICE option values
+const slug = (s: string) =>
+  s
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
 
 const ProductForm: React.FC<ProductFormProps> = ({ productId }) => {
   const navigate = useNavigate();
@@ -56,14 +69,15 @@ const ProductForm: React.FC<ProductFormProps> = ({ productId }) => {
   const [createProduct, { isLoading: isCreating }] = useCreateProductMutation();
   const [updateProduct, { isLoading: isUpdating }] = useUpdateProductMutation();
 
-  const { data: productRaw, isLoading: isFetchingProduct } = useGetProductByIdQuery(
-    { id: productId! },
-    { skip: !productId, refetchOnMountOrArgChange: true }
-  );
+  const { data: productRaw, isLoading: isFetchingProduct } =
+    useGetProductByIdQuery(
+      { id: productId! },
+      { skip: !productId, refetchOnMountOrArgChange: true }
+    );
 
   const methods = useForm<ProductFormValues>({
     resolver: zodResolver(productSchema),
-    mode: "onChange",         // real-time validation
+    mode: "onChange",
     reValidateMode: "onChange",
     defaultValues: {
       name: "",
@@ -96,6 +110,8 @@ const ProductForm: React.FC<ProductFormProps> = ({ productId }) => {
       isRecommended: false,
       customerQuestionsRequired: false,
 
+      postPurchaseNoteDesc: null,
+
       replaceQuestions: false,
       questions: [],
     } as any,
@@ -108,7 +124,6 @@ const ProductForm: React.FC<ProductFormProps> = ({ productId }) => {
   const questions = useWatch({ control, name: "questions" }) || [];
 
   useEffect(() => {
-    // revalidate only the "questions" field when toggle/length changes
     void trigger("questions");
   }, [mustAnswer, questions.length, trigger]);
 
@@ -130,7 +145,8 @@ const ProductForm: React.FC<ProductFormProps> = ({ productId }) => {
       categoryLinks,
       categoryName,
       price: p?.price != null ? String(p.price) : "",
-      discountedPrice: p?.discountedPrice != null ? String(p.discountedPrice) : "",
+      discountedPrice:
+        p?.discountedPrice != null ? String(p.discountedPrice) : "",
       description: p?.description || "",
       stock: (p as any)?.stock ?? p?.quantity ?? undefined,
       sku: p?.sku ?? "",
@@ -156,6 +172,8 @@ const ProductForm: React.FC<ProductFormProps> = ({ productId }) => {
       isRecommended: !!p?.isRecommended,
       customerQuestionsRequired: !!p?.customerQuestionsRequired,
 
+      postPurchaseNoteDesc: p?.postPurchaseNoteDesc ?? null,
+
       replaceQuestions: false,
       questions: Array.isArray(p?.questions)
         ? p.questions.map((q: any, i: number) => ({
@@ -163,9 +181,30 @@ const ProductForm: React.FC<ProductFormProps> = ({ productId }) => {
             prompt: q.prompt || "",
             answerType: q.answerType || "TEXT",
             isRequired: !!q.isRequired,
+
+            // CHOICE
+            options: Array.isArray(q.options)
+              ? q.options.map((o: any, j: number) => ({
+                  label: o.label,
+                  value: o.value,
+                  sortOrder: typeof o.sortOrder === "number" ? o.sortOrder : j,
+                  isActive: o.isActive ?? true,
+                }))
+              : undefined,
+            minSelect: q.minSelect ?? null,
+            maxSelect: q.maxSelect ?? null,
+
+            // FILE_UPLOAD
             maxFiles: q.maxFiles ?? null,
             maxSizeMB: q.maxSizeMB ?? null,
-            metadata: q.metadata && typeof q.metadata === "object" && !Array.isArray(q.metadata) ? q.metadata : null,
+            imageId: q.imageId ?? null,
+
+            metadata:
+              q.metadata &&
+              typeof q.metadata === "object" &&
+              !Array.isArray(q.metadata)
+                ? q.metadata
+                : null,
             isActive: true,
           }))
         : [],
@@ -176,7 +215,11 @@ const ProductForm: React.FC<ProductFormProps> = ({ productId }) => {
     try {
       const businessId = userDetails?.storeLinks?.[0]?.businessId;
       if (!businessId) {
-        showToast({ type: "error", message: "Business ID is missing!", showClose: true });
+        showToast({
+          type: "error",
+          message: "Business ID is missing!",
+          showClose: true,
+        });
         return;
       }
 
@@ -184,21 +227,32 @@ const ProductForm: React.FC<ProductFormProps> = ({ productId }) => {
       fd.append("businessId", businessId);
       fd.append("name", data.name);
 
-      // numeric fields
+      // numbers
       fd.append("price", String(data.price ?? ""));
-      if (String(data.discountedPrice ?? "") !== "") fd.append("discountedPrice", String(data.discountedPrice));
+      if (String(data.discountedPrice ?? "") !== "")
+        fd.append("discountedPrice", String(data.discountedPrice));
       if (data.description) fd.append("description", data.description);
-      if (data.stock != null && String(data.stock) !== "") fd.append("quantity", String(data.stock));
+      if (data.stock != null && String(data.stock) !== "")
+        fd.append("quantity", String(data.stock));
       if (data.sku) fd.append("sku", data.sku);
       if (data.shippingWeight != null && String(data.shippingWeight) !== "")
         fd.append("shippingWeight", String(data.shippingWeight));
       if (data.hsnCode) fd.append("hsnCode", data.hsnCode);
-      if (data.gstPercent != null && String(data.gstPercent) !== "") fd.append("gstPercent", String(data.gstPercent));
+      if (data.gstPercent != null && String(data.gstPercent) !== "")
+        fd.append("gstPercent", String(data.gstPercent));
       if (data.type) fd.append("type", data.type);
+
+      // NEW: post purchase note
+      if (data.postPurchaseNoteDesc != null) {
+        fd.append("postPurchaseNoteDesc", String(data.postPurchaseNoteDesc));
+      }
 
       // flags
       fd.append("isRecommended", String(!!data.isRecommended));
-      fd.append("customerQuestionsRequired", String(!!data.customerQuestionsRequired));
+      fd.append(
+        "customerQuestionsRequired",
+        String(!!data.customerQuestionsRequired)
+      );
 
       // categories
       if (data.categoryLinks !== undefined) {
@@ -214,7 +268,12 @@ const ProductForm: React.FC<ProductFormProps> = ({ productId }) => {
       const seoFiles = data.seoImage as unknown as FileList | undefined;
       const hasSeoFile = !!(seoFiles && seoFiles.length);
       if (hasSeoFile) fd.append("seoImage", seoFiles[0]);
-      if (data.seoTitle || data.seoDescription || data.seoImageUrl || hasSeoFile) {
+      if (
+        data.seoTitle ||
+        data.seoDescription ||
+        data.seoImageUrl ||
+        hasSeoFile
+      ) {
         fd.append(
           "seoMetaData",
           JSON.stringify({
@@ -225,55 +284,125 @@ const ProductForm: React.FC<ProductFormProps> = ({ productId }) => {
         );
       }
 
-      // gallery kept tokens (edit)
+      // gallery tokens (edit)
       const keptTokens = (data.mediaUrls || []) as string[];
       if (productId) {
-        fd.append("media", JSON.stringify(keptTokens.map((u, i) => ({ type: "IMAGE", url: u, order: i }))));
+        fd.append(
+          "media",
+          JSON.stringify(
+            keptTokens.map((u, i) => ({ type: "IMAGE", url: u, order: i }))
+          )
+        );
       }
 
       // new uploads
       const files = data.images as unknown as FileList | undefined;
-      if (files && files.length) Array.from(files).forEach((f) => fd.append("images", f));
+      if (files && files.length)
+        Array.from(files).forEach((f) => fd.append("images", f));
 
-      // questions payload
-      const shouldSendQuestions = !productId
-        ? (data.questions?.length ?? 0) > 0 || data.customerQuestionsRequired === true
-        : data.replaceQuestions === true;
+      // questions payload — FIXED: include CHOICE options/min/max and imageId
+      const shouldSendQuestions =
+        (data.questions?.length ?? 0) > 0 ||
+        data.customerQuestionsRequired === true ||
+        data.replaceQuestions === true;
 
       if (shouldSendQuestions) {
         const clean = (data.questions || [])
           .filter((q) => q && q.prompt && q.answerType)
-          .map((q, i) => ({
-            order: typeof q.order === "number" ? q.order : i,
-            prompt: q.prompt,
-            answerType: q.answerType,
-            isRequired: !!q.isRequired,
-            maxFiles: q.maxFiles ?? null,
-            maxSizeMB: q.maxSizeMB ?? null,
-            metadata:
-              q.metadata && typeof q.metadata === "object" && !Array.isArray(q.metadata) ? q.metadata : null,
-          }));
+          .map((q, i) => {
+            const base: any = {
+              order: typeof q.order === "number" ? q.order : i,
+              prompt: q.prompt,
+              answerType: q.answerType,
+              isRequired: !!q.isRequired,
+
+              // FILE_UPLOAD extras
+              maxFiles: q.maxFiles ?? null,
+              maxSizeMB: q.maxSizeMB ?? null,
+              imageId: q.imageId ?? null,
+
+              // misc
+              metadata:
+                q.metadata &&
+                typeof q.metadata === "object" &&
+                !Array.isArray(q.metadata)
+                  ? q.metadata
+                  : null,
+            };
+
+            const isChoice =
+              q.answerType === "CHOICE_SINGLE" ||
+              q.answerType === "CHOICE_MULTI";
+            if (isChoice) {
+              const opts = (q.options || [])
+                .filter((o) => o && String(o.label || "").trim())
+                .slice(0, 10)
+                .map((o, idx) => ({
+                  label: String(o.label).trim(),
+                  value:
+                    (o.value && String(o.value).trim()) ||
+                    slug(String(o.label)),
+                  sortOrder:
+                    typeof o.sortOrder === "number" ? o.sortOrder : idx,
+                  isActive: o.isActive ?? true,
+                }));
+
+              base.options = opts;
+
+              if (q.answerType === "CHOICE_SINGLE") {
+                base.minSelect = 1;
+                base.maxSelect = 1;
+              } else {
+                const len = opts.length;
+                const min =
+                  q.minSelect == null
+                    ? 0
+                    : Math.max(0, Math.min(len, q.minSelect));
+                const max =
+                  q.maxSelect == null
+                    ? len
+                    : Math.max(min, Math.min(len, q.maxSelect));
+                base.minSelect = min;
+                base.maxSelect = max;
+              }
+            }
+            return base;
+          });
+
         fd.append("questions", JSON.stringify(clean));
       }
 
       if (productId) {
         fd.append("id", productId);
         await updateProduct(fd).unwrap();
-        showToast({ type: "success", message: "Product updated successfully!", showClose: true });
+        showToast({
+          type: "success",
+          message: "Product updated successfully!",
+          showClose: true,
+        });
       } else {
         await createProduct(fd).unwrap();
-        showToast({ type: "success", message: "Product created successfully!", showClose: true });
+        showToast({
+          type: "success",
+          message: "Product created successfully!",
+          showClose: true,
+        });
       }
 
       navigate("/seller/catalogue/products", { state: { refresh: true } });
     } catch (err: any) {
       console.error(LOG, "submit error", err);
-      showToast({ type: "error", message: err?.data?.message || "Failed to save product!", showClose: true });
+      showToast({
+        type: "error",
+        message: err?.data?.message || "Failed to save product!",
+        showClose: true,
+      });
     }
   };
 
   const isSubmitting = isCreating || isUpdating;
-  if (isFetchingProduct && productId) return <div>Loading product details...</div>;
+  if (isFetchingProduct && productId)
+    return <div>Loading product details...</div>;
 
   return (
     <FormProvider {...methods}>
@@ -310,13 +439,24 @@ const ProductForm: React.FC<ProductFormProps> = ({ productId }) => {
           <QuestionsSection />
         </section>
 
+        {/* NEW: Post-purchase note */}
+        <section id="post-purchase-note" className="scroll-mt-24">
+          <PostPurchaseNoteSection />
+        </section>
+
         <div className="flex justify-end mt-6 pb-15 pt-1">
           <button
             type="submit"
             disabled={isSubmitting}
             className="bg-blue-600 text-white px-6 py-3 rounded-md text-sm hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {isSubmitting ? (productId ? "Updating..." : "Saving...") : productId ? "Update Product" : "Add Product"}
+            {isSubmitting
+              ? productId
+                ? "Updating..."
+                : "Saving..."
+              : productId
+              ? "Update Product"
+              : "Add Product"}
           </button>
         </div>
       </form>

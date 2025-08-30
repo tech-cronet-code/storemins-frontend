@@ -99,15 +99,15 @@ interface ResendMobileOtpResponse {
   message: string;
   expiresAt: string;
 }
-interface UpdateProfileRequestDto {
-  name: string;
-}
+// interface UpdateProfileRequestDto {
+//   name: string;
+// }
 
 interface UpdateProfileResponseDto {
   id: string;
   name: string;
   mobile: string;
-   imageId?: string | null; // "<fileId>.webp"
+  imageId?: string | null; // "<fileId>.webp"
 }
 
 export const apiClient = createApi({

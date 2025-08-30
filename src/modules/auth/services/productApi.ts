@@ -66,11 +66,21 @@ export interface ProductCategoryListResponse {
   }>;
 }
 
-
 /** ─────────────────────────────────────────────────────────────
- *  NEW: Questions + AnswerType
+ *  NEW: Questions + AnswerType (CHOICE_SINGLE / CHOICE_MULTI)
  *  ───────────────────────────────────────────────────────────*/
-export type AnswerType = "TEXT" | "YES_NO" | "FILE_UPLOAD";
+export type AnswerType =
+  | "TEXT"
+  | "CHOICE_SINGLE"
+  | "CHOICE_MULTI"
+  | "FILE_UPLOAD";
+
+export interface ProductQuestionOptionDto {
+  label: string;
+  value?: string;
+  sortOrder?: number;
+  isActive?: boolean;
+}
 
 export interface ProductQuestionDto {
   order?: number;
@@ -79,10 +89,12 @@ export interface ProductQuestionDto {
   isRequired?: boolean;
   maxFiles?: number | null;
   maxSizeMB?: number | null;
+  imageId?: string | null;
+  options?: ProductQuestionOptionDto[];
+  minSelect?: number | null;
+  maxSelect?: number | null;
   metadata?: Record<string, unknown> | null;
-  // isActive?: boolean; // backend defaults to true; omit in payload unless you need it
 }
-
 
 // Extend the ProductFormValues or create a new DTO if backend requires a different shape
 export interface CreateProductRequest {
@@ -99,9 +111,10 @@ export interface CreateProductRequest {
   images?: File[]; // For file uploads
   video?: File; // Optional video file
 
-   // NEW
+  // NEW
   isRecommended?: boolean;
   customerQuestionsRequired?: boolean;
+  postPurchaseNoteDesc?: string | null;
   questions?: ProductQuestionDto[];
 }
 
@@ -152,7 +165,7 @@ export interface GetProductResponse {
   status: "ACTIVE" | "INACTIVE";
 }
 
-// Backend response DTO
+/** Backend response DTO */
 interface ProductResponseDto {
   id: string;
   name: string;
@@ -162,9 +175,10 @@ interface ProductResponseDto {
   updatedAt?: string;
   isArchived?: boolean;
 
-  // NEW FLAGS
+  // NEW FLAGS + note
   isRecommended?: boolean;
   customerQuestionsRequired?: boolean;
+  postPurchaseNoteDesc?: string | null;
 
   // pricing/meta/content
   price?: number | null;
@@ -206,10 +220,9 @@ export interface ProductListItem {
   stockStatus?: "in_stock" | "out_of_stock";
   images?: string[];
   status: "ACTIVE" | "INACTIVE";
-   // optional surfacing of recommended in list if you want:
+  // optional surfacing of recommended in list if you want:
   isRecommended?: boolean;
 }
-
 
 export interface VariantDto {
   optionName: string;
@@ -223,6 +236,7 @@ export interface ProductDetailsResponse {
   // flags
   isRecommended?: boolean;
   customerQuestionsRequired?: boolean;
+  postPurchaseNoteDesc?: string | null;
 
   // pricing/meta/content
   price: number;
@@ -320,21 +334,32 @@ export const productApi = createApi({
         body,
       }),
     }),
-   // CREATE (multipart)
-    createProduct: builder.mutation<{ message: string; data: { id: string; name: string } }, FormData>({
-      query: (formData) => ({ url: `/seller/product/product/create`, method: "POST", body: formData }),
+    // CREATE (multipart)
+    createProduct: builder.mutation<
+      { message: string; data: { id: string; name: string } },
+      FormData
+    >({
+      query: (formData) => ({
+        url: `/seller/product/product/create`,
+        method: "POST",
+        body: formData,
+      }),
     }),
 
-    // LIST BY BUSINESS — include isRecommended if you want it in card/list
+    // LIST BY BUSINESS
     listProducts: builder.query<ProductListItem[], { businessId: string }>({
       query: ({ businessId }) => ({
         url: `/seller/product/product/list-by-business`,
         method: "POST",
         body: { businessId },
       }),
-      transformResponse: (raw: { message: string; data: ProductResponseDto[] }): ProductListItem[] =>
+      transformResponse: (raw: {
+        message: string;
+        data: ProductResponseDto[];
+      }): ProductListItem[] =>
         (raw.data || []).map((p) => {
-          const images = p.media?.filter((m) => m.type === "IMAGE").map((m) => m.url) || [];
+          const images =
+            p.media?.filter((m) => m.type === "IMAGE").map((m) => m.url) || [];
           return {
             id: p.id,
             name: p.name,
@@ -342,7 +367,8 @@ export const productApi = createApi({
             discountedPrice: p.discountedPrice ?? undefined,
             description: p.description ?? undefined,
             stock: p.quantity ?? undefined,
-            stockStatus: p.quantity && p.quantity > 0 ? "in_stock" : "out_of_stock",
+            stockStatus:
+              p.quantity && p.quantity > 0 ? "in_stock" : "out_of_stock",
             images,
             status: p.status === "ACTIVE" ? "ACTIVE" : "INACTIVE",
             isRecommended: p.isRecommended ?? undefined,
@@ -350,24 +376,27 @@ export const productApi = createApi({
         }),
     }),
 
-
-    // ➔ New: Get Product By ID
- // GET BY ID
-
     // GET BY ID — hydrate flags + questions
     getProductById: builder.query<ProductDetailsResponse, { id: string }>({
-      query: ({ id }) => ({ url: `/seller/product/product/get-by-id`, method: "POST", body: { id } }),
-      transformResponse: (raw: { message: string; data: ProductResponseDto }): ProductDetailsResponse => {
+      query: ({ id }) => ({
+        url: `/seller/product/product/get-by-id`,
+        method: "POST",
+        body: { id },
+      }),
+      transformResponse: (raw: {
+        message: string;
+        data: ProductResponseDto;
+      }): ProductDetailsResponse => {
         const p = raw.data;
-        const images = p.media?.filter((m) => m.type === "IMAGE").map((m) => m.url) || [];
+        const images =
+          p.media?.filter((m) => m.type === "IMAGE").map((m) => m.url) || [];
         return {
           id: p.id,
           name: p.name,
-          // flags
           isRecommended: p.isRecommended ?? false,
           customerQuestionsRequired: p.customerQuestionsRequired ?? false,
+          postPurchaseNoteDesc: p.postPurchaseNoteDesc ?? null,
 
-          // pricing/meta/content
           price: p.price ?? 0,
           discountedPrice: p.discountedPrice ?? null,
           description: p.description ?? null,
@@ -382,7 +411,6 @@ export const productApi = createApi({
           gstPercent: p.gstPercent ?? null,
 
           variants: p.variants || [],
-
           categoryLinks: p.categoryLinks || [],
 
           seoMetaData: {
@@ -391,14 +419,21 @@ export const productApi = createApi({
             imageUrl: p.seoMetaData?.imageUrl || "",
           },
 
-          // NEW
           questions: p.questions || [],
         };
       },
     }),
- // EDIT (multipart) — unchanged signature
-    updateProduct: builder.mutation<{ message: string; data: ProductDetailsResponse }, FormData>({
-      query: (formData) => ({ url: `/seller/product/product/edit`, method: "POST", body: formData }),
+
+    // EDIT (multipart)
+    updateProduct: builder.mutation<
+      { message: string; data: ProductDetailsResponse },
+      FormData
+    >({
+      query: (formData) => ({
+        url: `/seller/product/product/edit`,
+        method: "POST",
+        body: formData,
+      }),
     }),
 
     updateProductStatus: builder.mutation<
