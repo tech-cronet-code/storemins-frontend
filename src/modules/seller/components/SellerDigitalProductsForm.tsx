@@ -21,7 +21,6 @@ import UpgradeToBusinessPlanModal from "./UpgradeToBusinessPlanModal";
 
 type SortableKey = "name" | "price" | "status";
 
-// eslint-disable-next-line react-refresh/only-export-components
 export enum ProductType {
   PHYSICAL = "PHYSICAL",
   DIGITAL = "DIGITAL",
@@ -29,7 +28,7 @@ export enum ProductType {
   WORKSHOP = "WORKSHOP",
 }
 
-const SellerProductsForm: React.FC = () => {
+const SellerDigitalProductsForm: React.FC = () => {
   const { userDetails } = useAuth();
 
   const businessId = userDetails?.storeLinks?.[0]?.businessId;
@@ -39,7 +38,7 @@ const SellerProductsForm: React.FC = () => {
     isLoading,
     refetch,
   } = useListProductsQuery(
-    { businessId: businessId || "", type: ProductType.PHYSICAL },
+    { businessId: businessId || "", type: ProductType.DIGITAL },
     { skip: !businessId }
   );
 
@@ -129,7 +128,7 @@ const SellerProductsForm: React.FC = () => {
   };
 
   const handleAddProduct = () =>
-    navigate("/seller/catalogue/products/physical/create");
+    navigate("/seller/catalogue/products/digital/create");
 
   if (!businessId) {
     return (
@@ -161,7 +160,7 @@ const SellerProductsForm: React.FC = () => {
                     className="flex items-center justify-center gap-2 px-3 md:px-5 text-sm font-semibold hover:bg-[#1E40AF] transition whitespace-nowrap w-full sm:w-auto"
                   >
                     <Plus className="w-[18px] h-[18px]" />
-                    <span>Add Product</span>
+                    <span>Add Digital Product</span>
                   </button>
                   <button
                     type="button"
@@ -232,7 +231,7 @@ const SellerProductsForm: React.FC = () => {
               onScroll={handleMainScroll}
             >
               <div className="min-w-[1080px]">
-                <ProductTableHeader
+                <ProductTableHeader 
                   sortKey={sortKey}
                   sortOrder={sortOrder}
                   onSortChange={handleSortChange}
@@ -273,7 +272,7 @@ const SellerProductsForm: React.FC = () => {
                             }
                             onEdit={(id) =>
                               navigate(
-                                `/seller/catalogue/products/physical/edit/${id}`
+                                `/seller/catalogue/products/digital/edit/${id}`
                               )
                             }
                             isLastItemOnPage={isLastItemOnPage} // ✅ pass flag
@@ -352,4 +351,4 @@ const SellerProductsForm: React.FC = () => {
   );
 };
 
-export default SellerProductsForm;
+export default SellerDigitalProductsForm;

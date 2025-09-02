@@ -9,15 +9,27 @@ const TILE_H = 150;
 const MAX_IMAGES = 6;
 
 type FileTile = { id: string; kind: "file"; url: string; file: File };
-type UrlTile  = { id: string; kind: "url"; url: string; token: string };
+type UrlTile = { id: string; kind: "url"; url: string; token: string };
 type Tile = FileTile | UrlTile;
 
 const ProductMediaSection: React.FC = () => {
-  const { register, setValue, setError, clearErrors, formState: { errors }, control } = useFormContext();
+  const {
+    register,
+    setValue,
+    setError,
+    clearErrors,
+    formState: { errors },
+    control,
+  } = useFormContext();
 
   // watch values so we see reset() updates
-  const media = (useWatch({ control, name: "media" }) as Array<{ url: string; order?: number }>) ?? [];
-  const mediaUrls = (useWatch({ control, name: "mediaUrls" }) as string[]) ?? [];
+  const media =
+    (useWatch({ control, name: "media" }) as Array<{
+      url: string;
+      order?: number;
+    }>) ?? [];
+  const mediaUrls =
+    (useWatch({ control, name: "mediaUrls" }) as string[]) ?? [];
 
   const mediaTokensFromMedia = (Array.isArray(media) ? media : [])
     .slice()
@@ -25,7 +37,9 @@ const ProductMediaSection: React.FC = () => {
     .map((m) => m?.url)
     .filter(Boolean) as string[];
 
-  const initialTokens: string[] = (mediaTokensFromMedia.length ? mediaTokensFromMedia : mediaUrls).filter(Boolean);
+  const initialTokens: string[] = (
+    mediaTokensFromMedia.length ? mediaTokensFromMedia : mediaUrls
+  ).filter(Boolean);
 
   const [tiles, setTiles] = useState<Tile[]>([]);
   const { ref: rhfRef, ...imgReg } = register("images");
@@ -41,7 +55,9 @@ const ProductMediaSection: React.FC = () => {
     try {
       const u = convertPath(token, "original/product") as string | undefined;
       if (u) return u;
-    } catch { /* empty */ }
+    } catch {
+      /* empty */
+    }
     return `/image/original/product/${token}`;
   };
 
@@ -66,26 +82,37 @@ const ProductMediaSection: React.FC = () => {
     if (!hydrated.current && tiles.length === 0) return;
 
     const files = tiles.filter((t): t is FileTile => t.kind === "file");
-    const keptTokens = tiles.filter((t): t is UrlTile => t.kind === "url").map((t) => t.token);
+    const keptTokens = tiles
+      .filter((t): t is UrlTile => t.kind === "url")
+      .map((t) => t.token);
 
     const dt = new DataTransfer();
     files.forEach((t) => dt.items.add(t.file));
     setValue("images", dt.files, { shouldDirty: true, shouldValidate: true });
 
     // 👇 critical: send these back on submit so BE keeps old ones
-    setValue("mediaUrls", keptTokens, { shouldDirty: true, shouldValidate: true });
+    setValue("mediaUrls", keptTokens, {
+      shouldDirty: true,
+      shouldValidate: true,
+    });
 
     if (tiles.length > MAX_IMAGES) {
-      setError("images", { type: "max", message: `You can upload up to ${MAX_IMAGES} images.` });
+      setError("images", {
+        type: "max",
+        message: `You can upload up to ${MAX_IMAGES} images.`,
+      });
     } else {
       clearErrors("images");
     }
   }, [tiles, setValue, setError, clearErrors]);
 
   // cleanup blob URLs
-  useEffect(() => () => {
-    tiles.forEach((t) => t.kind === "file" && URL.revokeObjectURL(t.url));
-  }, [tiles]);
+  useEffect(
+    () => () => {
+      tiles.forEach((t) => t.kind === "file" && URL.revokeObjectURL(t.url));
+    },
+    [tiles]
+  );
 
   const addFiles = (files: File[]) => {
     if (!files.length) return;
@@ -95,7 +122,12 @@ const ProductMediaSection: React.FC = () => {
       for (const f of files) {
         if (!f.type.startsWith("image/")) continue;
         if (next.length >= MAX_IMAGES) break;
-        next.push({ id: crypto.randomUUID(), kind: "file", file: f, url: URL.createObjectURL(f) });
+        next.push({
+          id: crypto.randomUUID(),
+          kind: "file",
+          file: f,
+          url: URL.createObjectURL(f),
+        });
       }
       return next;
     });
@@ -136,7 +168,10 @@ const ProductMediaSection: React.FC = () => {
     });
   };
 
-  const remaining = useMemo(() => Math.max(0, MAX_IMAGES - tiles.length), [tiles.length]);
+  const remaining = useMemo(
+    () => Math.max(0, MAX_IMAGES - tiles.length),
+    [tiles.length]
+  );
 
   return (
     <div className="bg-white border border-gray-100 rounded-lg p-6">
@@ -161,7 +196,10 @@ const ProductMediaSection: React.FC = () => {
             multiple
             accept="image/*"
             {...imgReg}
-            ref={(el) => { rhfRef(el); fileInput.current = el; }}
+            ref={(el) => {
+              rhfRef(el);
+              fileInput.current = el;
+            }}
             onChange={onPick}
             className="hidden"
           />
@@ -200,7 +238,10 @@ const ProductMediaSection: React.FC = () => {
             />
             <button
               type="button"
-              onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
+              onMouseDown={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+              }}
               onClick={() => removeAt(i)}
               className="absolute top-1 right-1 z-10 inline-flex items-center justify-center w-6 h-6 rounded-full bg-white/95 text-gray-700 shadow hover:bg-red-50"
               title="Remove"
@@ -225,7 +266,8 @@ const ProductMediaSection: React.FC = () => {
       </div>
 
       <p className="text-xs text-gray-400 mt-3">
-        Recommended size: <span className="font-medium text-gray-600">1000px × 1248px</span>
+        Recommended size:{" "}
+        <span className="font-medium text-gray-600">1000px × 1248px</span>
       </p>
     </div>
   );

@@ -4,7 +4,6 @@ import { useFormContext } from "react-hook-form";
 const ContactInformationSection: React.FC = () => {
   const {
     register,
-    formState: { errors },
   } = useFormContext();
 
   return (

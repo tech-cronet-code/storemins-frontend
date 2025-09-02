@@ -9,7 +9,8 @@ import TermsOfServiceSettings from "../../components/store-appearance/TermsOfSer
 interface StoreDisplaySettingsPageProps {
   section?: string;
 }
-const StoreDisplaySettingsPage: React.FC<StoreDisplaySettingsPageProps> = ({ section }) => {
+// eslint-disable-next-line no-empty-pattern
+const StoreDisplaySettingsPage: React.FC<StoreDisplaySettingsPageProps> = ({ }) => {
   const [selectedTab, setSelectedTab] = useState("general");
   const formContainerRef = useRef<HTMLDivElement>(null!);
 

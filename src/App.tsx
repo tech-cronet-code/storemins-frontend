@@ -39,6 +39,8 @@ import CartDetail from "./modules/customer/components/CartDetail";
 import CustomerAddress from "./modules/customer/components/CustomerAddress";
 import OrderSuccess from "./modules/customer/components/OrderSuccess";
 import CategoryPage from "./modules/customer/pages/CategoryPage";
+import SellerDigitalProductsPage from "./modules/seller/pages/SellerDigitalProductsPage";
+import AddDigitalProductPage from "./modules/seller/pages/AddDigitalProductPage";
 // import AuthFormPage from "./modules/auth/pages/AuthForm";
 
 const App = () => {
@@ -78,15 +80,54 @@ const App = () => {
               element={<UserSettingsPage />}
             />
             <Route
-              path="/seller/catalogue/products"
+              path="/seller/catalogue/products/physical"
               element={<SellerProductsPage />}
             />
             <Route
-              path="/seller/catalogue/products/create"
+              path="/seller/catalogue/products/physical/create"
               element={<AddProductPage />}
             />
             <Route
-              path="/seller/catalogue/products/edit/:id"
+              path="/seller/catalogue/products/physical/edit/:id"
+              element={<AddProductPage />}
+            />
+
+            <Route
+              path="/seller/catalogue/products/digital"
+              element={<SellerDigitalProductsPage />}
+            />
+            <Route
+              path="/seller/catalogue/products/digital/create"
+              element={<AddDigitalProductPage />}
+            />
+            <Route
+              path="/seller/catalogue/products/digital/edit/:id"
+              element={<AddDigitalProductPage />}
+            />
+
+            <Route
+              path="/seller/catalogue/products/meeting"
+              element={<SellerProductsPage />}
+            />
+            <Route
+              path="/seller/catalogue/products/meeting/create"
+              element={<AddProductPage />}
+            />
+            <Route
+              path="/seller/catalogue/products/meeting/edit/:id"
+              element={<AddProductPage />}
+            />
+
+            <Route
+              path="/seller/catalogue/products/workshop"
+              element={<SellerProductsPage />}
+            />
+            <Route
+              path="/seller/catalogue/products/workshop/create"
+              element={<AddProductPage />}
+            />
+            <Route
+              path="/seller/catalogue/products/workshop/edit/:id"
               element={<AddProductPage />}
             />
 

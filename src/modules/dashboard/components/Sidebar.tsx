@@ -62,7 +62,7 @@ const menuItems = [
     ],
   },
   {
-    label: "Products",
+    label: "Catelogs",
     icon: <Box />,
     path: "/products",
     whiteDot: false,
@@ -70,8 +70,24 @@ const menuItems = [
     hasChildren: true,
     children: [
       {
-        label: "All Products",
-        path: "/seller/catalogue/products",
+        label: "Physical Products",
+        path: "/seller/catalogue/products/physical",
+        icon: <Box size={16} />,
+      },
+      {
+        label: "Digital Products",
+        path: "/seller/catalogue/products/digital",
+
+        icon: <Box size={16} />,
+      },
+      {
+        label: "Meeting Products",
+        path: "/seller/catalogue/products/meeting",
+        icon: <Box size={16} />,
+      },
+      {
+        label: "Workshop Products",
+        path: "/seller/catalogue/products/workshop",
         icon: <Box size={16} />,
       },
       {
@@ -102,20 +118,19 @@ const menuItems = [
     active: false,
   },
   {
-  label: "Store Appearance",
-  icon: <Layout />,
-  path: "/seller/appearance/store-setting/media", // default or first child route
-  whiteDot: false,
-  hasChildren: true,
-  active: false,
-  children: [
-    { label: "Store Setting", path: "/seller/appearance/store-setting" },
-    { label: "Dispaly Setting", path: "/seller/appearance/display-setting" },
-    { label: "Themes", path: "/seller/appearance/themes" },
-    { label: "Store Blog", path: "/seller/appearance/store-blog" },
-    { label: "Store Pages", path: "/seller/appearance/store-page" },
-
-  ],
+    label: "Store Appearance",
+    icon: <Layout />,
+    path: "/seller/appearance/store-setting/media", // default or first child route
+    whiteDot: false,
+    hasChildren: true,
+    active: false,
+    children: [
+      { label: "Store Setting", path: "/seller/appearance/store-setting" },
+      { label: "Dispaly Setting", path: "/seller/appearance/display-setting" },
+      { label: "Themes", path: "/seller/appearance/themes" },
+      { label: "Store Blog", path: "/seller/appearance/store-blog" },
+      { label: "Store Pages", path: "/seller/appearance/store-page" },
+    ],
   },
   { label: "Delivery", icon: <Truck />, path: "/delivery", active: false },
   { label: "Customers", icon: <Users />, path: "/customers", active: false },

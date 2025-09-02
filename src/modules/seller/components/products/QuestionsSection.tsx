@@ -3,6 +3,7 @@ import React, { useCallback, useState } from "react";
 import { useFieldArray, useFormContext } from "react-hook-form";
 import type { ProductFormValues } from "../../Schemas/productSchema";
 
+/* ------------------ utils ------------------ */
 type Q = NonNullable<ProductFormValues["questions"]>[number];
 type Opt = NonNullable<Q["options"]>[number];
 
@@ -19,15 +20,12 @@ const emptyRow = (): Q => ({
   prompt: "",
   answerType: "TEXT",
   isRequired: false,
-
   options: undefined,
   minSelect: null,
   maxSelect: null,
-
   maxFiles: null,
   maxSizeMB: null,
   imageId: null,
-
   metadata: null,
   isActive: true,
 });
@@ -88,6 +86,7 @@ const TEMPLATES: Q[] = [
   },
 ];
 
+/* ------------------ small UI bits ------------------ */
 const Badge: React.FC<{
   children: React.ReactNode;
   tone?: "gray" | "blue" | "green" | "red";
@@ -107,12 +106,24 @@ const Badge: React.FC<{
   );
 };
 
+const ChevronUpIcon: React.FC<{ className?: string }> = ({ className }) => (
+  <svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden="true">
+    <path
+      d="M6 14l6-6 6 6"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+  </svg>
+);
+
 const Segmented: React.FC<{
   name: `questions.${number}.answerType`;
   value: Q["answerType"] | undefined;
   onChange: (v: Q["answerType"]) => void;
 }> = ({ value, onChange }) => {
-  const options: Q["answerType"][] = [
+  const opts: Q["answerType"][] = [
     "TEXT",
     "CHOICE_SINGLE",
     "CHOICE_MULTI",
@@ -120,7 +131,7 @@ const Segmented: React.FC<{
   ];
   return (
     <div className="inline-flex rounded-lg border bg-white overflow-hidden">
-      {options.map((opt) => (
+      {opts.map((opt) => (
         <button
           key={opt}
           type="button"
@@ -139,6 +150,7 @@ const Segmented: React.FC<{
   );
 };
 
+/* ------------------ main ------------------ */
 const QuestionsSection: React.FC = () => {
   const {
     control,
@@ -154,15 +166,21 @@ const QuestionsSection: React.FC = () => {
   });
   const questions = watch("questions") || [];
 
-  // top-level error (from zod refine)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const questionsError = (errors as any)?.questions?.message as
     | string
     | undefined;
 
+  // card collapse
+  const [openCard, setOpenCard] = useState(true);
+  const cardContentId = React.useId();
+
+  // per-row collapse
   const [openMap, setOpenMap] = useState<Record<string, boolean>>({});
-  const toggleOpen = useCallback((id: string) => {
-    setOpenMap((m) => ({ ...m, [id]: !m[id] }));
-  }, []);
+  const toggleOpen = useCallback(
+    (id: string) => setOpenMap((m) => ({ ...m, [id]: !m[id] })),
+    []
+  );
 
   const addOne = () => append({ ...emptyRow(), order: questions.length });
   const addTemplates = () => {
@@ -170,9 +188,8 @@ const QuestionsSection: React.FC = () => {
     append(TEMPLATES.map((t, i) => ({ ...t, order: base + i })));
   };
 
-  const reindexOrders = () => {
+  const reindexOrders = () =>
     (questions || []).forEach((_, i) => setValue(`questions.${i}.order`, i));
-  };
 
   const onPromptKeyDown = (
     idx: number,
@@ -186,379 +203,438 @@ const QuestionsSection: React.FC = () => {
     }
   };
 
+  const total = fields.length;
+  const requiredCount = (questions || []).filter(
+    (q: Q) => q?.isRequired
+  ).length;
+
   return (
-    <div className="rounded-2xl border p-5 space-y-4 shadow-sm bg-white">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h3 className="font-semibold text-lg">Customer Questions</h3>
-          <p className="text-xs text-gray-500">
+    <section
+      className="rounded-xl border border-gray-200 bg-white shadow-sm hover:border-gray-300 transition-colors"
+      aria-labelledby="questions-heading"
+    >
+      {/* header */}
+      <div className="flex items-start gap-3 px-5 py-4">
+        <div className="flex-1">
+          <h3
+            id="questions-heading"
+            className="text-base font-semibold text-gray-900"
+          >
+            Customer Questions
+          </h3>
+          <p className="mt-0.5 text-xs text-gray-500">
             Collect details from buyers at checkout. Reorder with ↑/↓ (hold{" "}
             <kbd className="px-1 border rounded">Alt</kbd>).
           </p>
         </div>
 
+        {/* chips (right side) */}
         <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={addTemplates}
-            className="px-3 py-1.5 rounded-md border bg-white hover:bg-gray-50 text-sm"
-          >
-            + Quick add templates
-          </button>
-          <button
-            type="button"
-            onClick={addOne}
-            className="px-3 py-1.5 rounded-md bg-blue-600 text-white hover:bg-blue-700 text-sm"
-          >
-            + Add question
-          </button>
+          <span className="inline-flex items-center rounded-full border border-gray-200 bg-gray-50 px-2.5 py-1 text-xs text-gray-700">
+            Total:&nbsp;<b className="tabular-nums">{total}</b>
+          </span>
+          <span className="inline-flex items-center rounded-full border border-blue-200 bg-blue-50 px-2.5 py-1 text-xs text-blue-700">
+            Required:&nbsp;<b className="tabular-nums">{requiredCount}</b>
+          </span>
         </div>
+
+        {/* chevron */}
+        <button
+          type="button"
+          aria-label="Toggle section"
+          aria-expanded={openCard}
+          aria-controls={cardContentId}
+          onClick={() => setOpenCard((v) => !v)}
+          className="ml-1 -mr-1 inline-flex h-7 w-7 items-center justify-center rounded-md text-gray-600 hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+        >
+          <ChevronUpIcon
+            className={[
+              "h-4 w-4 transition-transform",
+              openCard ? "rotate-0" : "rotate-180",
+            ].join(" ")}
+          />
+        </button>
       </div>
 
-      {/* Inline error banner from schema */}
-      {questionsError && (
-        <div
-          role="alert"
-          className="rounded border border-red-200 bg-red-50 text-red-700 p-2 text-sm"
-        >
-          {questionsError}
-        </div>
-      )}
+      {/* divider */}
+      <div className="h-px w-full bg-gray-100" />
 
-      {!fields.length && (
-        <div className="text-sm text-gray-500 border rounded-lg p-3 bg-gray-50">
-          No questions yet. Click <b>+ Add question</b> or use{" "}
-          <b>Quick add templates</b>.
-        </div>
-      )}
-
-      <div className="space-y-3">
-        {fields.map((field, index) => {
-          const type = watch(`questions.${index}.answerType`);
-          const promptVal = watch(`questions.${index}.prompt`);
-          const requiredVal = watch(`questions.${index}.isRequired`);
-          const activeVal = watch(`questions.${index}.isActive`);
-          const expanded = openMap[field.id] ?? true;
-
-          const headerBadges = (
-            <div className="flex items-center gap-2">
-              <Badge
-                tone={
-                  type === "FILE_UPLOAD"
-                    ? "blue"
-                    : type?.startsWith("CHOICE")
-                    ? "green"
-                    : "gray"
-                }
-              >
-                {type}
-              </Badge>
-              {requiredVal ? (
-                <Badge tone="red">required</Badge>
-              ) : (
-                <Badge>optional</Badge>
-              )}
-              {!activeVal && <Badge tone="gray">inactive</Badge>}
+      {/* body */}
+      <div
+        id={cardContentId}
+        aria-hidden={!openCard}
+        className={openCard ? "block" : "hidden"}
+      >
+        <div className="px-5 py-5">
+          {/* top actions */}
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+            <div className="sr-only" aria-hidden>
+              {/* reserved for future status/help */}
             </div>
-          );
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={addTemplates}
+                className="px-3 py-1.5 rounded-md border bg-white hover:bg-gray-50 text-sm"
+              >
+                + Quick add templates
+              </button>
+              <button
+                type="button"
+                onClick={addOne}
+                className="px-3 py-1.5 rounded-md bg-blue-600 text-white hover:bg-blue-700 text-sm"
+              >
+                + Add question
+              </button>
+            </div>
+          </div>
 
-          // nested options field array for CHOICE types
-          const showOptions =
-            type === "CHOICE_SINGLE" || type === "CHOICE_MULTI";
-
-          return (
+          {/* schema banner */}
+          {questionsError && (
             <div
-              key={field.id}
-              className="border rounded-xl bg-white shadow-sm overflow-hidden"
+              role="alert"
+              className="mb-3 rounded border border-red-200 bg-red-50 text-red-700 p-2 text-sm"
             >
-              {/* header */}
-              <div className="flex items-center gap-3 px-3 py-2 border-b">
-                <button
-                  type="button"
-                  onClick={() => toggleOpen(field.id)}
-                  className="shrink-0 w-7 h-7 rounded-md border hover:bg-gray-50 grid place-items-center"
-                  aria-label={expanded ? "Collapse" : "Expand"}
+              {questionsError}
+            </div>
+          )}
+
+          {!fields.length && (
+            <div className="text-sm text-gray-500 border rounded-lg p-3 bg-gray-50">
+              No questions yet. Click <b>+ Add question</b> or use{" "}
+              <b>Quick add templates</b>.
+            </div>
+          )}
+
+          <div className="space-y-3">
+            {fields.map((field, index) => {
+              const type = watch(`questions.${index}.answerType`);
+              const promptVal = watch(`questions.${index}.prompt`);
+              const requiredVal = watch(`questions.${index}.isRequired`);
+              const activeVal = watch(`questions.${index}.isActive`);
+              const expanded = openMap[field.id] ?? true;
+
+              const headerBadges = (
+                <div className="flex items-center gap-2">
+                  <Badge
+                    tone={
+                      type === "FILE_UPLOAD"
+                        ? "blue"
+                        : type?.startsWith("CHOICE")
+                        ? "green"
+                        : "gray"
+                    }
+                  >
+                    {type}
+                  </Badge>
+                  {requiredVal ? (
+                    <Badge tone="red">required</Badge>
+                  ) : (
+                    <Badge>optional</Badge>
+                  )}
+                  {!activeVal && <Badge tone="gray">inactive</Badge>}
+                </div>
+              );
+
+              const showOptions =
+                type === "CHOICE_SINGLE" || type === "CHOICE_MULTI";
+
+              return (
+                <div
+                  key={field.id}
+                  className="border rounded-xl bg-white shadow-sm overflow-hidden"
                 >
-                  <span
-                    className={`transition-transform ${
-                      expanded ? "rotate-90" : ""
-                    }`}
-                  >
-                    ▸
-                  </span>
-                </button>
+                  {/* row header */}
+                  <div className="flex items-center gap-3 px-3 py-2 border-b">
+                    <button
+                      type="button"
+                      onClick={() => toggleOpen(field.id)}
+                      className="shrink-0 w-7 h-7 rounded-md text-gray-600 hover:bg-gray-50 grid place-items-center focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+                      aria-label={expanded ? "Collapse" : "Expand"}
+                    >
+                      <ChevronUpIcon
+                        className={[
+                          "h-4 w-4 transition-transform",
+                          expanded ? "rotate-0" : "rotate-180",
+                        ].join(" ")}
+                      />
+                    </button>
 
-                <div className="w-10">
-                  <input
-                    type="number"
-                    className="w-full border rounded px-2 py-1 text-sm"
-                    aria-label="Order"
-                    {...register(`questions.${index}.order`, {
-                      valueAsNumber: true,
-                    })}
-                  />
-                </div>
-
-                <div className="flex-1 min-w-0">
-                  <div className="truncate text-sm font-medium">
-                    {promptVal?.trim() ? (
-                      promptVal
-                    ) : (
-                      <span className="text-gray-400">Untitled question</span>
-                    )}
-                  </div>
-                  <div className="text-xs text-gray-500">{headerBadges}</div>
-                </div>
-
-                {/* actions */}
-                <div className="flex items-center gap-1">
-                  <button
-                    type="button"
-                    onClick={() => index > 0 && move(index, index - 1)}
-                    className="px-2 py-1 text-sm border rounded hover:bg-gray-50"
-                    aria-label="Move up"
-                  >
-                    ↑
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      index < fields.length - 1 && move(index, index + 1)
-                    }
-                    className="px-2 py-1 text-sm border rounded hover:bg-gray-50"
-                    aria-label="Move down"
-                  >
-                    ↓
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      append({
-                        ...(questions[index] ?? emptyRow()),
-                        order: index + 1,
-                      })
-                    }
-                    className="px-2 py-1 text-sm border rounded hover:bg-gray-50"
-                    aria-label="Duplicate"
-                    title="Duplicate"
-                  >
-                    ⧉
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => remove(index)}
-                    className="px-2 py-1 text-sm border rounded text-red-600 hover:bg-red-50"
-                    aria-label="Remove"
-                  >
-                    ✕
-                  </button>
-                </div>
-              </div>
-
-              {/* body */}
-              {expanded && (
-                <div className="p-3 space-y-3">
-                  <div className="flex flex-col sm:flex-row gap-3">
-                    <div className="flex-1">
-                      <label className="block text-xs text-gray-600">
-                        Prompt
-                      </label>
+                    <div className="w-12">
                       <input
-                        type="text"
-                        className="w-full border rounded px-2 py-1"
-                        placeholder="Enter the question displayed to customer"
-                        {...register(`questions.${index}.prompt`)}
-                        onKeyDown={(e) => onPromptKeyDown(index, e)}
+                        type="number"
+                        className="w-full border rounded px-2 py-1 text-sm"
+                        aria-label="Order"
+                        {...register(`questions.${index}.order`, {
+                          valueAsNumber: true,
+                        })}
                       />
                     </div>
 
-                    <div className="sm:w-[320px]">
-                      <label className="block text-xs text-gray-600 mb-1">
-                        Answer Type
-                      </label>
-                      <Segmented
-                        name={`questions.${index}.answerType` as any}
-                        value={type}
-                        onChange={(v) => {
-                          setValue(`questions.${index}.answerType`, v, {
-                            shouldValidate: true,
-                          });
-                          if (v === "CHOICE_SINGLE") {
-                            // initialize options if missing and force min/max = 1
-                            const opts = (questions[index]?.options ??
-                              []) as Opt[];
-                            if (!opts.length) {
-                              setValue(`questions.${index}.options`, [
-                                {
-                                  label: "Yes",
-                                  value: "yes",
-                                  sortOrder: 0,
-                                  isActive: true,
-                                },
-                                {
-                                  label: "No",
-                                  value: "no",
-                                  sortOrder: 1,
-                                  isActive: true,
-                                },
-                              ]);
-                            }
-                            setValue(`questions.${index}.minSelect`, 1);
-                            setValue(`questions.${index}.maxSelect`, 1);
-                          } else if (v === "CHOICE_MULTI") {
-                            const opts = (questions[index]?.options ??
-                              []) as Opt[];
-                            if (opts.length < 2) {
-                              setValue(`questions.${index}.options`, [
-                                {
-                                  label: "Option A",
-                                  value: "option-a",
-                                  sortOrder: 0,
-                                  isActive: true,
-                                },
-                                {
-                                  label: "Option B",
-                                  value: "option-b",
-                                  sortOrder: 1,
-                                  isActive: true,
-                                },
-                              ]);
-                            }
-                            setValue(`questions.${index}.minSelect`, 1);
-                            setValue(
-                              `questions.${index}.maxSelect`,
-                              opts.length || 2
-                            );
-                          } else {
-                            // TEXT or FILE_UPLOAD → clear choice fields
-                            setValue(`questions.${index}.options`, undefined);
-                            setValue(`questions.${index}.minSelect`, null);
-                            setValue(`questions.${index}.maxSelect`, null);
+                    <div className="flex-1 min-w-0">
+                      <div className="truncate text-sm font-medium">
+                        {promptVal?.trim() ? (
+                          promptVal
+                        ) : (
+                          <span className="text-gray-400">
+                            Untitled question
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-xs text-gray-500">
+                        {headerBadges}
+                      </div>
+                    </div>
+
+                    {/* actions */}
+                    <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => index > 0 && move(index, index - 1)}
+                        className="px-2 py-1 text-sm border rounded hover:bg-gray-50"
+                        aria-label="Move up"
+                      >
+                        ↑
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          index < fields.length - 1 && move(index, index + 1)
+                        }
+                        className="px-2 py-1 text-sm border rounded hover:bg-gray-50"
+                        aria-label="Move down"
+                      >
+                        ↓
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          append({
+                            ...(questions[index] ?? emptyRow()),
+                            order: index + 1,
+                          })
+                        }
+                        className="px-2 py-1 text-sm border rounded hover:bg-gray-50"
+                        aria-label="Duplicate"
+                        title="Duplicate"
+                      >
+                        ⧉
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => remove(index)}
+                        className="px-2 py-1 text-sm border rounded text-red-600 hover:bg-red-50"
+                        aria-label="Remove"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* row body */}
+                  {expanded && (
+                    <div className="p-3 space-y-3">
+                      <div className="flex flex-col sm:flex-row gap-3">
+                        <div className="flex-1">
+                          <label className="block text-xs text-gray-600">
+                            Prompt
+                          </label>
+                          <input
+                            type="text"
+                            className="w-full border rounded px-2 py-1"
+                            placeholder="Enter the question displayed to customer"
+                            {...register(`questions.${index}.prompt`)}
+                            onKeyDown={(e) => onPromptKeyDown(index, e)}
+                          />
+                        </div>
+
+                        <div className="sm:w-[320px]">
+                          <label className="block text-xs text-gray-600 mb-1">
+                            Answer Type
+                          </label>
+                          <Segmented
+                            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                            name={`questions.${index}.answerType` as any}
+                            value={type}
+                            onChange={(v) => {
+                              setValue(`questions.${index}.answerType`, v, {
+                                shouldValidate: true,
+                              });
+                              if (v === "CHOICE_SINGLE") {
+                                const opts = (questions[index]?.options ??
+                                  []) as Opt[];
+                                if (!opts.length) {
+                                  setValue(`questions.${index}.options`, [
+                                    {
+                                      label: "Yes",
+                                      value: "yes",
+                                      sortOrder: 0,
+                                      isActive: true,
+                                    },
+                                    {
+                                      label: "No",
+                                      value: "no",
+                                      sortOrder: 1,
+                                      isActive: true,
+                                    },
+                                  ]);
+                                }
+                                setValue(`questions.${index}.minSelect`, 1);
+                                setValue(`questions.${index}.maxSelect`, 1);
+                              } else if (v === "CHOICE_MULTI") {
+                                const opts = (questions[index]?.options ??
+                                  []) as Opt[];
+                                if (opts.length < 2) {
+                                  setValue(`questions.${index}.options`, [
+                                    {
+                                      label: "Option A",
+                                      value: "option-a",
+                                      sortOrder: 0,
+                                      isActive: true,
+                                    },
+                                    {
+                                      label: "Option B",
+                                      value: "option-b",
+                                      sortOrder: 1,
+                                      isActive: true,
+                                    },
+                                  ]);
+                                }
+                                setValue(`questions.${index}.minSelect`, 1);
+                                setValue(
+                                  `questions.${index}.maxSelect`,
+                                  opts.length || 2
+                                );
+                              } else {
+                                setValue(
+                                  `questions.${index}.options`,
+                                  undefined
+                                );
+                                setValue(`questions.${index}.minSelect`, null);
+                                setValue(`questions.${index}.maxSelect`, null);
+                              }
+                            }}
+                          />
+                        </div>
+                      </div>
+
+                      <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
+                        <label className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            className="h-4 w-4"
+                            {...register(`questions.${index}.isRequired`)}
+                          />
+                          <span className="text-sm">Required</span>
+                        </label>
+
+                        <label className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            className="h-4 w-4"
+                            defaultChecked
+                            {...register(`questions.${index}.isActive`)}
+                          />
+                          <span className="text-sm">Active</span>
+                        </label>
+                      </div>
+
+                      {showOptions && <ChoiceEditor index={index} />}
+
+                      {type === "FILE_UPLOAD" && (
+                        <div className="grid sm:grid-cols-3 gap-3">
+                          <div>
+                            <label className="block text-xs text-gray-600">
+                              Max Files
+                            </label>
+                            <input
+                              type="number"
+                              className="w-full border rounded px-2 py-1"
+                              placeholder="e.g. 1"
+                              {...register(`questions.${index}.maxFiles`, {
+                                setValueAs: (v) =>
+                                  v === "" || v == null ? null : Number(v),
+                              })}
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs text-gray-600">
+                              Max Size (MB)
+                            </label>
+                            <input
+                              type="number"
+                              className="w-full border rounded px-2 py-1"
+                              placeholder="e.g. 5"
+                              {...register(`questions.${index}.maxSizeMB`, {
+                                setValueAs: (v) =>
+                                  v === "" || v == null ? null : Number(v),
+                              })}
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs text-gray-600">
+                              Image ID (placeholder)
+                            </label>
+                            <input
+                              type="text"
+                              className="w-full border rounded px-2 py-1"
+                              placeholder="optional imageId"
+                              {...register(`questions.${index}.imageId`)}
+                            />
+                          </div>
+                        </div>
+                      )}
+
+                      <div>
+                        <label className="block text-xs text-gray-600 mb-1">
+                          Metadata (JSON)
+                        </label>
+                        <MetadataEditor
+                          value={
+                            questions[index]?.metadata as
+                              | Record<string, unknown>
+                              | null
+                              | undefined
                           }
-                        }}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
-                    <label className="flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        className="h-4 w-4"
-                        {...register(`questions.${index}.isRequired`)}
-                      />
-                      <span className="text-sm">Required</span>
-                    </label>
-
-                    <label className="flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        className="h-4 w-4"
-                        defaultChecked
-                        {...register(`questions.${index}.isActive`)}
-                      />
-                      <span className="text-sm">Active</span>
-                    </label>
-                  </div>
-
-                  {/* CHOICE settings */}
-                  {showOptions && <ChoiceEditor index={index} />}
-
-                  {/* FILE_UPLOAD settings */}
-                  {type === "FILE_UPLOAD" && (
-                    <div className="grid sm:grid-cols-3 gap-3">
-                      <div>
-                        <label className="block text-xs text-gray-600">
-                          Max Files
-                        </label>
-                        <input
-                          type="number"
-                          className="w-full border rounded px-2 py-1"
-                          placeholder="e.g. 1"
-                          {...register(`questions.${index}.maxFiles`, {
-                            setValueAs: (v) =>
-                              v === "" || v == null ? null : Number(v),
-                          })}
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs text-gray-600">
-                          Max Size (MB)
-                        </label>
-                        <input
-                          type="number"
-                          className="w-full border rounded px-2 py-1"
-                          placeholder="e.g. 5"
-                          {...register(`questions.${index}.maxSizeMB`, {
-                            setValueAs: (v) =>
-                              v === "" || v == null ? null : Number(v),
-                          })}
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs text-gray-600">
-                          Image ID (placeholder)
-                        </label>
-                        <input
-                          type="text"
-                          className="w-full border rounded px-2 py-1"
-                          placeholder="optional imageId"
-                          {...register(`questions.${index}.imageId`)}
+                          onChange={(obj) =>
+                            setValue(`questions.${index}.metadata`, obj)
+                          }
                         />
                       </div>
                     </div>
                   )}
-
-                  {/* Metadata */}
-                  <div>
-                    <label className="block text-xs text-gray-600 mb-1">
-                      Metadata (JSON)
-                    </label>
-                    <MetadataEditor
-                      value={
-                        questions[index]?.metadata as
-                          | Record<string, unknown>
-                          | null
-                          | undefined
-                      }
-                      onChange={(obj) =>
-                        setValue(`questions.${index}.metadata`, obj)
-                      }
-                    />
-                  </div>
                 </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
-
-      {!!fields.length && (
-        <div className="flex items-center justify-between pt-2">
-          <button
-            type="button"
-            onClick={reindexOrders}
-            className="px-3 py-1.5 rounded-md border bg-white hover:bg-gray-50 text-sm"
-            title="Set order = visible position"
-          >
-            Reindex orders by position
-          </button>
-          <div className="text-xs text-gray-500">
-            Tip: Hold <kbd className="px-1 border rounded">Alt</kbd> and press{" "}
-            <kbd className="px-1 border rounded">↑</kbd>/
-            <kbd className="px-1 border rounded">↓</kbd> in the Prompt field to
-            reorder quickly.
+              );
+            })}
           </div>
+
+          {!!fields.length && (
+            <div className="mt-3 flex items-center justify-between pt-2">
+              <button
+                type="button"
+                onClick={reindexOrders}
+                className="px-3 py-1.5 rounded-md border bg-white hover:bg-gray-50 text-sm"
+                title="Set order = visible position"
+              >
+                Reindex orders by position
+              </button>
+              <div className="text-xs text-gray-500">
+                Tip: Hold <kbd className="px-1 border rounded">Alt</kbd> and
+                press <kbd className="px-1 border rounded">↑</kbd>/
+                <kbd className="px-1 border rounded">↓</kbd> in the Prompt field
+                to reorder quickly.
+              </div>
+            </div>
+          )}
         </div>
-      )}
-    </div>
+      </div>
+    </section>
   );
 };
 
 export default QuestionsSection;
 
 /* ------------------ CHOICE editor ------------------ */
-
 const ChoiceEditor: React.FC<{ index: number }> = ({ index }) => {
   const { control, register, watch, setValue } =
     useFormContext<ProductFormValues>();
@@ -596,12 +672,10 @@ const ChoiceEditor: React.FC<{ index: number }> = ({ index }) => {
   const onLabelBlur = (i: number, e: React.FocusEvent<HTMLInputElement>) => {
     const lab = e.target.value || "";
     const currentVal = (options[i]?.value || "").trim();
-    if (!currentVal) {
+    if (!currentVal)
       setValue(`questions.${index}.options.${i}.value`, slug(lab));
-    }
   };
 
-  // normalize min/max when type toggles
   React.useEffect(() => {
     if (isSingle) {
       setValue(`questions.${index}.minSelect`, 1, { shouldValidate: true });
@@ -617,7 +691,8 @@ const ChoiceEditor: React.FC<{ index: number }> = ({ index }) => {
           });
       }
     }
-  }, [isSingle, options.length]); // eslint-disable-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isSingle, options.length]);
 
   return (
     <div className="rounded-lg border p-3 bg-gray-50 space-y-3">
@@ -734,8 +809,7 @@ const ChoiceEditor: React.FC<{ index: number }> = ({ index }) => {
   );
 };
 
-/* ------------------ small JSON editor ------------------ */
-
+/* ------------------ tiny JSON editor ------------------ */
 const MetadataEditor: React.FC<{
   value: Record<string, unknown> | null | undefined;
   onChange: (obj: Record<string, unknown> | null) => void;
@@ -757,9 +831,7 @@ const MetadataEditor: React.FC<{
       if (obj && typeof obj === "object" && !Array.isArray(obj)) {
         setError(null);
         onChange(obj as Record<string, unknown>);
-      } else {
-        setError("Metadata must be a JSON object.");
-      }
+      } else setError("Metadata must be a JSON object.");
     } catch {
       setError("Invalid JSON.");
     }

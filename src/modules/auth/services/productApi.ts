@@ -165,6 +165,25 @@ export interface GetProductResponse {
   status: "ACTIVE" | "INACTIVE";
 }
 
+/* ─────────────────────────────────────────────
+ * DIGITAL typed blocks (from backend response)
+ * ───────────────────────────────────────────*/
+export interface ProductDigitalAssetDto {
+  fileId?: string | null;
+  externalUrl?: string | null;
+  title?: string | null;
+  sortOrder?: number | null;
+}
+export interface ProductDigitalDto {
+  downloadLimit?: number | null;
+  licenseKeyRequired?: boolean | null;
+  drmProvider?: string | null;
+  accessUrl?: string | null;
+  expiresAt?: string | null;
+  notes?: string | null;
+  assets?: ProductDigitalAssetDto[];
+}
+
 /** Backend response DTO */
 interface ProductResponseDto {
   id: string;
@@ -208,9 +227,14 @@ interface ProductResponseDto {
 
   // NEW: Questions echo
   questions?: ProductQuestionDto[];
+
+  // NEW: Digital block
+  digital?: ProductDigitalDto | null;
 }
 
 export interface ProductListItem {
+  variant: any;
+  category: string;
   id: string;
   name: string;
   price: number;
@@ -227,6 +251,14 @@ export interface ProductListItem {
 export interface VariantDto {
   optionName: string;
   optionValues: string[];
+}
+
+// add alongside your other DTOs
+export interface DigitalAssetDto {
+  fileId?: string | null;
+  externalUrl?: string | null;
+  title?: string | null;
+  sortOrder?: number | null;
 }
 
 export interface ProductDetailsResponse {
@@ -268,6 +300,15 @@ export interface ProductDetailsResponse {
 
   // NEW
   questions?: ProductQuestionDto[];
+
+  // NEW: hydrated for Digital forms
+  digitalAssetUrls?: string[]; // external links only (as before)
+  digitalAssetUrl?: string | null; // first link (as before)
+
+  // NEW: include full digital assets for edit preview
+  digital?: {
+    assets: DigitalAssetDto[];
+  };
 }
 
 export const productApi = createApi({
@@ -334,7 +375,7 @@ export const productApi = createApi({
         body,
       }),
     }),
-    // CREATE (multipart)
+    // CREATE (multipart) — PHYSICAL/GENERIC
     createProduct: builder.mutation<
       { message: string; data: { id: string; name: string } },
       FormData
@@ -346,12 +387,39 @@ export const productApi = createApi({
       }),
     }),
 
-    // LIST BY BUSINESS
-    listProducts: builder.query<ProductListItem[], { businessId: string }>({
-      query: ({ businessId }) => ({
+    /* ─────────────────────────────────────────────
+     * DIGITAL: CREATE / EDIT (multipart)
+     * ───────────────────────────────────────────*/
+    createDigitalProduct: builder.mutation<
+      { message: string; data: { id: string; name: string } },
+      FormData
+    >({
+      query: (formData) => ({
+        url: `/seller/product/product/digital/create`,
+        method: "POST",
+        body: formData,
+      }),
+    }),
+    updateDigitalProduct: builder.mutation<
+      { message: string; data: ProductDetailsResponse },
+      FormData
+    >({
+      query: (formData) => ({
+        url: `/seller/product/product/digital/edit`,
+        method: "POST",
+        body: formData,
+      }),
+    }),
+
+    // LIST product BY BUSINESS & TYPE
+    listProducts: builder.query<
+      ProductListItem[],
+      { businessId: string; type: string }
+    >({
+      query: ({ businessId, type }) => ({
         url: `/seller/product/product/list-by-business`,
         method: "POST",
-        body: { businessId },
+        body: { businessId, type },
       }),
       transformResponse: (raw: {
         message: string;
@@ -376,7 +444,7 @@ export const productApi = createApi({
         }),
     }),
 
-    // GET BY ID — hydrate flags + questions
+    // GET BY ID — hydrate flags + questions + digital assets
     getProductById: builder.query<ProductDetailsResponse, { id: string }>({
       query: ({ id }) => ({
         url: `/seller/product/product/get-by-id`,
@@ -388,8 +456,26 @@ export const productApi = createApi({
         data: ProductResponseDto;
       }): ProductDetailsResponse => {
         const p = raw.data;
+
         const images =
           p.media?.filter((m) => m.type === "IMAGE").map((m) => m.url) || [];
+
+        // Pull digital asset links for FE link pills
+        const digitalAssets = p?.digital?.assets ?? [];
+        const digitalAssetUrls =
+          digitalAssets
+            ?.map((a: any) => a?.externalUrl)
+            ?.filter((u: any) => typeof u === "string" && u.trim())
+            ?.map((u: string) => u.trim()) || [];
+
+        // Sanitize / pass-through full asset objects for edit preview
+        const sanitizedAssets = digitalAssets.map((a: any) => ({
+          fileId: a?.fileId ?? null,
+          externalUrl: a?.externalUrl ?? null,
+          title: a?.title ?? null,
+          sortOrder: typeof a?.sortOrder === "number" ? a.sortOrder : 0,
+        }));
+
         return {
           id: p.id,
           name: p.name,
@@ -420,6 +506,15 @@ export const productApi = createApi({
           },
 
           questions: p.questions || [],
+
+          // Link pills (unchanged behavior)
+          digitalAssetUrls,
+          digitalAssetUrl: digitalAssetUrls[0] ?? null,
+
+          // <-- NEW: keep full digital assets for edit previews
+          digital: {
+            assets: sanitizedAssets,
+          },
         };
       },
     }),
@@ -456,7 +551,10 @@ export const productApi = createApi({
         const patchResult = dispatch(
           productApi.util.updateQueryData(
             "listProducts",
-            { businessId },
+            {
+              businessId,
+              type: "",
+            },
             (draft) => {
               const product = draft.find((p) => p.id === id);
               if (product) product.status = status;
@@ -493,10 +591,15 @@ export const {
   useGetCategoryQuery,
   useLazyGetCategoryQuery,
   useDeleteCategoriesMutation,
+  // PHYSICAL/GENERIC
   useCreateProductMutation,
   useListProductsQuery,
   useGetProductByIdQuery,
   useUpdateProductMutation,
   useUpdateProductStatusMutation,
   useDeleteProductMutation,
+
+  // DIGITAL
+  useCreateDigitalProductMutation,
+  useUpdateDigitalProductMutation,
 } = productApi;

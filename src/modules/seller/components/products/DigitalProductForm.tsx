@@ -1,29 +1,31 @@
-// components/ProductForm/ProductForm.tsx
-import React, { useEffect } from "react";
-import { useForm, FormProvider, useWatch } from "react-hook-form";
+// src/modules/seller/components/products/DigitalProductForm.tsx
 import { zodResolver } from "@hookform/resolvers/zod";
+import React, { useEffect } from "react";
+import { FormProvider, useForm, useWatch } from "react-hook-form";
 import { useNavigate } from "react-router-dom";
+import { showToast } from "../../../../common/utils/showToast";
 import { useAuth } from "../../../auth/contexts/AuthContext";
 import {
-  useCreateProductMutation,
+  useCreateDigitalProductMutation,
   useGetProductByIdQuery,
-  useUpdateProductMutation,
+  useUpdateDigitalProductMutation,
 } from "../../../auth/services/productApi";
-import { showToast } from "../../../../common/utils/showToast";
 
-import ProductMediaSection from "./ProductMediaSection";
-import ProductInfoSection from "./ProductInfoSection";
 import InventorySection from "./InventorySection";
-import ShippingTaxSection from "./ShippingTaxSection";
-import VariantsSection from "./VariantsSection";
-import SEOSection from "./SEOSection";
 import ProductFlagsSection from "./ProductFlagsSection";
+import ProductInfoSection from "./ProductInfoSection";
+import ProductMediaSection from "./ProductMediaSection";
 import QuestionsSection from "./QuestionsSection";
-
-import { ProductFormValues, productSchema } from "../../Schemas/productSchema";
+import SEOSection from "./SEOSection";
 import PostPurchaseNoteSection from "./PostPurchaseNoteSection";
+import DigitalAssetSection from "./DigitalAssetSection";
 
-interface ProductFormProps {
+import {
+  DigitalProductFormValues,
+  digitalProductSchema,
+} from "../../Schemas/digitalProductSchema";
+
+interface DigitalProductFormProps {
   productId?: string;
 }
 
@@ -62,12 +64,16 @@ const slug = (s: string) =>
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
 
-const ProductForm: React.FC<ProductFormProps> = ({ productId }) => {
+const DigitalProductForm: React.FC<DigitalProductFormProps> = ({
+  productId,
+}) => {
   const navigate = useNavigate();
   const { userDetails } = useAuth();
 
-  const [createProduct, { isLoading: isCreating }] = useCreateProductMutation();
-  const [updateProduct, { isLoading: isUpdating }] = useUpdateProductMutation();
+  const [createDigital, { isLoading: isCreating }] =
+    useCreateDigitalProductMutation();
+  const [updateDigital, { isLoading: isUpdating }] =
+    useUpdateDigitalProductMutation();
 
   const { data: productRaw, isLoading: isFetchingProduct } =
     useGetProductByIdQuery(
@@ -75,8 +81,8 @@ const ProductForm: React.FC<ProductFormProps> = ({ productId }) => {
       { skip: !productId, refetchOnMountOrArgChange: true }
     );
 
-  const methods = useForm<ProductFormValues>({
-    resolver: zodResolver(productSchema),
+  const methods = useForm<DigitalProductFormValues>({
+    resolver: zodResolver(digitalProductSchema),
     mode: "onChange",
     reValidateMode: "onChange",
     defaultValues: {
@@ -105,7 +111,7 @@ const ProductForm: React.FC<ProductFormProps> = ({ productId }) => {
       hsnCode: "",
       gstPercent: undefined,
 
-      type: "PHYSICAL",
+      type: "DIGITAL",
 
       isRecommended: false,
       customerQuestionsRequired: false,
@@ -114,6 +120,15 @@ const ProductForm: React.FC<ProductFormProps> = ({ productId }) => {
 
       replaceQuestions: false,
       questions: [],
+
+      // Digital asset fields
+      digitalAssetMode: "none",
+      digitalAssetUrl: null,
+      digitalAssetUrls: [], // multi-link
+      digitalAssetFile: undefined as any, // FileList handled in section
+
+      // preview-only full asset objects from server
+      digitalAssetExisting: [] as any[],
     } as any,
   });
 
@@ -131,6 +146,8 @@ const ProductForm: React.FC<ProductFormProps> = ({ productId }) => {
   useEffect(() => {
     if (!productId || !productRaw) return;
 
+    console.log(productRaw, "productRaw");
+
     const p = unwrapProduct(productRaw);
     const mediaTokens = extractMediaTokens(p);
 
@@ -139,6 +156,40 @@ const ProductForm: React.FC<ProductFormProps> = ({ productId }) => {
       .map((l: any) => l?.subCategoryName || l?.parentCategoryName)
       .filter(Boolean)
       .join(", ");
+
+    // legacy link fields
+    const existingUrls = Array.isArray(p?.digitalAssetUrls)
+      ? p.digitalAssetUrls
+      : typeof p?.digitalAssetUrl === "string" && p.digitalAssetUrl.trim()
+      ? [p.digitalAssetUrl.trim()]
+      : [];
+
+    // pull digital asset objects from p.digital.assets
+    const digitalAssets = Array.isArray(p?.digital?.assets)
+      ? p.digital.assets
+      : [];
+
+    console.log("[Form hydrate] p.digital.assets =>", digitalAssets);
+
+    // Keep the full asset objects instead of just tokens
+    const assetObjects = digitalAssets.map((asset: any) => ({
+      fileId: asset.fileId || null,
+      externalUrl: asset.externalUrl || null,
+      title: asset.title || "",
+      sortOrder: asset.sortOrder || 0,
+    }));
+
+    console.log("[Form hydrate] assetObjects =>", assetObjects);
+
+    const assetExternalLinks: string[] = digitalAssets
+      .filter(
+        (a: any) => typeof a?.externalUrl === "string" && a.externalUrl.trim()
+      )
+      .map((a: any) => a.externalUrl.trim());
+
+    const mergedLinks = Array.from(
+      new Set([...(existingUrls as string[]), ...assetExternalLinks])
+    );
 
     reset({
       name: p?.name || "",
@@ -167,7 +218,7 @@ const ProductForm: React.FC<ProductFormProps> = ({ productId }) => {
       hsnCode: p?.hsnCode || "",
       gstPercent: p?.gstPercent ?? undefined,
 
-      type: p?.type || "PHYSICAL",
+      type: p?.type || "DIGITAL",
 
       isRecommended: !!p?.isRecommended,
       customerQuestionsRequired: !!p?.customerQuestionsRequired,
@@ -208,10 +259,19 @@ const ProductForm: React.FC<ProductFormProps> = ({ productId }) => {
             isActive: true,
           }))
         : [],
+
+      // digital assets
+      digitalAssetMode: "none",
+      digitalAssetUrl: mergedLinks[0] ?? null,
+      digitalAssetUrls: mergedLinks,
+      digitalAssetFile: undefined as any,
+
+      // edit previews - pass the full asset objects
+      digitalAssetExisting: assetObjects,
     } as any);
   }, [productRaw, productId, reset]);
 
-  const onSubmit = async (data: ProductFormValues) => {
+  const onSubmit = async (data: DigitalProductFormValues) => {
     try {
       const businessId = userDetails?.storeLinks?.[0]?.businessId;
       if (!businessId) {
@@ -242,7 +302,7 @@ const ProductForm: React.FC<ProductFormProps> = ({ productId }) => {
         fd.append("gstPercent", String(data.gstPercent));
       if (data.type) fd.append("type", data.type);
 
-      // NEW: post purchase note
+      // post purchase note
       if (data.postPurchaseNoteDesc != null) {
         fd.append("postPurchaseNoteDesc", String(data.postPurchaseNoteDesc));
       }
@@ -262,6 +322,57 @@ const ProductForm: React.FC<ProductFormProps> = ({ productId }) => {
       // variants
       if (data.variants !== undefined) {
         fd.append("variants", JSON.stringify(data.variants));
+      }
+
+      /* ---------------- DIGITAL ASSETS (files + links together) ---------------- */
+      const maxBytes = 30 * 1024 * 1024; // 30MB per file
+
+      // files
+      const pickedRaw = data.digitalAssetFile as unknown as
+        | FileList
+        | File[]
+        | undefined;
+      const pickedFiles: File[] = pickedRaw
+        ? Array.isArray(pickedRaw)
+          ? pickedRaw
+          : Array.from(pickedRaw)
+        : [];
+
+      if (pickedFiles.length) {
+        for (const f of pickedFiles) {
+          if (f.size > maxBytes) {
+            showToast({
+              type: "error",
+              message: `Digital asset "${f.name}" must be 30 MB or less.`,
+              showClose: true,
+            });
+            return;
+          }
+        }
+        // append all files under the same key (backend FileFieldsInterceptor)
+        for (const f of pickedFiles) {
+          fd.append("digitalAssets", f);
+        }
+      }
+
+      // links (multi) -> **digitalAssets JSON** expected by backend
+      const urls = Array.isArray(data.digitalAssetUrls)
+        ? data.digitalAssetUrls
+        : [];
+      const single =
+        typeof data.digitalAssetUrl === "string" && data.digitalAssetUrl.trim()
+          ? data.digitalAssetUrl
+              .split(/[\n,]+/)
+              .map((x) => x.trim())
+              .filter(Boolean)
+          : [];
+      const allUrls = Array.from(new Set([...(urls || []), ...single]));
+      if (allUrls.length) {
+        const linkPayload = allUrls.map((u, i) => ({
+          externalUrl: u,
+          sortOrder: i,
+        }));
+        fd.append("digitalAssets", JSON.stringify(linkPayload));
       }
 
       // SEO
@@ -295,12 +406,12 @@ const ProductForm: React.FC<ProductFormProps> = ({ productId }) => {
         );
       }
 
-      // new uploads
-      const files = data.images as unknown as FileList | undefined;
-      if (files && files.length)
-        Array.from(files).forEach((f) => fd.append("images", f));
+      // new uploads (product gallery)
+      const galleryFiles = data.images as unknown as FileList | undefined;
+      if (galleryFiles && galleryFiles.length)
+        Array.from(galleryFiles).forEach((f) => fd.append("images", f));
 
-      // questions payload — FIXED: include CHOICE options/min/max and imageId
+      // questions payload
       const shouldSendQuestions =
         (data.questions?.length ?? 0) > 0 ||
         data.customerQuestionsRequired === true ||
@@ -374,14 +485,14 @@ const ProductForm: React.FC<ProductFormProps> = ({ productId }) => {
 
       if (productId) {
         fd.append("id", productId);
-        await updateProduct(fd).unwrap();
+        await updateDigital(fd).unwrap();
         showToast({
           type: "success",
           message: "Product updated successfully!",
           showClose: true,
         });
       } else {
-        await createProduct(fd).unwrap();
+        await createDigital(fd).unwrap();
         showToast({
           type: "success",
           message: "Product created successfully!",
@@ -389,7 +500,7 @@ const ProductForm: React.FC<ProductFormProps> = ({ productId }) => {
         });
       }
 
-      navigate("/seller/catalogue/products/physical", {
+      navigate("/seller/catalogue/products/digital", {
         state: { refresh: true },
       });
     } catch (err: any) {
@@ -413,20 +524,17 @@ const ProductForm: React.FC<ProductFormProps> = ({ productId }) => {
           <ProductMediaSection />
         </section>
 
+        {/* Digital asset (upload and/or link) */}
+        <section id="digital-asset" className="scroll-mt-24">
+          <DigitalAssetSection />
+        </section>
+
         <section id="product-info" className="scroll-mt-24">
           <ProductInfoSection />
         </section>
 
         <section id="inventory" className="scroll-mt-24">
           <InventorySection />
-        </section>
-
-        <section id="shipping-tax" className="scroll-mt-24">
-          <ShippingTaxSection />
-        </section>
-
-        <section id="variants" className="scroll-mt-24">
-          <VariantsSection />
         </section>
 
         <section id="seo" className="scroll-mt-24">
@@ -441,12 +549,11 @@ const ProductForm: React.FC<ProductFormProps> = ({ productId }) => {
           <QuestionsSection />
         </section>
 
-        {/* NEW: Post-purchase note */}
         <section id="post-purchase-note" className="scroll-mt-24">
           <PostPurchaseNoteSection />
         </section>
 
-        <div className="flex justify-end mt-6 pb-15 pt-1">
+        <div className="flex justify-end mt-6 pt-1">
           <button
             type="submit"
             disabled={isSubmitting}
@@ -457,8 +564,8 @@ const ProductForm: React.FC<ProductFormProps> = ({ productId }) => {
                 ? "Updating..."
                 : "Saving..."
               : productId
-              ? "Update Product"
-              : "Add Product"}
+              ? "Update Digital Product"
+              : "Add Digital Product"}
           </button>
         </div>
       </form>
@@ -466,4 +573,4 @@ const ProductForm: React.FC<ProductFormProps> = ({ productId }) => {
   );
 };
 
-export default ProductForm;
+export default DigitalProductForm;
