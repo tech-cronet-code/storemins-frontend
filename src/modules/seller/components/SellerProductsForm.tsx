@@ -18,6 +18,7 @@ import ProductTableHeader from "./products/ProductTableHeader";
 import ProductTableRow from "./products/ProductTableRow";
 import ProductSettingsDrawer from "./ProductSettingsDrawer";
 import UpgradeToBusinessPlanModal from "./UpgradeToBusinessPlanModal";
+import { convertPath } from "../../auth/utils/useImagePath";
 
 type SortableKey = "name" | "price" | "status";
 
@@ -29,9 +30,64 @@ export enum ProductType {
   WORKSHOP = "WORKSHOP",
 }
 
+/* ---------------- helpers ---------------- */
+
+const looksLikeUrl = (s: string) =>
+  /^https?:\/\//i.test(s) || s.startsWith("/");
+
+/** Convert diskName -> full URL with convertPath; fall back to /image/original/product/<disk> */
+function toProductImageUrl(diskName?: string): string {
+  if (!diskName) return "";
+  try {
+    const u = convertPath(diskName, "original/product") as string | undefined;
+    if (u) return u;
+  } catch {
+    // ignore and fall through
+  }
+  const base =
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (import.meta as any).env?.VITE_IMAGE_BASE_URL ||
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (import.meta as any).env?.VITE_API_BASE_URL ||
+    "";
+  const root = String(base || "").replace(/\/+$/, "");
+  return root
+    ? `${root}/image/original/product/${diskName}`
+    : `/image/original/product/${diskName}`;
+}
+
+/** Get media diskName with order===0 (or first) */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function getPrimaryMediaDiskName(product: any): string | undefined {
+  const arr: Array<{ url?: string; order?: number }> | undefined =
+    product?.media;
+  if (!Array.isArray(arr) || arr.length === 0) return undefined;
+  return (arr.find((m) => m?.order === 0)?.url ?? arr[0]?.url) || undefined;
+}
+
+/** Robust primary image URL resolver (handles media OR images) */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function getPrimaryImageUrl(product: any): string {
+  // 1) media (diskName)
+  const disk = getPrimaryMediaDiskName(product);
+  if (disk) return toProductImageUrl(disk);
+
+  // 2) images (already a url or diskName)
+  const imgs: unknown = product?.images;
+  if (Array.isArray(imgs) && imgs.length > 0) {
+    const first = imgs[0];
+    if (typeof first === "string") {
+      return looksLikeUrl(first) ? first : toProductImageUrl(first);
+    }
+  }
+
+  return "";
+}
+
+/* --------------- component --------------- */
+
 const SellerProductsForm: React.FC = () => {
   const { userDetails } = useAuth();
-
   const businessId = userDetails?.storeLinks?.[0]?.businessId;
 
   const {
@@ -242,12 +298,29 @@ const SellerProductsForm: React.FC = () => {
                 {paginatedProducts.length > 0 ? (
                   <>
                     {paginatedProducts.map((product) => {
-                      const firstImage = product.images?.[0] || "";
-                      const discountPrice = product.discountedPrice || 0;
-                      const inventory = product.stock ?? "N/A";
-                      const isActive = product.status === "ACTIVE";
+                      const imageUrl = getPrimaryImageUrl(product);
 
+                      const inventory =
+                        product.stock ?? product.quantity ?? "N/A";
+
+                      const isActive = product.status === "ACTIVE";
                       const isLastItemOnPage = paginatedProducts.length === 1;
+
+                      const subtitle =
+                        Array.isArray(product.categoryLinks) &&
+                        product.categoryLinks.length
+                          ? product.categoryLinks
+                              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                              .map((c: any) => c.parentCategoryName)
+                              .filter(Boolean)
+                              .join(", ")
+                          : product.category ?? "";
+
+                      const variantCount = Array.isArray(product.variant)
+                        ? product.variant.length
+                        : Array.isArray(product.variant)
+                        ? product.variant.length
+                        : 0;
 
                       return (
                         <div
@@ -256,15 +329,15 @@ const SellerProductsForm: React.FC = () => {
                         >
                           <ProductTableRow
                             id={product.id}
-                            image={firstImage}
+                            image={imageUrl}
                             title={product.name}
-                            subtitle={product.category}
-                            variant={`${product.variant?.length || 0}`}
+                            subtitle={subtitle}
+                            variant={`${variantCount}`}
                             price={product.price}
                             discountedPrice={
-                              product.discountedPrice || product.price
+                              product.discountedPrice ?? product.price
                             }
-                            mrp={discountPrice}
+                            mrp={product.discountedPrice ?? product.price}
                             inventory={inventory}
                             isActive={isActive}
                             checked={selectedProductIds.includes(product.id)}
@@ -276,7 +349,7 @@ const SellerProductsForm: React.FC = () => {
                                 `/seller/catalogue/products/physical/edit/${id}`
                               )
                             }
-                            isLastItemOnPage={isLastItemOnPage} // ✅ pass flag
+                            isLastItemOnPage={isLastItemOnPage}
                             onDeleteComplete={(_, shouldGoToPrevPage) => {
                               if (shouldGoToPrevPage && currentPage > 1) {
                                 setCurrentPage((prev) => prev - 1);

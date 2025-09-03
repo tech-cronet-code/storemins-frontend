@@ -12,7 +12,7 @@ export type KnownImageVariantExamples =
   | "original/category"
   | "original/categories"
   | "original/product"
-  | "original/product/digital" /// isko use kr 
+  | "original/product/digital" /// isko use kr
   | "original/banners"
   | "original/brands";
 

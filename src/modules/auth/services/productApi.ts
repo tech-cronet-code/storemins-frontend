@@ -232,21 +232,31 @@ interface ProductResponseDto {
   digital?: ProductDigitalDto | null;
 }
 
+// types/products.ts
 export interface ProductListItem {
-  variant: any;
-  category: string;
   id: string;
   name: string;
   price: number;
   discountedPrice?: number;
   description?: string;
+
+  // existing fields your UI uses
   stock?: number;
   stockStatus?: "in_stock" | "out_of_stock";
   images?: string[];
   status: "ACTIVE" | "INACTIVE";
-  // optional surfacing of recommended in list if you want:
   isRecommended?: boolean;
+
+  // make these OPTIONAL so the mapper isn't forced to supply them
+  quantity?: number;
+  categoryLinks?: Array<{
+    parentCategoryId: string;
+    parentCategoryName: string;
+  }>;
+  variant?: any;          // or the real type if you have one
+  category?: string;      // convenient string for first/combined category name
 }
+
 
 export interface VariantDto {
   optionName: string;

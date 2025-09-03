@@ -12,6 +12,7 @@ import { useAuth } from "../../../auth/contexts/AuthContext";
 
 interface ProductRowProps {
   id: string;
+  /** Full image URL (already resolved in parent) */
   image: string;
   title: string;
   subtitle: string;
@@ -28,7 +29,7 @@ interface ProductRowProps {
     deletedId: string,
     shouldGoToPreviousPage?: boolean
   ) => void;
-  isLastItemOnPage?: boolean; // ✅ Add this prop to decide pagination logic
+  isLastItemOnPage?: boolean;
 }
 
 const ProductTableRow: React.FC<ProductRowProps> = ({
@@ -46,7 +47,7 @@ const ProductTableRow: React.FC<ProductRowProps> = ({
   onCheckboxChange,
   onEdit,
   onDeleteComplete,
-  isLastItemOnPage = false, // default to false
+  isLastItemOnPage = false,
 }) => {
   const { userDetails } = useAuth();
 
@@ -78,11 +79,8 @@ const ProductTableRow: React.FC<ProductRowProps> = ({
         message: `Product marked as ${newStatus}`,
         showClose: true,
       });
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    } catch (err) {
-      console.log(err, "err");
-
-      setActive(active); // revert on failure
+    } catch {
+      setActive(active);
       showToast({
         type: "error",
         message: "Failed to update product status",
@@ -106,7 +104,7 @@ const ProductTableRow: React.FC<ProductRowProps> = ({
 
       setTimeout(() => {
         setDeleteModalOpen(false);
-        onDeleteComplete?.(id, isLastItemOnPage); // ✅ notify with page info
+        onDeleteComplete?.(id, isLastItemOnPage);
       }, 300);
     } catch (error) {
       showToast({
@@ -143,6 +141,12 @@ const ProductTableRow: React.FC<ProductRowProps> = ({
               src={image}
               alt={title}
               className="w-10 h-10 object-cover rounded border border-gray-100 shrink-0"
+              loading="lazy"
+              draggable={false}
+              onError={(e) => {
+                // If the final URL fails, hide the broken thumbnail to avoid ugly icons.
+                (e.currentTarget as HTMLImageElement).style.display = "none";
+              }}
             />
           ) : (
             <div className="w-10 h-10 flex items-center justify-center bg-gray-100 text-gray-400 rounded border border-gray-100 shrink-0 text-xs">
@@ -166,16 +170,12 @@ const ProductTableRow: React.FC<ProductRowProps> = ({
             <p className="font-semibold text-black">
               ₹{discountedPrice.toLocaleString()}
             </p>
-
-            {/* Discount Badge */}
             {price > discountedPrice && (
               <span className="text-[11px] font-semibold bg-orange-500 text-white px-2 py-0.5 rounded">
                 {Math.round(((price - discountedPrice) / price) * 100)}% OFF
               </span>
             )}
           </div>
-
-          {/* Original Price */}
           {price > discountedPrice && (
             <p className="line-through text-gray-400 text-xs mt-0.5">
               ₹{price.toLocaleString()}
@@ -204,12 +204,12 @@ const ProductTableRow: React.FC<ProductRowProps> = ({
               className={`w-10 h-5 rounded-full transition-colors duration-300 ${
                 active ? "bg-blue-600" : "bg-gray-300"
               }`}
-            ></div>
+            />
             <div
               className={`absolute left-0.5 top-0.5 w-4 h-4 bg-white rounded-full shadow-md transform transition-transform duration-300 ${
                 active ? "translate-x-5" : ""
               }`}
-            ></div>
+            />
           </label>
           <span
             className={`text-sm font-medium ${
