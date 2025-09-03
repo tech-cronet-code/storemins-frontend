@@ -41,6 +41,8 @@ import OrderSuccess from "./modules/customer/components/OrderSuccess";
 import CategoryPage from "./modules/customer/pages/CategoryPage";
 import SellerDigitalProductsPage from "./modules/seller/pages/SellerDigitalProductsPage";
 import AddDigitalProductPage from "./modules/seller/pages/AddDigitalProductPage";
+import SellerMeetingProductsPage from "./modules/seller/pages/SellerMeetingProductsPage";
+import AddMeetingProductPage from "./modules/seller/pages/AddMeetingProductPage";
 // import AuthFormPage from "./modules/auth/pages/AuthForm";
 
 const App = () => {
@@ -107,15 +109,15 @@ const App = () => {
 
             <Route
               path="/seller/catalogue/products/meeting"
-              element={<SellerProductsPage />}
+              element={<SellerMeetingProductsPage />}
             />
             <Route
               path="/seller/catalogue/products/meeting/create"
-              element={<AddProductPage />}
+              element={<AddMeetingProductPage />}
             />
             <Route
               path="/seller/catalogue/products/meeting/edit/:id"
-              element={<AddProductPage />}
+              element={<AddMeetingProductPage />}
             />
 
             <Route

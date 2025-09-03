@@ -2,7 +2,7 @@ import React from "react";
 import { useFormContext, useWatch } from "react-hook-form";
 import { showToast } from "../../../../common/utils/showToast";
 import DigitalAssetDocsGrid from "./DigitalAssetDocsGrid";
-import type { DigitalProductFormValues } from "../../Schemas/digitalProductSchema";
+import type { DigitalProductFormValues } from "../../Schemas/meetingProductSchema";
 import { convertPath } from "../../../auth/utils/useImagePath";
 import DigitalAssetImagesGrid from "./DigitalAssetImagesGrid";
 

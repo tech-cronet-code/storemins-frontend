@@ -21,6 +21,9 @@ interface Props {
 const ALL_ITEMS = [
   { label: "Product Media", id: "product-media", icon: Image },
   { label: "Product Information", id: "product-info", icon: Info },
+  { label: "Meeting Duration", id: "meeting-duration", icon: Info },
+  { label: "Meeting Breakdown", id: "meeting-breakdown", icon: Truck },
+  { label: "Meeting Channel", id: "meeting-channel", icon: Truck },
   { label: "Digital Asset", id: "digital-asset", icon: Truck },
   { label: "Inventory", id: "inventory", icon: Package },
   { label: "Shipping & Tax", id: "shipping-tax", icon: Truck },
@@ -41,10 +44,26 @@ const ALL_ITEMS = [
 ];
 
 const HIDE_BY_TYPE: Record<ProductType, Set<string>> = {
-  DIGITAL: new Set(["shipping-tax", "variants"]),
-  PHYSICAL: new Set(["digital-asset"]),
+  DIGITAL: new Set([
+    "shipping-tax",
+    "variants",
+    "meeting-duration",
+    "meeting-breakdown",
+    "meeting-channel",
+  ]),
+  PHYSICAL: new Set([
+    "digital-asset",
+    "meeting-duration",
+    "meeting-breakdown",
+    "meeting-channel",
+  ]),
   MEETING: new Set(["shipping-tax", "variants", "digital-asset"]),
-  WORKSHOP: new Set(["shipping-tax", "variants", "digital-asset"]),
+  WORKSHOP: new Set([
+    "shipping-tax",
+    "variants",
+    "digital-asset",
+    "meeting-duration",
+  ]),
 };
 
 const SidebarNavigation: React.FC<Props> = ({
