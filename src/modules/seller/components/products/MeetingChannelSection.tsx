@@ -26,10 +26,22 @@ interface CustomChannel {
 }
 type ModalMode = "base" | "custom-new" | "custom-edit";
 
+const LABEL_TO_KEY: Record<string, string> = {
+  "G-Meet": "gmeet",
+  ZOOM: "zoom",
+  WhatsApp: "whatsapp",
+  "Phone call": "phone",
+  Form: "form",
+  Endn: "endn",
+  Hshd: "hshd",
+};
+
 const MeetingChannelSection: React.FC = () => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { setValue, watch } = useFormContext<any>();
   const selected = watch("meetingChannel");
   const custom: CustomChannel | undefined = watch("customChannel"); // single custom only
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const channelLinks: Record<string, string> = watch("channelLinks") || {}; // per-channel saved links
 
   const baseTiles: Tile[] = useMemo(
@@ -131,7 +143,7 @@ const MeetingChannelSection: React.FC = () => {
         shouldDirty: true,
         shouldValidate: true,
       });
-      setValue("customChannels", [payload.label], { shouldDirty: true }); // backward compat
+      setValue("customChannels", [payload.label], { shouldDirty: true }); // legacy compat
       setValue("meetingChannel", payload.label, {
         shouldDirty: true,
         shouldValidate: true,
@@ -143,6 +155,23 @@ const MeetingChannelSection: React.FC = () => {
     }
     setModalOpen(false);
   };
+
+  // Keep meetingChannelUrl in sync when user just selects a tile
+  useEffect(() => {
+    if (!selected) return;
+    const key = LABEL_TO_KEY[selected];
+    if (key && channelLinks?.[key]) {
+      setValue("meetingChannelUrl", channelLinks[key], {
+        shouldDirty: false,
+        shouldValidate: true,
+      });
+    } else if (custom?.label && selected === custom.label) {
+      setValue("meetingChannelUrl", custom.url || "", {
+        shouldDirty: false,
+        shouldValidate: true,
+      });
+    }
+  }, [selected, channelLinks, custom, setValue]);
 
   // ----- Modal helpers: ESC close, focus trap, body scroll lock -----
   const dialogRef = useRef<HTMLDivElement | null>(null);

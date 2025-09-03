@@ -7,7 +7,7 @@ import Layout from "../../dashboard/components/Layout";
 import SidebarNavigation from "../components/products/SidebarNavigation";
 import MeetingProductForm from "../components/products/MeetingProductForm";
 
-const AddMeetingProductPage = () => {
+const AddWorkShopProductPage = () => {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
   const formContainerRef = useRef<HTMLDivElement>(null!);
@@ -40,7 +40,7 @@ const AddMeetingProductPage = () => {
                 <ArrowLeft size={24} strokeWidth={2} />
               </button>
               <h1 className="text-base sm:text-lg font-semibold text-gray-900 leading-none">
-                {id ? "Edit digital product" : "Add new meeting product"}
+                {id ? "Edit digital product" : "Add new digital product"}
               </h1>
             </div>
           </div>
@@ -58,4 +58,4 @@ const AddMeetingProductPage = () => {
   );
 };
 
-export default AddMeetingProductPage;
+export default AddWorkShopProductPage;

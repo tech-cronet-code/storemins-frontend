@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 // src/modules/seller/components/products/MeetingProductForm.tsx
 import { zodResolver } from "@hookform/resolvers/zod";
 import React, { useEffect } from "react";
@@ -6,9 +7,9 @@ import { useNavigate } from "react-router-dom";
 import { showToast } from "../../../../common/utils/showToast";
 import { useAuth } from "../../../auth/contexts/AuthContext";
 import {
-  useCreateDigitalProductMutation,
+  useCreateMeetingProductMutation,
   useGetProductByIdQuery,
-  useUpdateDigitalProductMutation,
+  useUpdateMeetingProductMutation,
 } from "../../../auth/services/productApi";
 
 import InventorySection from "./InventorySection";
@@ -23,7 +24,7 @@ import {
   meetingProductSchema,
 } from "../../Schemas/meetingProductSchema";
 
-// NEW: Meeting UI sections
+// Meeting UI sections
 import MeetingBreakdownSection from "./MeetingBreakdownSection";
 import MeetingChannelSection from "./MeetingChannelSection";
 import DurationSection from "./DurationSection";
@@ -32,14 +33,13 @@ interface MeetingProductFormProps {
   productId?: string;
 }
 
-const LOG = "[ProductForm]";
+const LOG = "[MeetingProductForm]";
 
 function unwrapProduct(p: any): any {
   if (!p) return p;
   if (p.data && typeof p.data === "object") return unwrapProduct(p.data);
   return p;
 }
-
 function extractMediaTokens(obj: any): string[] {
   if (!obj) return [];
   if (Array.isArray(obj.media)) {
@@ -59,6 +59,51 @@ function extractMediaTokens(obj: any): string[] {
   return [];
 }
 
+// ----- Provider mapping helpers -----
+const CODE_TO_LABEL: Record<string, string> = {
+  ZOOM: "ZOOM",
+  GMEET: "G-Meet",
+  WHATSAPP: "WhatsApp",
+  PHONE_CALL: "Phone call",
+  FORM: "Form",
+  ENDN: "Endn",
+  HSHD: "Hshd",
+};
+const CODE_TO_KEY: Record<string, string> = {
+  ZOOM: "zoom",
+  GMEET: "gmeet",
+  WHATSAPP: "whatsapp",
+  PHONE_CALL: "phone",
+  FORM: "form",
+  ENDN: "endn",
+  HSHD: "hshd",
+};
+function providerCodeToLabel(code?: string | null): string {
+  if (!code) return "";
+  const u = String(code).toUpperCase();
+  return CODE_TO_LABEL[u] ?? code; // if custom (e.g., "Teams"), keep as label
+}
+function providerCodeToKey(code?: string | null): string | undefined {
+  if (!code) return undefined;
+  const u = String(code).toUpperCase();
+  return CODE_TO_KEY[u];
+}
+
+// map visible label to backend enum (best-effort)
+function toProviderEnum(label?: string | null): string | undefined {
+  if (!label) return undefined;
+  const t = label.trim().toLowerCase();
+  if (t.includes("zoom")) return "ZOOM";
+  if (t.includes("g-meet") || t.includes("meet") || t.includes("gmeet"))
+    return "GMEET";
+  if (t.includes("whatsapp")) return "WHATSAPP";
+  if (t.includes("phone")) return "PHONE_CALL";
+  if (t === "form") return "FORM";
+  if (t === "endn") return "ENDN";
+  if (t === "hshd") return "HSHD";
+  return undefined; // fall back to sending custom label in provider
+}
+
 // simple slug util for CHOICE option values
 const slug = (s: string) =>
   s
@@ -67,16 +112,18 @@ const slug = (s: string) =>
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
 
+const localTZ = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+
 const MeetingProductForm: React.FC<MeetingProductFormProps> = ({
   productId,
 }) => {
   const navigate = useNavigate();
   const { userDetails } = useAuth();
 
-  const [createDigital, { isLoading: isCreating }] =
-    useCreateDigitalProductMutation();
-  const [updateDigital, { isLoading: isUpdating }] =
-    useUpdateDigitalProductMutation();
+  const [createMeeting, { isLoading: isCreating }] =
+    useCreateMeetingProductMutation();
+  const [updateMeeting, { isLoading: isUpdating }] =
+    useUpdateMeetingProductMutation();
 
   const { data: productRaw, isLoading: isFetchingProduct } =
     useGetProductByIdQuery(
@@ -114,7 +161,7 @@ const MeetingProductForm: React.FC<MeetingProductFormProps> = ({
       hsnCode: "",
       gstPercent: undefined,
 
-      type: "DIGITAL",
+      type: "MEETING",
 
       isRecommended: false,
       customerQuestionsRequired: false,
@@ -124,30 +171,37 @@ const MeetingProductForm: React.FC<MeetingProductFormProps> = ({
       replaceQuestions: false,
       questions: [],
 
-      // Digital asset fields
-      digitalAssetMode: "none",
-      digitalAssetUrl: null,
-      digitalAssetUrls: [], // multi-link
-      digitalAssetFile: undefined as any, // FileList handled in section
+      // ── Meeting fields ──
+      startsAtISO: undefined,
+      endsAtISO: undefined,
+      timezone: localTZ,
 
-      // preview-only full asset objects from server
-      digitalAssetExisting: [] as any[],
-
-      // NEW: meeting specific fields
-      meetingDuration: undefined, // number
-      meetingDurationUnit: "mins", // "mins" | "hrs"
+      meetingDuration: undefined,
+      meetingDurationUnit: "mins",
       meetingBreakdown: "",
+
+      // channel selection + link (written by MeetingChannelSection)
       meetingChannel: "",
+      meetingChannelUrl: "",
+
+      // optional BE fields / legacy
+      meetingLink: "",
+      capacity: undefined,
+      hostName: "",
+      instructions: "",
+
+      // state for MeetingChannelSection
+      customChannel: undefined as any,
       customChannels: [],
+      channelLinks: {},
     } as any,
   });
 
-  const { handleSubmit, reset, control, trigger } = methods;
+  const { handleSubmit, reset, control, trigger, getValues } = methods;
 
-  // live watchers for instant "questions" validation
+  // validate questions live when required
   const mustAnswer = useWatch({ control, name: "customerQuestionsRequired" });
   const questions = useWatch({ control, name: "questions" }) || [];
-
   useEffect(() => {
     void trigger("questions");
   }, [mustAnswer, questions.length, trigger]);
@@ -155,9 +209,6 @@ const MeetingProductForm: React.FC<MeetingProductFormProps> = ({
   // hydrate in edit mode
   useEffect(() => {
     if (!productId || !productRaw) return;
-
-    console.log(productRaw, "productRaw");
-
     const p = unwrapProduct(productRaw);
     const mediaTokens = extractMediaTokens(p);
 
@@ -167,39 +218,18 @@ const MeetingProductForm: React.FC<MeetingProductFormProps> = ({
       .filter(Boolean)
       .join(", ");
 
-    // legacy link fields
-    const existingUrls = Array.isArray(p?.digitalAssetUrls)
-      ? p.digitalAssetUrls
-      : typeof p?.digitalAssetUrl === "string" && p.digitalAssetUrl.trim()
-      ? [p.digitalAssetUrl.trim()]
-      : [];
+    // map provider code -> tile label + per-tile key for saved link
+    const providerLabel = providerCodeToLabel(p?.meetingProvider);
+    const providerKey = providerCodeToKey(p?.meetingProvider);
+    const meetingUrl: string = p?.meetingLink ?? "";
 
-    // pull digital asset objects from p.digital.assets
-    const digitalAssets = Array.isArray(p?.digital?.assets)
-      ? p.digital.assets
-      : [];
+    // build per-channel saved links for the tiles so the grey text shows
+    const channelLinks: Record<string, string> = {};
+    if (providerKey && meetingUrl) channelLinks[providerKey] = meetingUrl;
 
-    console.log("[Form hydrate] p.digital.assets =>", digitalAssets);
-
-    // Keep the full asset objects instead of just tokens
-    const assetObjects = digitalAssets.map((asset: any) => ({
-      fileId: asset.fileId || null,
-      externalUrl: asset.externalUrl || null,
-      title: asset.title || "",
-      sortOrder: asset.sortOrder || 0,
-    }));
-
-    console.log("[Form hydrate] assetObjects =>", assetObjects);
-
-    const assetExternalLinks: string[] = digitalAssets
-      .filter(
-        (a: any) => typeof a?.externalUrl === "string" && a.externalUrl.trim()
-      )
-      .map((a: any) => a.externalUrl.trim());
-
-    const mergedLinks = Array.from(
-      new Set([...(existingUrls as string[]), ...assetExternalLinks])
-    );
+    // If providerLabel isn't one of our base labels, treat it as a custom tile
+    const baseLabels = new Set(Object.values(CODE_TO_LABEL));
+    const isCustom = providerLabel && !baseLabels.has(providerLabel);
 
     reset({
       name: p?.name || "",
@@ -214,7 +244,6 @@ const MeetingProductForm: React.FC<MeetingProductFormProps> = ({
       stockStatus: (p as any)?.stockStatus,
       shippingClass: "",
       taxClass: "",
-
       variants: p?.variants || undefined,
 
       images: undefined as any,
@@ -228,11 +257,9 @@ const MeetingProductForm: React.FC<MeetingProductFormProps> = ({
       hsnCode: p?.hsnCode || "",
       gstPercent: p?.gstPercent ?? undefined,
 
-      type: p?.type || "DIGITAL",
-
+      type: "MEETING",
       isRecommended: !!p?.isRecommended,
       customerQuestionsRequired: !!p?.customerQuestionsRequired,
-
       postPurchaseNoteDesc: p?.postPurchaseNoteDesc ?? null,
 
       replaceQuestions: false,
@@ -242,8 +269,6 @@ const MeetingProductForm: React.FC<MeetingProductFormProps> = ({
             prompt: q.prompt || "",
             answerType: q.answerType || "TEXT",
             isRequired: !!q.isRequired,
-
-            // CHOICE
             options: Array.isArray(q.options)
               ? q.options.map((o: any, j: number) => ({
                   label: o.label,
@@ -254,12 +279,9 @@ const MeetingProductForm: React.FC<MeetingProductFormProps> = ({
               : undefined,
             minSelect: q.minSelect ?? null,
             maxSelect: q.maxSelect ?? null,
-
-            // FILE_UPLOAD
             maxFiles: q.maxFiles ?? null,
             maxSizeMB: q.maxSizeMB ?? null,
             imageId: q.imageId ?? null,
-
             metadata:
               q.metadata &&
               typeof q.metadata === "object" &&
@@ -270,24 +292,30 @@ const MeetingProductForm: React.FC<MeetingProductFormProps> = ({
           }))
         : [],
 
-      // digital assets
-      digitalAssetMode: "none",
-      digitalAssetUrl: mergedLinks[0] ?? null,
-      digitalAssetUrls: mergedLinks,
-      digitalAssetFile: undefined as any,
+      // ── Meeting hydrate ──
+      startsAtISO: p?.startsAtISO ?? undefined,
+      endsAtISO: p?.endsAtISO ?? undefined,
+      timezone: p?.timezone ?? localTZ,
+      meetingDuration: p?.meetingDuration ?? undefined,
+      meetingDurationUnit: "mins",
+      meetingBreakdown: p?.meetingBreakdown ?? "",
 
-      // edit previews - pass the full asset objects
-      digitalAssetExisting: assetObjects,
+      // hydrate channel + link to the form
+      meetingChannel: providerLabel || "",
+      meetingChannelUrl: meetingUrl || "",
+      meetingLink: meetingUrl || "",
 
-      // NEW: meeting fields hydrate
-      meetingDuration:
-        (p as any)?.meetingDuration ?? (p as any)?.duration ?? undefined,
-      meetingDurationUnit: (p as any)?.meetingDurationUnit ?? "mins",
-      meetingBreakdown:
-        (p as any)?.meetingBreakdown ?? (p as any)?.meeting?.breakdown ?? "",
-      meetingChannel:
-        (p as any)?.meetingChannel ?? (p as any)?.meeting?.channel ?? "",
-      customChannels: (p as any)?.customChannels ?? [],
+      capacity: p?.capacity ?? undefined,
+      hostName: p?.hostName ?? "",
+      instructions: p?.instructions ?? "",
+
+      // section state for tile URLs and optional custom tile
+      customChannel:
+        isCustom && providerLabel
+          ? { label: providerLabel, url: meetingUrl || "" }
+          : undefined,
+      customChannels: isCustom && providerLabel ? [providerLabel] : [],
+      channelLinks,
     } as any);
   }, [productRaw, productId, reset]);
 
@@ -303,11 +331,37 @@ const MeetingProductForm: React.FC<MeetingProductFormProps> = ({
         return;
       }
 
+      // compute time window
+      const startsAt = data.startsAtISO
+        ? new Date(data.startsAtISO)
+        : new Date();
+      let endsAt = data.endsAtISO ? new Date(data.endsAtISO) : undefined;
+
+      // derive minutes from unit
+      const durationMins =
+        data.meetingDuration != null
+          ? data.meetingDurationUnit === "hrs"
+            ? Number(data.meetingDuration) * 60
+            : Number(data.meetingDuration)
+          : undefined;
+
+      if (!endsAt && durationMins && !Number.isNaN(durationMins)) {
+        endsAt = new Date(startsAt.getTime() + durationMins * 60_000);
+      }
+      if (!endsAt) {
+        showToast({
+          type: "error",
+          message: "Please provide duration or (start & end).",
+          showClose: true,
+        });
+        return;
+      }
+
       const fd = new FormData();
       fd.append("businessId", businessId);
       fd.append("name", data.name);
 
-      // numbers
+      // numbers / strings
       fd.append("price", String(data.price ?? ""));
       if (String(data.discountedPrice ?? "") !== "")
         fd.append("discountedPrice", String(data.discountedPrice));
@@ -320,12 +374,6 @@ const MeetingProductForm: React.FC<MeetingProductFormProps> = ({
       if (data.hsnCode) fd.append("hsnCode", data.hsnCode);
       if (data.gstPercent != null && String(data.gstPercent) !== "")
         fd.append("gstPercent", String(data.gstPercent));
-      if (data.type) fd.append("type", data.type);
-
-      // post purchase note
-      if (data.postPurchaseNoteDesc != null) {
-        fd.append("postPurchaseNoteDesc", String(data.postPurchaseNoteDesc));
-      }
 
       // flags
       fd.append("isRecommended", String(!!data.isRecommended));
@@ -334,85 +382,53 @@ const MeetingProductForm: React.FC<MeetingProductFormProps> = ({
         String(!!data.customerQuestionsRequired)
       );
 
-      // categories
-      if (data.categoryLinks !== undefined) {
+      // categories / variants
+      if (data.categoryLinks !== undefined)
         fd.append("categoryLinks", JSON.stringify(data.categoryLinks));
-      }
-
-      // variants
-      if (data.variants !== undefined) {
+      if (data.variants !== undefined)
         fd.append("variants", JSON.stringify(data.variants));
+
+      /** ── MEETING fields ───────────────────────── */
+      fd.append("startsAt", startsAt.toISOString());
+      fd.append("endsAt", endsAt.toISOString());
+      fd.append("timezone", data.timezone || localTZ);
+      if (durationMins != null && !Number.isNaN(durationMins))
+        fd.append("durationMinutes", String(durationMins));
+
+      // breakdown
+      if (data.meetingBreakdown && data.meetingBreakdown.trim()) {
+        const breakdown = {
+          format: "markdown",
+          text: data.meetingBreakdown.trim(),
+        };
+        fd.append("breakdown", JSON.stringify(breakdown));
       }
 
-      /* ---------------- MEETING FIELDS ---------------- */
-      const md: any = data as any;
-      if (md.meetingDuration != null && String(md.meetingDuration) !== "") {
-        const mins =
-          md.meetingDurationUnit === "hrs"
-            ? Number(md.meetingDuration || 0) * 60
-            : Number(md.meetingDuration || 0);
-        if (!Number.isNaN(mins)) {
-          fd.append("meetingDurationMins", String(mins));
-        }
-        fd.append("meetingDurationUnit", md.meetingDurationUnit || "mins");
-      }
-      if (md.meetingBreakdown)
-        fd.append("meetingBreakdown", md.meetingBreakdown);
-      if (md.meetingChannel) fd.append("meetingChannel", md.meetingChannel);
-      if (Array.isArray(md.customChannels) && md.customChannels.length) {
-        fd.append("meetingCustomChannels", JSON.stringify(md.customChannels));
+      // Provider:
+      // - if it's a known label, send the enum;
+      // - otherwise send the label itself so it round-trips (custom tile).
+      const providerEnum = toProviderEnum(data.meetingChannel);
+      if (providerEnum) {
+        fd.append("provider", providerEnum);
+      } else if (data.meetingChannel && data.meetingChannel.trim()) {
+        fd.append("provider", data.meetingChannel.trim());
       }
 
-      /* ---------------- DIGITAL ASSETS (files + links together) ---------------- */
-      const maxBytes = 30 * 1024 * 1024; // 30MB per file
-
-      // files
-      const pickedRaw = data.digitalAssetFile as unknown as
-        | FileList
-        | File[]
-        | undefined;
-      const pickedFiles: File[] = pickedRaw
-        ? Array.isArray(pickedRaw)
-          ? pickedRaw
-          : Array.from(pickedRaw)
-        : [];
-
-      if (pickedFiles.length) {
-        for (const f of pickedFiles) {
-          if (f.size > maxBytes) {
-            showToast({
-              type: "error",
-              message: `Digital asset "${f.name}" must be 30 MB or less.`,
-              showClose: true,
-            });
-            return;
-          }
-        }
-        // append all files under the same key (backend FileFieldsInterceptor)
-        for (const f of pickedFiles) {
-          fd.append("digitalAssets", f);
-        }
+      // Meeting link: always take what the channel modal saved.
+      const linkFromSection = (
+        getValues("meetingChannelUrl") ||
+        data.meetingChannel ||
+        data.meetingLink ||
+        ""
+      ).trim();
+      if (linkFromSection) {
+        fd.append("meetingLink", linkFromSection);
       }
 
-      // links (multi) -> **digitalAssets JSON** expected by backend
-      const urls = Array.isArray(data.digitalAssetUrls)
-        ? data.digitalAssetUrls
-        : [];
-      const single =
-        typeof data.digitalAssetUrl === "string" && data.digitalAssetUrl.trim()
-          ? data.digitalAssetUrl
-              .split(/[\n,]+/)
-              .map((x) => x.trim())
-              .filter(Boolean)
-          : [];
-      const allUrls = Array.from(new Set([...(urls || []), ...single]));
-      if (allUrls.length) {
-        const linkPayload = allUrls.map((u, i) => ({
-          externalUrl: u,
-          sortOrder: i,
-        }));
-        fd.append("digitalAssets", JSON.stringify(linkPayload));
-      }
+      if (data.capacity != null && String(data.capacity) !== "")
+        fd.append("capacity", String(data.capacity));
+      if (data.hostName) fd.append("hostName", data.hostName);
+      if (data.instructions) fd.append("instructions", data.instructions);
 
       // SEO
       const seoFiles = data.seoImage as unknown as FileList | undefined;
@@ -434,7 +450,7 @@ const MeetingProductForm: React.FC<MeetingProductFormProps> = ({
         );
       }
 
-      // gallery tokens (edit)
+      // gallery kept tokens (edit)
       const keptTokens = (data.mediaUrls || []) as string[];
       if (productId) {
         fd.append(
@@ -445,12 +461,12 @@ const MeetingProductForm: React.FC<MeetingProductFormProps> = ({
         );
       }
 
-      // new uploads (product gallery)
+      // new gallery files
       const galleryFiles = data.images as unknown as FileList | undefined;
       if (galleryFiles && galleryFiles.length)
         Array.from(galleryFiles).forEach((f) => fd.append("images", f));
 
-      // questions payload
+      // questions
       const shouldSendQuestions =
         (data.questions?.length ?? 0) > 0 ||
         data.customerQuestionsRequired === true ||
@@ -465,13 +481,9 @@ const MeetingProductForm: React.FC<MeetingProductFormProps> = ({
               prompt: q.prompt,
               answerType: q.answerType,
               isRequired: !!q.isRequired,
-
-              // FILE_UPLOAD extras
               maxFiles: q.maxFiles ?? null,
               maxSizeMB: q.maxSizeMB ?? null,
               imageId: q.imageId ?? null,
-
-              // misc
               metadata:
                 q.metadata &&
                 typeof q.metadata === "object" &&
@@ -479,7 +491,6 @@ const MeetingProductForm: React.FC<MeetingProductFormProps> = ({
                   ? q.metadata
                   : null,
             };
-
             const isChoice =
               q.answerType === "CHOICE_SINGLE" ||
               q.answerType === "CHOICE_MULTI";
@@ -496,9 +507,7 @@ const MeetingProductForm: React.FC<MeetingProductFormProps> = ({
                     typeof o.sortOrder === "number" ? o.sortOrder : idx,
                   isActive: o.isActive ?? true,
                 }));
-
               base.options = opts;
-
               if (q.answerType === "CHOICE_SINGLE") {
                 base.minSelect = 1;
                 base.maxSelect = 1;
@@ -518,23 +527,22 @@ const MeetingProductForm: React.FC<MeetingProductFormProps> = ({
             }
             return base;
           });
-
         fd.append("questions", JSON.stringify(clean));
       }
 
       if (productId) {
         fd.append("id", productId);
-        await updateDigital(fd).unwrap();
+        await updateMeeting(fd).unwrap();
         showToast({
           type: "success",
-          message: "Product updated successfully!",
+          message: "Meeting product updated!",
           showClose: true,
         });
       } else {
-        await createDigital(fd).unwrap();
+        await createMeeting(fd).unwrap();
         showToast({
           type: "success",
-          message: "Product created successfully!",
+          message: "Meeting product created!",
           showClose: true,
         });
       }
@@ -546,7 +554,7 @@ const MeetingProductForm: React.FC<MeetingProductFormProps> = ({
       console.error(LOG, "submit error", err);
       showToast({
         type: "error",
-        message: err?.data?.message || "Failed to save product!",
+        message: err?.data?.message || "Failed to save meeting!",
         showClose: true,
       });
     }
@@ -567,7 +575,7 @@ const MeetingProductForm: React.FC<MeetingProductFormProps> = ({
           <ProductInfoSection />
         </section>
 
-        {/* NEW: Meeting sections */}
+        {/* Meeting-only sections */}
         <section id="meeting-duration" className="scroll-mt-24">
           <DurationSection />
         </section>
@@ -611,8 +619,8 @@ const MeetingProductForm: React.FC<MeetingProductFormProps> = ({
                 ? "Updating..."
                 : "Saving..."
               : productId
-              ? "Update Digital Product"
-              : "Add Digital Product"}
+              ? "Update Meeting Product"
+              : "Add Meeting Product"}
           </button>
         </div>
       </form>

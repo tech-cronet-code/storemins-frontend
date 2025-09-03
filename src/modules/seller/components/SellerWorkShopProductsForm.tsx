@@ -1,4 +1,3 @@
-// src/modules/seller/components/SellerMeetingProductsForm.tsx
 import {
   ChevronDown,
   ChevronUp,
@@ -86,7 +85,7 @@ function getPrimaryImageUrl(product: any): string {
 
 /* ---------------- component ---------------- */
 
-const SellerMeetingProductsForm: React.FC = () => {
+const SellerWorkShopProductsForm: React.FC = () => {
   const { userDetails } = useAuth();
   const businessId = userDetails?.storeLinks?.[0]?.businessId;
 
@@ -95,7 +94,7 @@ const SellerMeetingProductsForm: React.FC = () => {
     isLoading,
     refetch,
   } = useListProductsQuery(
-    { businessId: businessId || "", type: ProductType.MEETING },
+    { businessId: businessId || "", type: ProductType.WORKSHOP },
     { skip: !businessId }
   );
 
@@ -185,7 +184,7 @@ const SellerMeetingProductsForm: React.FC = () => {
   };
 
   const handleAddProduct = () =>
-    navigate("/seller/catalogue/products/meeting/create");
+    navigate("/seller/catalogue/products/workshop/create");
 
   if (!businessId) {
     return (
@@ -217,7 +216,7 @@ const SellerMeetingProductsForm: React.FC = () => {
                     className="flex items-center justify-center gap-2 px-3 md:px-5 text-sm font-semibold hover:bg-[#1E40AF] transition whitespace-nowrap w-full sm:w-auto"
                   >
                     <Plus className="w-[18px] h-[18px]" />
-                    <span>Add Meeting Product</span>
+                    <span>Add Workshop Product</span>
                   </button>
                   <button
                     type="button"
@@ -346,7 +345,7 @@ const SellerMeetingProductsForm: React.FC = () => {
                             }
                             onEdit={(id) =>
                               navigate(
-                                `/seller/catalogue/products/meeting/edit/${id}`
+                                `/seller/catalogue/products/workshop/edit/${id}`
                               )
                             }
                             isLastItemOnPage={isLastItemOnPage}
@@ -425,4 +424,4 @@ const SellerMeetingProductsForm: React.FC = () => {
   );
 };
 
-export default SellerMeetingProductsForm;
+export default SellerWorkShopProductsForm;

@@ -43,6 +43,8 @@ import SellerDigitalProductsPage from "./modules/seller/pages/SellerDigitalProdu
 import AddDigitalProductPage from "./modules/seller/pages/AddDigitalProductPage";
 import SellerMeetingProductsPage from "./modules/seller/pages/SellerMeetingProductsPage";
 import AddMeetingProductPage from "./modules/seller/pages/AddMeetingProductPage";
+import SellerWorkShopProductsPage from "./modules/seller/pages/SellerWorkShopProductsPage";
+import AddWorkShopProductPage from "./modules/seller/pages/AddWorkShopProductPage";
 // import AuthFormPage from "./modules/auth/pages/AuthForm";
 
 const App = () => {
@@ -118,6 +120,19 @@ const App = () => {
             <Route
               path="/seller/catalogue/products/meeting/edit/:id"
               element={<AddMeetingProductPage />}
+            />
+
+              <Route
+              path="/seller/catalogue/products/workshop"
+              element={<SellerWorkShopProductsPage />}
+            />
+            <Route
+              path="/seller/catalogue/products/workshop/create"
+              element={<AddWorkShopProductPage />}
+            />
+            <Route
+              path="/seller/catalogue/products/workshop/edit/:id"
+              element={<AddWorkShopProductPage />}
             />
 
             <Route

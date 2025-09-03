@@ -184,6 +184,23 @@ export interface ProductDigitalDto {
   assets?: ProductDigitalAssetDto[];
 }
 
+/** ─────────────────────────────────────────────────────────────
+ *  MEETING: DTO (server returns Meeting relation as `meeting`)
+ *  ───────────────────────────────────────────────────────────*/
+export interface MeetingDto {
+  startsAt: string;
+  endsAt: string;
+  timezone: string;
+  durationMinutes: number;
+  breakdown?: any | null;
+  provider?: string | null;
+  meetingLink?: string | null;
+  capacity?: number | null;
+  hostName?: string | null;
+  recurrence?: any | null;
+  instructions?: string | null;
+}
+
 /** Backend response DTO */
 interface ProductResponseDto {
   id: string;
@@ -194,7 +211,7 @@ interface ProductResponseDto {
   updatedAt?: string;
   isArchived?: boolean;
 
-  // NEW FLAGS + note
+  // flags + note
   isRecommended?: boolean;
   customerQuestionsRequired?: boolean;
   postPurchaseNoteDesc?: string | null;
@@ -225,11 +242,20 @@ interface ProductResponseDto {
     subCategoryName?: string;
   }>;
 
-  // NEW: Questions echo
   questions?: ProductQuestionDto[];
 
-  // NEW: Digital block
-  digital?: ProductDigitalDto | null;
+  // Meeting relation (present for type=MEETING)
+  meeting?: MeetingDto | null;
+
+  // Digital (still supported elsewhere)
+  digital?: {
+    assets?: Array<{
+      fileId?: string | null;
+      externalUrl?: string | null;
+      title?: string | null;
+      sortOrder?: number | null;
+    }>;
+  } | null;
 }
 
 // types/products.ts
@@ -253,10 +279,9 @@ export interface ProductListItem {
     parentCategoryId: string;
     parentCategoryName: string;
   }>;
-  variant?: any;          // or the real type if you have one
-  category?: string;      // convenient string for first/combined category name
+  variant?: any; // or the real type if you have one
+  category?: string; // convenient string for first/combined category name
 }
-
 
 export interface VariantDto {
   optionName: string;
@@ -302,24 +327,22 @@ export interface ProductDetailsResponse {
     subCategoryName?: string;
   }>;
 
-  seoMetaData?: {
-    title?: string;
-    description?: string;
-    imageUrl?: string;
-  };
+  seoMetaData?: { title?: string; description?: string; imageUrl?: string };
 
-  // NEW
+  // Questions
   questions?: ProductQuestionDto[];
 
-  // NEW: hydrated for Digital forms
-  digitalAssetUrls?: string[]; // external links only (as before)
-  digitalAssetUrl?: string | null; // first link (as before)
-
-  // NEW: include full digital assets for edit preview
-  digital?: {
-    assets: DigitalAssetDto[];
-  };
+  // ── MEETING helpers for easy hydrate
+  meeting?: MeetingDto | null;
+  meetingDuration?: number; // minutes
+  meetingDurationUnit?: "mins"; // UI convenience
+  meetingBreakdown?: string; // free text extracted from meeting.breakdown
+  meetingChannel?: string | null; // provider echo
 }
+
+/** Utility */
+const pluckImages = (p: ProductResponseDto) =>
+  p.media?.filter((m) => m.type === "IMAGE").map((m) => m.url) || [];
 
 export const productApi = createApi({
   baseQuery: baseQueryWithReauth, // ⬅️ Uses the smart switch
@@ -421,7 +444,33 @@ export const productApi = createApi({
       }),
     }),
 
-    // LIST product BY BUSINESS & TYPE
+    /** ─────────────────────────────────────────────
+     *  MEETING endpoints (NEW)
+     *  ───────────────────────────────────────────*/
+    createMeetingProduct: builder.mutation<
+      { message: string; data: { id: string; name: string } },
+      FormData
+    >({
+      query: (formData) => ({
+        // Controller decorator shows 'product/meeting/create'
+        // Full path matches existing pattern with '/product' group:
+        url: `/seller/product/product/meeting/create`,
+        method: "POST",
+        body: formData,
+      }),
+    }),
+    updateMeetingProduct: builder.mutation<
+      { message: string; data: ProductDetailsResponse },
+      FormData
+    >({
+      query: (formData) => ({
+        url: `/seller/product/product/meeting/edit`,
+        method: "POST",
+        body: formData,
+      }),
+    }),
+
+    /** LIST by business/type (unchanged) */
     listProducts: builder.query<
       ProductListItem[],
       { businessId: string; type: string }
@@ -435,26 +484,22 @@ export const productApi = createApi({
         message: string;
         data: ProductResponseDto[];
       }): ProductListItem[] =>
-        (raw.data || []).map((p) => {
-          const images =
-            p.media?.filter((m) => m.type === "IMAGE").map((m) => m.url) || [];
-          return {
-            id: p.id,
-            name: p.name,
-            price: p.price ?? 0,
-            discountedPrice: p.discountedPrice ?? undefined,
-            description: p.description ?? undefined,
-            stock: p.quantity ?? undefined,
-            stockStatus:
-              p.quantity && p.quantity > 0 ? "in_stock" : "out_of_stock",
-            images,
-            status: p.status === "ACTIVE" ? "ACTIVE" : "INACTIVE",
-            isRecommended: p.isRecommended ?? undefined,
-          };
-        }),
+        (raw.data || []).map((p) => ({
+          id: p.id,
+          name: p.name,
+          price: p.price ?? 0,
+          discountedPrice: p.discountedPrice ?? undefined,
+          description: p.description ?? undefined,
+          stock: p.quantity ?? undefined,
+          stockStatus:
+            p.quantity && p.quantity > 0 ? "in_stock" : "out_of_stock",
+          images: pluckImages(p),
+          status: p.status === "ACTIVE" ? "ACTIVE" : "INACTIVE",
+          isRecommended: p.isRecommended ?? undefined,
+        })),
     }),
 
-    // GET BY ID — hydrate flags + questions + digital assets
+    /** GET BY ID — hydrate Meeting helpers */
     getProductById: builder.query<ProductDetailsResponse, { id: string }>({
       query: ({ id }) => ({
         url: `/seller/product/product/get-by-id`,
@@ -466,25 +511,21 @@ export const productApi = createApi({
         data: ProductResponseDto;
       }): ProductDetailsResponse => {
         const p = raw.data;
+        const images = pluckImages(p);
 
-        const images =
-          p.media?.filter((m) => m.type === "IMAGE").map((m) => m.url) || [];
+        // Meeting helpers
+        const mtg = p.meeting ?? null;
+        const meetingDuration = mtg?.durationMinutes ?? undefined;
 
-        // Pull digital asset links for FE link pills
-        const digitalAssets = p?.digital?.assets ?? [];
-        const digitalAssetUrls =
-          digitalAssets
-            ?.map((a: any) => a?.externalUrl)
-            ?.filter((u: any) => typeof u === "string" && u.trim())
-            ?.map((u: string) => u.trim()) || [];
-
-        // Sanitize / pass-through full asset objects for edit preview
-        const sanitizedAssets = digitalAssets.map((a: any) => ({
-          fileId: a?.fileId ?? null,
-          externalUrl: a?.externalUrl ?? null,
-          title: a?.title ?? null,
-          sortOrder: typeof a?.sortOrder === "number" ? a.sortOrder : 0,
-        }));
+        // breakdown can be string or object; normalize to string for the form textarea
+        let meetingBreakdown: string | undefined;
+        if (mtg?.breakdown != null) {
+          if (typeof mtg.breakdown === "string")
+            meetingBreakdown = mtg.breakdown;
+          else if (typeof mtg.breakdown === "object" && "text" in mtg.breakdown)
+            meetingBreakdown = String((mtg.breakdown as any).text ?? "");
+          else meetingBreakdown = JSON.stringify(mtg.breakdown);
+        }
 
         return {
           id: p.id,
@@ -517,14 +558,12 @@ export const productApi = createApi({
 
           questions: p.questions || [],
 
-          // Link pills (unchanged behavior)
-          digitalAssetUrls,
-          digitalAssetUrl: digitalAssetUrls[0] ?? null,
-
-          // <-- NEW: keep full digital assets for edit previews
-          digital: {
-            assets: sanitizedAssets,
-          },
+          // Meeting echoes for the form
+          meeting: mtg,
+          meetingDuration,
+          meetingDurationUnit: "mins",
+          meetingBreakdown,
+          meetingChannel: mtg?.provider ?? null,
         };
       },
     }),
@@ -550,28 +589,22 @@ export const productApi = createApi({
         method: "POST",
         body,
       }),
-      // ✅ Add optimistic UI update
       async onQueryStarted(
         { id, status },
         { dispatch, queryFulfilled, getState }
       ) {
         const state: any = getState();
         const businessId = state.auth.userDetails?.storeLinks?.[0]?.businessId;
-
         const patchResult = dispatch(
           productApi.util.updateQueryData(
             "listProducts",
-            {
-              businessId,
-              type: "",
-            },
+            { businessId, type: "" },
             (draft) => {
               const product = draft.find((p) => p.id === id);
               if (product) product.status = status;
             }
           )
         );
-
         try {
           await queryFulfilled;
         } catch {
@@ -612,4 +645,8 @@ export const {
   // DIGITAL
   useCreateDigitalProductMutation,
   useUpdateDigitalProductMutation,
+
+  // MEETING (NEW)
+  useCreateMeetingProductMutation,
+  useUpdateMeetingProductMutation,
 } = productApi;

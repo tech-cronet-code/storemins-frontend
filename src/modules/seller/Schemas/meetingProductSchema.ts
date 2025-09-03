@@ -1,7 +1,7 @@
-// src/modules/seller/Schemas/digitalProductSchema.ts
+// src/modules/seller/Schemas/meetingProductSchema.ts
 import { z } from "zod";
 
-const maxFileSize = 5 * 1024 * 1024; // 5MB (for gallery images)
+const maxFileSize = 5 * 1024 * 1024;
 
 // ----- Variants -----
 const variantOption = z.object({
@@ -41,101 +41,90 @@ export const questionSchema = z
     maxSizeMB: z.number().int().positive().nullable().optional(),
     imageId: z.string().trim().min(1).nullable().optional(),
 
-    // arbitrary JSON object or null
     metadata: z.record(z.unknown()).nullable().optional(),
-
     isActive: z.boolean().optional().default(true),
   })
   .superRefine((val, ctx) => {
     if (val.answerType === "FILE_UPLOAD") {
-      if (val.maxFiles == null) {
+      if (val.maxFiles == null)
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
           path: ["maxFiles"],
-          message: "Max files is required for file uploads",
+          message: "Max files is required",
         });
-      }
-      if (val.maxSizeMB == null) {
+      if (val.maxSizeMB == null)
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
           path: ["maxSizeMB"],
-          message: "Max size (MB) is required for file uploads",
+          message: "Max size (MB) is required",
         });
-      }
-      if (val.options && val.options.length) {
+      if (val.options?.length)
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
           path: ["options"],
-          message: "Options are not applicable for FILE_UPLOAD",
+          message: "Options not applicable for FILE_UPLOAD",
         });
-      }
     }
-
-    if (val.answerType === "TEXT") {
-      if (val.options && val.options.length) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          path: ["options"],
-          message: "Options are not applicable for TEXT",
-        });
-      }
+    if (val.answerType === "TEXT" && val.options?.length) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["options"],
+        message: "Options not applicable for TEXT",
+      });
     }
-
     if (
       val.answerType === "CHOICE_SINGLE" ||
       val.answerType === "CHOICE_MULTI"
     ) {
       const count = val.options?.length ?? 0;
-      if (count < 2 || count > 10) {
+      if (count < 2 || count > 10)
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
           path: ["options"],
-          message: "Provide between 2 and 10 options",
+          message: "Provide 2–10 options",
         });
-      }
       if (val.answerType === "CHOICE_SINGLE") {
-        if (val.minSelect != null && val.minSelect !== 1) {
+        if (val.minSelect != null && val.minSelect !== 1)
           ctx.addIssue({
             code: z.ZodIssueCode.custom,
             path: ["minSelect"],
-            message: "Single choice must have minSelect = 1",
+            message: "minSelect=1",
           });
-        }
-        if (val.maxSelect != null && val.maxSelect !== 1) {
+        if (val.maxSelect != null && val.maxSelect !== 1)
           ctx.addIssue({
             code: z.ZodIssueCode.custom,
             path: ["maxSelect"],
-            message: "Single choice must have maxSelect = 1",
+            message: "maxSelect=1",
           });
-        }
       } else {
         const min = val.minSelect ?? 0;
         const max = val.maxSelect ?? count;
-        if (min < 0 || max < 1 || min > max) {
+        if (min < 0 || max < 1 || min > max)
           ctx.addIssue({
             code: z.ZodIssueCode.custom,
             path: ["minSelect"],
-            message: "Invalid min/max selection counts",
+            message: "Invalid min/max",
           });
-        }
-        if (max > count) {
+        if (max > count)
           ctx.addIssue({
             code: z.ZodIssueCode.custom,
             path: ["maxSelect"],
-            message: "maxSelect cannot exceed number of options",
+            message: "maxSelect cannot exceed option count",
           });
-        }
       }
     }
   });
 
 export type QuestionForm = z.infer<typeof questionSchema>;
 
-// ----- Digital product schema (FULL) -----
+/** ─────────────────────────────────────────────
+ * Meeting product schema (no digital assets)
+ * ───────────────────────────────────────────*/
 export const meetingProductSchema = z
   .object({
     name: z.string().min(1, "Product name is required"),
 
+    // Categories / variants / SEO / gallery (same as before)
     categoryLinks: z
       .array(
         z.object({
@@ -146,7 +135,6 @@ export const meetingProductSchema = z
         })
       )
       .optional(),
-
     categoryName: z.string().optional(),
 
     price: z.coerce
@@ -155,14 +143,12 @@ export const meetingProductSchema = z
         invalid_type_error: "Price must be a number",
       })
       .positive("Price must be greater than 0"),
-
     discountedPrice: z.coerce
       .number()
       .optional()
       .refine((v) => v === undefined || v >= 0, {
         message: "Discount must be 0 or more",
       }),
-
     description: z.string().optional(),
 
     stock: z.coerce.number().min(0, "Stock must be 0 or more").optional(),
@@ -174,7 +160,6 @@ export const meetingProductSchema = z
 
     variants: z.array(variantOption).optional(),
 
-    // Product gallery (outer media shown on PDP)
     images: z
       .any()
       .optional()
@@ -192,7 +177,6 @@ export const meetingProductSchema = z
         },
         { message: "Each image must be a valid file under 5MB" }
       ),
-
     mediaUrls: z.array(z.string().min(1)).optional(),
 
     // SEO
@@ -201,7 +185,7 @@ export const meetingProductSchema = z
     seoImageUrl: z.string().optional(),
     seoImage: z.any().optional(),
 
-    // Shipping/Tax (kept for API shape parity)
+    // Shipping/Tax
     shippingWeight: z.coerce.number().optional(),
     hsnCode: z.string().optional(),
     gstPercent: z.coerce.number().optional(),
@@ -211,30 +195,41 @@ export const meetingProductSchema = z
     // Flags + note + questions
     isRecommended: z.boolean().optional().default(false),
     customerQuestionsRequired: z.boolean().optional().default(false),
-
     postPurchaseNoteDesc: z.string().optional().nullable(),
-
     replaceQuestions: z.boolean().optional().default(false),
     questions: z.array(questionSchema).default([]),
 
-    // --- Digital asset fields (used by your new UI) ---
-    // keep the old single url for backward-compat:
-    digitalAssetUrl: z.string().url().nullable().optional(),
+    /** ── Meeting core fields ── */
+    startsAtISO: z.string().datetime().optional(), // if omitted we’ll compute in submit
+    endsAtISO: z.string().datetime().optional(),
+    timezone: z.string().optional(),
 
-    // NEW: the multi-link field we’ll use in the UI
-    digitalAssetUrls: z.array(z.string().url()).optional().default([]),
+    // UI duration helper
+    meetingDuration: z.coerce.number().min(1).optional(),
+    meetingDurationUnit: z.enum(["mins", "hrs"]).default("mins"),
 
-    digitalAssetMode: z.enum(["none", "upload", "link"]).default("none"),
-    digitalAssetFile: z.any().optional(),
+    // Breakdown textarea (we serialize to JSON on submit)
+    meetingBreakdown: z.string().optional(),
+
+    // Channel + link
+    meetingChannel: z.string().optional(),
+    meetingLink: z.string().url().optional().or(z.literal("")).optional(),
+
+    // Extras
+    capacity: z.coerce.number().int().min(1).optional(),
+    hostName: z.string().optional(),
+    instructions: z.string().optional(),
   })
   .refine(
-    (data) =>
-      !data.customerQuestionsRequired || (data.questions?.length ?? 0) > 0,
-    {
-      path: ["questions"],
-      message:
-        'Add at least one customer question or turn off "All customer questions must be answered".',
-    }
+    (d) => {
+      // allow either (startsAt + endsAt) OR (startsAt + duration) OR (duration only -> we'll compute startsAt as now)
+      const hasStart = !!d.startsAtISO;
+      const hasEnd = !!d.endsAtISO;
+      const hasDur =
+        typeof d.meetingDuration === "number" && d.meetingDuration > 0;
+      return (hasStart && hasEnd) || hasDur;
+    },
+    { message: "Provide duration or (start & end).", path: ["meetingDuration"] }
   );
 
 export type MeetingProductFormValues = z.infer<typeof meetingProductSchema>;
