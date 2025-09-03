@@ -5,7 +5,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { UserRoleName } from "../../auth/constants/userRoles";
 import Layout from "../../dashboard/components/Layout";
 import SidebarNavigation from "../components/products/SidebarNavigation";
-import MeetingProductForm from "../components/products/MeetingProductForm";
+import WorkShopProductForm from "../components/products/WorkShopProductForm";
 
 const AddWorkShopProductPage = () => {
   const navigate = useNavigate();
@@ -50,7 +50,7 @@ const AddWorkShopProductPage = () => {
             ref={formContainerRef}
             className="flex-1 overflow-y-auto px-4 py-4 scroll-smooth"
           >
-            <MeetingProductForm productId={id} />
+            <WorkShopProductForm productId={id} />
           </div>
         </div>
       </div>
