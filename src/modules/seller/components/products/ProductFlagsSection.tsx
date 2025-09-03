@@ -106,13 +106,29 @@ const ProductFlagsSection: React.FC<Props> = ({
     []) as unknown[];
   const questionsCount = Array.isArray(questions) ? questions.length : 0;
 
+  // keyboard support for header toggle
+  const onHeaderKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (e.key === " " || e.key === "Enter") {
+      e.preventDefault();
+      setOpen((v) => !v);
+    }
+  };
+
   return (
     <section
       className="rounded-xl border border-gray-200 bg-white shadow-sm hover:border-gray-300 transition-colors"
       aria-labelledby="product-flags-heading"
     >
-      {/* Card header */}
-      <div className="flex items-start gap-3 px-5 py-4">
+      {/* Card header — NOW CLICKABLE */}
+      <div
+        className="flex items-start gap-3 px-5 py-4 cursor-pointer select-none"
+        role="button"
+        aria-expanded={open}
+        aria-controls={contentId}
+        tabIndex={0}
+        onClick={() => setOpen((v) => !v)}
+        onKeyDown={onHeaderKeyDown}
+      >
         <div className="flex-1">
           <h3
             id="product-flags-heading"
@@ -137,13 +153,16 @@ const ProductFlagsSection: React.FC<Props> = ({
           )}
         </div>
 
-        {/* Chevron toggle (matches your screenshot) */}
+        {/* Chevron toggle (still works) */}
         <button
           type="button"
           aria-label="Toggle section"
           aria-expanded={open}
           aria-controls={contentId}
-          onClick={() => setOpen((v) => !v)}
+          onClick={(e) => {
+            e.stopPropagation(); // prevent header onClick from firing too
+            setOpen((v) => !v);
+          }}
           className="ml-1 -mr-1 inline-flex h-7 w-7 items-center justify-center rounded-md text-gray-600 hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
         >
           <ChevronUpIcon

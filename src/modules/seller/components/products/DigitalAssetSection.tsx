@@ -1,10 +1,10 @@
 import React from "react";
 import { useFormContext, useWatch } from "react-hook-form";
 import { showToast } from "../../../../common/utils/showToast";
-import DigitalAssetImagesGrid from "./DigitalAssetImagesGrid";
 import DigitalAssetDocsGrid from "./DigitalAssetDocsGrid";
 import type { DigitalProductFormValues } from "../../Schemas/digitalProductSchema";
 import { convertPath } from "../../../auth/utils/useImagePath";
+import DigitalAssetImagesGrid from "./DigitalAssetImagesGrid";
 
 /** Debug flag: toggle logs */
 const DEBUG = false;
@@ -127,12 +127,14 @@ const DigitalAssetSection: React.FC = () => {
   }, [urlsArray, urlSingle]);
 
   /* --------- EXISTING DIGITAL ASSETS (from server) --------- */
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const existingDigitalAssets =
     (useWatch({ control, name: "digitalAssetExisting" as any }) as
       | any[]
       | undefined) ?? [];
 
   /* --------- ORDER (persisted in RHF) --------- */
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const existingOrder =
     (useWatch({ control, name: "digitalAssetExistingOrder" as any }) as
       | string[]

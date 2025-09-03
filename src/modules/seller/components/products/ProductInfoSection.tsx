@@ -121,7 +121,7 @@ const ProductInfoSection: React.FC<ProductInfoSectionProps> = () => {
   const discountedPrice = watch("discountedPrice");
 
   const priceValue = parseFloat(price || "");
-  const discountValue = parseFloat(discountedPrice || "");
+  const discountValue = parseFloat(discountedPrice ?? "");
 
   const hasValidPrices =
     !isNaN(priceValue) &&

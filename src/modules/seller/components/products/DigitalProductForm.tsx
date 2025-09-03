@@ -524,13 +524,13 @@ const DigitalProductForm: React.FC<DigitalProductFormProps> = ({
           <ProductMediaSection />
         </section>
 
+        <section id="product-info" className="scroll-mt-24">
+          <ProductInfoSection />
+        </section>
+
         {/* Digital asset (upload and/or link) */}
         <section id="digital-asset" className="scroll-mt-24">
           <DigitalAssetSection />
-        </section>
-
-        <section id="product-info" className="scroll-mt-24">
-          <ProductInfoSection />
         </section>
 
         <section id="inventory" className="scroll-mt-24">

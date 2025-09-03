@@ -4,8 +4,6 @@ import { Image as ImageIcon } from "lucide-react";
 import { convertPath } from "../../../auth/utils/useImagePath";
 
 // const LOG = "[ProductMediaSection]";
-const TILE_W = 120;
-const TILE_H = 150;
 const MAX_IMAGES = 6;
 
 type FileTile = { id: string; kind: "file"; url: string; file: File };
@@ -174,20 +172,26 @@ const ProductMediaSection: React.FC = () => {
   );
 
   return (
-    <div className="bg-white border border-gray-100 rounded-lg p-6">
+    <div className="bg-white border border-gray-100 rounded-lg p-4 sm:p-6">
       <h3 className="text-base font-semibold text-gray-900">Product Media</h3>
       <p className="text-sm text-gray-500 mt-1 mb-4">
         Upload up to {MAX_IMAGES} images. Drag tiles to change their order.
       </p>
 
-      {/* uploader */}
+      {/* compact uploader tile */}
       <label
         htmlFor="images"
         onDrop={onDrop}
         onDragOver={(e) => e.preventDefault()}
-        className="inline-flex items-center justify-center w-40 h-28 border border-dashed border-gray-300 rounded-md cursor-pointer hover:border-blue-500 hover:bg-blue-50 transition"
+        className={[
+          "inline-flex items-center justify-center",
+          "rounded-md cursor-pointer transition",
+          "border border-dashed border-gray-300 hover:border-blue-500 hover:bg-blue-50",
+          "w-28 sm:w-32 md:w-36 lg:w-40", // smaller widths than before
+          "aspect-[4/5]", // keep proportion consistent
+        ].join(" ")}
       >
-        <div className="flex flex-col items-center text-gray-600">
+        <div className="flex flex-col items-center text-gray-600 px-3 text-center">
           <ImageIcon className="w-7 h-7 mb-2" />
           <span className="text-sm">Upload images</span>
           <input
@@ -210,32 +214,47 @@ const ProductMediaSection: React.FC = () => {
         <p className="text-xs text-red-500 mt-2">{errors.images.message}</p>
       )}
 
-      {/* thumbnails */}
-      <div className="mt-4 flex flex-nowrap items-center gap-3 overflow-x-auto">
+      {/* responsive grid of thumbnails */}
+      <div
+        className={[
+          "mt-4 grid gap-3",
+          // Fluid columns: tile min width increases with screen size
+          "[grid-template-columns:repeat(auto-fill,minmax(6.25rem,1fr))]", // ~100px
+          "sm:[grid-template-columns:repeat(auto-fill,minmax(7.5rem,1fr))]", // ~120px
+          "md:[grid-template-columns:repeat(auto-fill,minmax(8.75rem,1fr))]", // ~140px
+          "lg:[grid-template-columns:repeat(auto-fill,minmax(10rem,1fr))]", // ~160px
+        ].join(" ")}
+      >
         {tiles.map((t, i) => (
           <div
             key={t.id}
-            style={{ width: TILE_W, height: TILE_H }}
-            className="relative group flex-none rounded-lg overflow-hidden border bg-gray-50"
+            className="relative group rounded-lg overflow-hidden border bg-gray-50 w-full aspect-[4/5] flex-none"
             draggable
             onDragStart={() => onTileDragStart(i)}
             onDragOver={(e) => e.preventDefault()}
             onDrop={() => onTileDrop(i)}
             title="Drag to sort"
           >
-            <img
-              src={t.url}
-              alt={`preview-${i}`}
-              className="w-full h-full object-cover select-none pointer-events-none"
-              draggable={false}
-              onError={(e) => {
-                if (t.kind === "url") {
-                  const el = e.currentTarget as HTMLImageElement;
-                  const fallback = `/image/original/product/${t.token}`;
-                  if (el.src !== fallback) el.src = fallback;
-                }
-              }}
-            />
+            {t.url ? (
+              <img
+                src={t.url}
+                alt={`preview-${i}`}
+                className="w-full h-full object-cover select-none pointer-events-none"
+                draggable={false}
+                onError={(e) => {
+                  if (t.kind === "url") {
+                    const el = e.currentTarget as HTMLImageElement;
+                    const fallback = `/image/original/product/${t.token}`;
+                    if (el.src !== fallback) el.src = fallback;
+                  }
+                }}
+              />
+            ) : (
+              <div className="w-full h-full grid place-items-center bg-white">
+                <div className="h-6 w-6 rounded-full animate-pulse bg-gray-300" />
+              </div>
+            )}
+
             <button
               type="button"
               onMouseDown={(e) => {
@@ -249,18 +268,18 @@ const ProductMediaSection: React.FC = () => {
             >
               ×
             </button>
+
             <div className="pointer-events-none absolute inset-0 hidden group-hover:flex items-center justify-center bg-black/30 text-white text-[11px] font-medium">
               Drag to sort
             </div>
           </div>
         ))}
 
-        {/* placeholders */}
+        {/* placeholders keep grid shape and stay responsive */}
         {Array.from({ length: remaining }).map((_, k) => (
           <div
             key={`ph-${k}`}
-            style={{ width: TILE_W, height: TILE_H }}
-            className="flex-none rounded-lg border border-dashed border-gray-300 bg-gray-50"
+            className="rounded-lg border border-dashed border-gray-300 bg-gray-50 w-full aspect-[4/5]"
           />
         ))}
       </div>

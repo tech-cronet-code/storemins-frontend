@@ -175,6 +175,14 @@ const QuestionsSection: React.FC = () => {
   const [openCard, setOpenCard] = useState(true);
   const cardContentId = React.useId();
 
+  // header keyboard handler
+  const onCardHeaderKey = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (e.key === " " || e.key === "Enter") {
+      e.preventDefault();
+      setOpenCard((v) => !v);
+    }
+  };
+
   // per-row collapse
   const [openMap, setOpenMap] = useState<Record<string, boolean>>({});
   const toggleOpen = useCallback(
@@ -213,8 +221,16 @@ const QuestionsSection: React.FC = () => {
       className="rounded-xl border border-gray-200 bg-white shadow-sm hover:border-gray-300 transition-colors"
       aria-labelledby="questions-heading"
     >
-      {/* header */}
-      <div className="flex items-start gap-3 px-5 py-4">
+      {/* header — NOW CLICKABLE */}
+      <div
+        className="flex items-start gap-3 px-5 py-4 cursor-pointer select-none"
+        role="button"
+        tabIndex={0}
+        aria-expanded={openCard}
+        aria-controls={cardContentId}
+        onClick={() => setOpenCard((v) => !v)}
+        onKeyDown={onCardHeaderKey}
+      >
         <div className="flex-1">
           <h3
             id="questions-heading"
@@ -244,7 +260,10 @@ const QuestionsSection: React.FC = () => {
           aria-label="Toggle section"
           aria-expanded={openCard}
           aria-controls={cardContentId}
-          onClick={() => setOpenCard((v) => !v)}
+          onClick={(e) => {
+            e.stopPropagation(); // prevent header click
+            setOpenCard((v) => !v);
+          }}
           className="ml-1 -mr-1 inline-flex h-7 w-7 items-center justify-center rounded-md text-gray-600 hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
         >
           <ChevronUpIcon
@@ -268,9 +287,7 @@ const QuestionsSection: React.FC = () => {
         <div className="px-5 py-5">
           {/* top actions */}
           <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-            <div className="sr-only" aria-hidden>
-              {/* reserved for future status/help */}
-            </div>
+            <div className="sr-only" aria-hidden />
             <div className="flex items-center gap-2">
               <button
                 type="button"
@@ -339,16 +356,38 @@ const QuestionsSection: React.FC = () => {
               const showOptions =
                 type === "CHOICE_SINGLE" || type === "CHOICE_MULTI";
 
+              // row header keyboard handler
+              const onRowHeaderKey = (
+                e: React.KeyboardEvent<HTMLDivElement>
+              ) => {
+                if (e.key === " " || e.key === "Enter") {
+                  e.preventDefault();
+                  toggleOpen(field.id);
+                }
+              };
+
               return (
                 <div
                   key={field.id}
                   className="border rounded-xl bg-white shadow-sm overflow-hidden"
                 >
-                  {/* row header */}
-                  <div className="flex items-center gap-3 px-3 py-2 border-b">
+                  {/* row header — NOW CLICKABLE */}
+                  <div
+                    className="flex items-center gap-3 px-3 py-2 border-b cursor-pointer select-none"
+                    role="button"
+                    tabIndex={0}
+                    aria-expanded={expanded}
+                    onClick={() => toggleOpen(field.id)}
+                    onKeyDown={onRowHeaderKey}
+                    aria-controls={`q-row-${field.id}`}
+                    title="Click to expand/collapse"
+                  >
                     <button
                       type="button"
-                      onClick={() => toggleOpen(field.id)}
+                      onClick={(e) => {
+                        e.stopPropagation(); // prevent header click
+                        toggleOpen(field.id);
+                      }}
                       className="shrink-0 w-7 h-7 rounded-md text-gray-600 hover:bg-gray-50 grid place-items-center focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
                       aria-label={expanded ? "Collapse" : "Expand"}
                     >
@@ -368,6 +407,8 @@ const QuestionsSection: React.FC = () => {
                         {...register(`questions.${index}.order`, {
                           valueAsNumber: true,
                         })}
+                        onClick={(e) => e.stopPropagation()}
+                        onKeyDown={(e) => e.stopPropagation()}
                       />
                     </div>
 
@@ -387,7 +428,11 @@ const QuestionsSection: React.FC = () => {
                     </div>
 
                     {/* actions */}
-                    <div className="flex items-center gap-1">
+                    <div
+                      className="flex items-center gap-1"
+                      onClick={(e) => e.stopPropagation()}
+                      onKeyDown={(e) => e.stopPropagation()}
+                    >
                       <button
                         type="button"
                         onClick={() => index > 0 && move(index, index - 1)}
@@ -432,7 +477,11 @@ const QuestionsSection: React.FC = () => {
                   </div>
 
                   {/* row body */}
-                  {expanded && (
+                  <div
+                    id={`q-row-${field.id}`}
+                    aria-hidden={!expanded}
+                    className={expanded ? "block" : "hidden"}
+                  >
                     <div className="p-3 space-y-3">
                       <div className="flex flex-col sm:flex-row gap-3">
                         <div className="flex-1">
@@ -445,6 +494,7 @@ const QuestionsSection: React.FC = () => {
                             placeholder="Enter the question displayed to customer"
                             {...register(`questions.${index}.prompt`)}
                             onKeyDown={(e) => onPromptKeyDown(index, e)}
+                            onClick={(e) => e.stopPropagation()}
                           />
                         </div>
 
@@ -524,6 +574,7 @@ const QuestionsSection: React.FC = () => {
                             type="checkbox"
                             className="h-4 w-4"
                             {...register(`questions.${index}.isRequired`)}
+                            onClick={(e) => e.stopPropagation()}
                           />
                           <span className="text-sm">Required</span>
                         </label>
@@ -534,6 +585,7 @@ const QuestionsSection: React.FC = () => {
                             className="h-4 w-4"
                             defaultChecked
                             {...register(`questions.${index}.isActive`)}
+                            onClick={(e) => e.stopPropagation()}
                           />
                           <span className="text-sm">Active</span>
                         </label>
@@ -555,6 +607,7 @@ const QuestionsSection: React.FC = () => {
                                 setValueAs: (v) =>
                                   v === "" || v == null ? null : Number(v),
                               })}
+                              onClick={(e) => e.stopPropagation()}
                             />
                           </div>
                           <div>
@@ -569,6 +622,7 @@ const QuestionsSection: React.FC = () => {
                                 setValueAs: (v) =>
                                   v === "" || v == null ? null : Number(v),
                               })}
+                              onClick={(e) => e.stopPropagation()}
                             />
                           </div>
                           <div>
@@ -580,12 +634,13 @@ const QuestionsSection: React.FC = () => {
                               className="w-full border rounded px-2 py-1"
                               placeholder="optional imageId"
                               {...register(`questions.${index}.imageId`)}
+                              onClick={(e) => e.stopPropagation()}
                             />
                           </div>
                         </div>
                       )}
 
-                      <div>
+                      <div onClick={(e) => e.stopPropagation()}>
                         <label className="block text-xs text-gray-600 mb-1">
                           Metadata (JSON)
                         </label>
@@ -602,7 +657,7 @@ const QuestionsSection: React.FC = () => {
                         />
                       </div>
                     </div>
-                  )}
+                  </div>
                 </div>
               );
             })}

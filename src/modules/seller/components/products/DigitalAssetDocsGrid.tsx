@@ -22,6 +22,7 @@ const FileIcon = () => (
     fill="none"
     stroke="currentColor"
     strokeWidth="1.8"
+    aria-hidden
   >
     <path d="M6 2h8l4 4v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z" />
     <path d="M14 2v6h6" />
@@ -77,7 +78,7 @@ const DigitalAssetDocsGrid: React.FC<Props> = ({
   return (
     <section
       className={[
-        "rounded-2xl border p-5 space-y-3 shadow-sm bg-white",
+        "rounded-2xl border p-4 sm:p-5 space-y-3 shadow-sm bg-white",
         isDragging ? "ring-2 ring-blue-400" : "",
       ].join(" ")}
       aria-labelledby="da-docs"
@@ -89,26 +90,37 @@ const DigitalAssetDocsGrid: React.FC<Props> = ({
       onDragLeave={() => setDragCount((c) => Math.max(0, c - 1))}
       onDrop={handleDropIntoGrid}
     >
-      <div className="flex items-center justify-between">
+      <div className="flex items-start sm:items-center justify-between gap-2 flex-col sm:flex-row">
         <div>
-          <h3 id="da-docs" className="font-semibold text-lg">
+          <h3 id="da-docs" className="font-semibold text-base sm:text-lg">
             Digital asset — Files
           </h3>
-          <p className="text-xs text-gray-500">
+          <p className="text-[11px] sm:text-xs text-gray-500">
             Other files sent after purchase (max {max}).
           </p>
         </div>
-        <span className="text-xs text-gray-500">
+        <span className="text-[11px] sm:text-xs text-gray-500">
           {existing.length + docs.length}/{max}
         </span>
       </div>
 
-      <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-1.5 select-none">
+      {/* Fully responsive, fluid columns */}
+      <div
+        className={[
+          "grid gap-2 sm:gap-2.5 md:gap-3 lg:gap-3.5 select-none",
+          "[grid-template-columns:repeat(auto-fill,minmax(5.5rem,1fr))]",
+          "sm:[grid-template-columns:repeat(auto-fill,minmax(6.25rem,1fr))]",
+          "md:[grid-template-columns:repeat(auto-fill,minmax(7rem,1fr))]",
+          "lg:[grid-template-columns:repeat(auto-fill,minmax(8rem,1fr))]",
+        ].join(" ")}
+      >
         {tiles.map((t, idx) => (
           <div
             key={t.id}
             className={[
-              "relative w-20 h-20 sm:w-24 sm:h-24 md:w-28 md:h-28 rounded-lg border border-gray-200 bg-gray-50 p-2 flex flex-col items-center justify-center",
+              "relative w-full aspect-square rounded-xl border border-gray-200 bg-gray-50 p-2",
+              "flex flex-col items-center justify-center",
+              "transition ring-offset-2",
               dragIndex === idx ? "ring-2 ring-blue-400" : "",
             ].join(" ")}
             draggable
@@ -127,16 +139,16 @@ const DigitalAssetDocsGrid: React.FC<Props> = ({
             }}
             title={
               t.kind === "existing"
-                ? (t.data as any).title
+                ? (t.data as ExistingDoc).title
                 : (t.data as File).name
             }
           >
             <div className="flex-1 grid place-items-center pointer-events-none">
               <FileIcon />
             </div>
-            <div className="mt-1 text-[11px] truncate text-gray-800 w-full text-center">
+            <div className="mt-1 text-[10px] sm:text-[11px] truncate text-gray-800 w-full text-center">
               {t.kind === "existing"
-                ? (t.data as any).title
+                ? (t.data as ExistingDoc).title
                 : (t.data as File).name}
             </div>
 
@@ -146,7 +158,7 @@ const DigitalAssetDocsGrid: React.FC<Props> = ({
                   type="button"
                   onClick={(ev) => {
                     ev.stopPropagation();
-                    onRemoveExisting((t.data as any).key);
+                    onRemoveExisting((t.data as ExistingDoc).key);
                   }}
                   className="absolute top-1 right-1 rounded-md bg-white/80 hover:bg-white border px-1 text-xs"
                   aria-label="Remove existing file"
@@ -173,14 +185,14 @@ const DigitalAssetDocsGrid: React.FC<Props> = ({
         {Array.from({ length: room }).map((_, i) => (
           <div
             key={`ph-doc-${i}`}
-            className="w-20 h-20 sm:w-24 sm:h-24 md:w-28 md:h-28 rounded-lg border-2 border-dashed border-gray-300 bg-gray-50"
+            className="w-full aspect-square rounded-xl border-2 border-dashed border-gray-300 bg-gray-50"
             aria-hidden="true"
             title="Drag and drop files here"
           />
         ))}
       </div>
 
-      <p className="text-xs text-gray-500">
+      <p className="text-[11px] sm:text-xs text-gray-500">
         Supported: <b>{ACCEPT_HINT}</b>
       </p>
     </section>
