@@ -581,11 +581,11 @@ const MeetingProductForm: React.FC<MeetingProductFormProps> = ({
         </section>
 
         <section id="meeting-breakdown" className="scroll-mt-24">
-          <MeetingBreakdownSection />
+          <MeetingBreakdownSection sectionName={"Meeting"}/>
         </section>
 
         <section id="meeting-channel" className="scroll-mt-24">
-          <MeetingChannelSection />
+          <MeetingChannelSection sectionName={"Meeting"}/>
         </section>
 
         <section id="inventory" className="scroll-mt-24">

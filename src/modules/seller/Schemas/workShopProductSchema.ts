@@ -1,15 +1,13 @@
-// src/modules/seller/Schemas/meetingProductSchema.ts
+// src/modules/seller/Schemas/workShopProductSchema.ts
 import { z } from "zod";
 
 const maxFileSize = 5 * 1024 * 1024;
 
-// ----- Variants -----
 const variantOption = z.object({
   optionName: z.string().min(1, "Option name is required"),
   optionValues: z.array(z.string().min(1)).min(1, "Add at least one value"),
 });
 
-// ----- Questions -----
 export const AnswerTypeEnum = z.enum([
   "TEXT",
   "CHOICE_SINGLE",
@@ -31,12 +29,10 @@ export const questionSchema = z
     answerType: AnswerTypeEnum,
     isRequired: z.boolean().optional().default(false),
 
-    // CHOICE_* only
     options: z.array(optionSchema).optional(),
     minSelect: z.number().int().min(0).nullable().optional(),
     maxSelect: z.number().int().min(0).nullable().optional(),
 
-    // FILE_UPLOAD only
     maxFiles: z.number().int().positive().nullable().optional(),
     maxSizeMB: z.number().int().positive().nullable().optional(),
     imageId: z.string().trim().min(1).nullable().optional(),
@@ -117,162 +113,80 @@ export const questionSchema = z
 
 export type QuestionForm = z.infer<typeof questionSchema>;
 
-/** ─────────────────────────────────────────────
- * Workshop product schema
- * (re-uses meeting fields where helpful)
- * ───────────────────────────────────────────*/
-export const workShopProductSchema = z
-  .object({
-    name: z.string().min(1, "Product name is required"),
+export const workShopProductSchema = z.object({
+  name: z.string().min(1, "Product name is required"),
 
-    // Categories / variants / SEO / gallery
-    categoryLinks: z
-      .array(
-        z.object({
-          parentCategoryId: z.string().uuid().optional(),
-          parentCategoryName: z.string().optional(),
-          subCategoryId: z.string().uuid().optional(),
-          subCategoryName: z.string().optional(),
-        })
-      )
-      .optional(),
-    categoryName: z.string().optional(),
-
-    price: z.coerce
-      .number({
-        required_error: "Price is required",
-        invalid_type_error: "Price must be a number",
+  categoryLinks: z
+    .array(
+      z.object({
+        parentCategoryId: z.string().uuid().optional(),
+        parentCategoryName: z.string().optional(),
+        subCategoryId: z.string().uuid().optional(),
+        subCategoryName: z.string().optional(),
       })
-      .positive("Price must be greater than 0"),
-    discountedPrice: z.coerce
-      .number()
-      .optional()
-      .refine((v) => v === undefined || v >= 0, {
-        message: "Discount must be 0 or more",
-      }),
-    description: z.string().optional(),
+    )
+    .optional(),
+  categoryName: z.string().optional(),
 
-    stock: z.coerce.number().min(0, "Stock must be 0 or more").optional(),
-    sku: z.string().optional(),
+  price: z.coerce
+    .number({ required_error: "Price is required" })
+    .positive("Price must be greater than 0"),
+  discountedPrice: z.coerce
+    .number()
+    .optional()
+    .refine((v) => v === undefined || v >= 0, {
+      message: "Discount must be 0 or more",
+    }),
+  description: z.string().optional(),
 
-    stockStatus: z.enum(["in_stock", "out_of_stock"]).optional(),
-    shippingClass: z.string().optional(),
-    taxClass: z.string().optional(),
+  stock: z.coerce.number().min(0, "Stock must be 0 or more").optional(),
+  sku: z.string().optional(),
 
-    variants: z.array(variantOption).optional(),
+  variants: z.array(variantOption).optional(),
 
-    images: z
-      .any()
-      .optional()
-      .refine(
-        (files) => {
-          if (!files) return true;
-          if (Array.isArray(files) && files.every((f) => typeof f === "string"))
-            return true;
-          return (
-            files instanceof FileList &&
-            Array.from(files).every(
-              (file) => file instanceof File && file.size <= maxFileSize
-            )
-          );
-        },
-        { message: "Each image must be a valid file under 5MB" }
-      ),
-    mediaUrls: z.array(z.string().min(1)).optional(),
+  images: z
+    .any()
+    .optional()
+    .refine(
+      (files) => {
+        if (!files) return true;
+        if (Array.isArray(files) && files.every((f) => typeof f === "string"))
+          return true;
+        return (
+          files instanceof FileList &&
+          Array.from(files).every(
+            (file) => file instanceof File && file.size <= maxFileSize
+          )
+        );
+      },
+      { message: "Each image must be a valid file under 5MB" }
+    ),
+  mediaUrls: z.array(z.string().min(1)).optional(),
 
-    // SEO
-    seoTitle: z.string().optional(),
-    seoDescription: z.string().optional(),
-    seoImageUrl: z.string().optional(),
-    seoImage: z.any().optional(),
+  // SEO
+  seoTitle: z.string().optional(),
+  seoDescription: z.string().optional(),
+  seoImageUrl: z.string().optional(),
+  seoImage: z.any().optional(),
 
-    // Shipping/Tax
-    shippingWeight: z.coerce.number().optional(),
-    hsnCode: z.string().optional(),
-    gstPercent: z.coerce.number().optional(),
+  // Flags + note + questions
+  isRecommended: z.boolean().optional().default(false),
+  customerQuestionsRequired: z.boolean().optional().default(false),
+  postPurchaseNoteDesc: z.string().optional().nullable(),
+  replaceQuestions: z.boolean().optional().default(false),
+  questions: z.array(questionSchema).default([]),
 
-    type: z.enum(["PHYSICAL", "DIGITAL", "MEETING", "WORKSHOP"]).optional(),
+  // Workshop duration
+  workshopDuration: z.coerce
+    .number({ invalid_type_error: "Duration must be a number" })
+    .int()
+    .positive("Duration must be greater than 0"),
+  workshopDurationUnit: z.enum(["days", "weeks", "months", "sessions"]),
 
-    // Flags + note + questions
-    isRecommended: z.boolean().optional().default(false),
-    customerQuestionsRequired: z.boolean().optional().default(false),
-    postPurchaseNoteDesc: z.string().optional().nullable(),
-    replaceQuestions: z.boolean().optional().default(false),
-    questions: z.array(questionSchema).default([]),
-
-    /** ── Meeting core fields (kept for reuse) ── */
-    startsAtISO: z.string().datetime().optional(),
-    endsAtISO: z.string().datetime().optional(),
-    timezone: z.string().optional(),
-
-    // UI duration helper for meetings
-    meetingDuration: z.coerce.number().min(1).optional(),
-    meetingDurationUnit: z.enum(["mins", "hrs"]).default("mins"),
-
-    // Breakdown textarea (serialize to JSON on submit)
-    meetingBreakdown: z.string().optional(),
-
-    // Channel + link (meeting-like)
-    meetingChannel: z.string().optional(),
-    meetingLink: z.union([z.string().url(), z.literal("")]).optional(),
-
-    // Extras
-    capacity: z.coerce.number().int().min(1).optional(),
-    hostName: z.string().optional(),
-    instructions: z.string().optional(),
-
-    /** ── NEW: Workshop-only duration fields (for your bottom sheet UI) ── */
-    workshopDuration: z.coerce
-      .number({
-        invalid_type_error: "Duration must be a number",
-      })
-      .int()
-      .positive("Duration must be greater than 0")
-      .optional(),
-    workshopDurationUnit: z
-      .enum(["days", "weeks", "months", "sessions"])
-      .default("days")
-      .optional(),
-  })
-  // Keep existing meeting validation
-  .refine(
-    (d) => {
-      const hasStart = !!d.startsAtISO;
-      const hasEnd = !!d.endsAtISO;
-      const hasDur =
-        typeof d.meetingDuration === "number" && d.meetingDuration > 0;
-      // We allow workshop-only products to skip meeting constraints.
-      const isWorkshopish =
-        d.type === "WORKSHOP" ||
-        d.workshopDuration != null ||
-        d.workshopDurationUnit != null;
-      return isWorkshopish ? true : (hasStart && hasEnd) || hasDur;
-    },
-    { message: "Provide duration or (start & end).", path: ["meetingDuration"] }
-  )
-  // Add specific checks for workshop fields when they’re being used / type=WORKSHOP
-  .superRefine((d, ctx) => {
-    const isWorkshopish =
-      d.type === "WORKSHOP" ||
-      d.workshopDuration != null ||
-      d.workshopDurationUnit != null;
-
-    if (isWorkshopish) {
-      if (!(typeof d.workshopDuration === "number" && d.workshopDuration > 0)) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          path: ["workshopDuration"],
-          message: "Duration is required",
-        });
-      }
-      if (!d.workshopDurationUnit) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          path: ["workshopDurationUnit"],
-          message: "Select a unit",
-        });
-      }
-    }
-  });
+  // Breakdown + provider + link
+  meetingBreakdown: z.string().optional(),
+  meetingChannel: z.string().optional(),
+  meetingChannelUrl: z.union([z.string().url(), z.literal("")]).optional(), // ⬅️ NEW
+});
 
 export type WorkShopProductFormValues = z.infer<typeof workShopProductSchema>;

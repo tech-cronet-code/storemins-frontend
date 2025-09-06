@@ -35,8 +35,11 @@ const LABEL_TO_KEY: Record<string, string> = {
   Endn: "endn",
   Hshd: "hshd",
 };
+interface Props {
+  sectionName: string;
+}
 
-const MeetingChannelSection: React.FC = () => {
+const MeetingChannelSection: React.FC<Props> = ({ sectionName }) => {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { setValue, watch } = useFormContext<any>();
   const selected = watch("meetingChannel");
@@ -215,12 +218,19 @@ const MeetingChannelSection: React.FC = () => {
       : []),
   ];
 
+  // normalize + casing helpers
+  const base = String(sectionName).trim() || "meeting";
+  const lower = base.toLowerCase();
+  const capital = lower.charAt(0).toUpperCase() + lower.slice(1);
+
+  // dynamic id/title/subtitle
+  const sectionId = `${lower}-channel`;
+  const title = `${capital} channel`;
+  const subtitle = `share the ${lower} format`; // all lowercase
+
   return (
-    <section id="meeting-channel" className="scroll-mt-24">
-      <CollapsibleCard
-        title="Meeting channel"
-        subtitle="Where will the meeting happen"
-      >
+    <section id={sectionId} className="scroll-mt-24">
+      <CollapsibleCard title={title} subtitle={subtitle}>
         <div className="mt-1 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 max-w-3xl">
           {tiles.map((t) => {
             const savedUrl =

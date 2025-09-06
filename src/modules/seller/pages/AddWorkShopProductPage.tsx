@@ -22,7 +22,7 @@ const AddWorkShopProductPage = () => {
           <div className="sticky top-0 h-screen p-4">
             <SidebarNavigation
               scrollContainerRef={formContainerRef}
-              productType="MEETING"
+              productType="WORKSHOP"
             />
           </div>
         </aside>
@@ -40,7 +40,7 @@ const AddWorkShopProductPage = () => {
                 <ArrowLeft size={24} strokeWidth={2} />
               </button>
               <h1 className="text-base sm:text-lg font-semibold text-gray-900 leading-none">
-                {id ? "Edit digital product" : "Add new digital product"}
+                {id ? "Edit digital product" : "Add new workshop product"}
               </h1>
             </div>
           </div>

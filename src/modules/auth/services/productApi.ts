@@ -201,6 +201,29 @@ export interface MeetingDto {
   instructions?: string | null;
 }
 
+/** ─────────────────────────────────────────────
+ *  WORKSHOP: DTO (server returns `workshop`)
+ *  ───────────────────────────────────────────*/
+// extend server echo type
+export interface WorkshopDto {
+  durationUnit?: "DAYS" | "WEEKS" | "MONTHS" | "SESSIONS" | string;
+  durationValue?: number | null;
+  breakdown?: any | null;
+  provider?: string | null;
+  sessions?: number | null;
+  durationMinutes?: number | null;
+  mode?: "ONLINE" | "OFFLINE" | "HYBRID" | string | null;
+  venueId?: string | null;
+  syllabus?: any | null;
+  materialsFileId?: string | null;
+  maxAttendees?: number | null;
+  certificate?: boolean | null;
+  instructorName?: string | null;
+
+  /** ⬅️ NEW: persisted meeting URL for workshops */
+  meetingLink?: string | null;
+}
+
 /** Backend response DTO */
 interface ProductResponseDto {
   id: string;
@@ -246,7 +269,7 @@ interface ProductResponseDto {
 
   // Meeting relation (present for type=MEETING)
   meeting?: MeetingDto | null;
-
+  workshop?: WorkshopDto | null; // NEW
   // Digital (still supported elsewhere)
   digital?: {
     assets?: Array<{
@@ -338,7 +361,23 @@ export interface ProductDetailsResponse {
   meetingDurationUnit?: "mins"; // UI convenience
   meetingBreakdown?: string; // free text extracted from meeting.breakdown
   meetingChannel?: string | null; // provider echo
+  /** ⬅️ NEW: hydrate the modal’s URL field */
+  meetingChannelUrl?: string | null;
+  workshopDuration?: number;
+  workshopDurationUnit?: "days" | "weeks" | "months" | "sessions";
 }
+
+const CODE_TO_LABEL: Record<string, string> = {
+  ZOOM: "ZOOM",
+  GMEET: "G-Meet",
+  WHATSAPP: "WhatsApp",
+  PHONE_CALL: "Phone call",
+  FORM: "Form",
+  ENDN: "Endn",
+  HSHD: "Hshd",
+};
+const toLabel = (code?: string | null) =>
+  code ? CODE_TO_LABEL[String(code).toUpperCase()] ?? code : null;
 
 /** Utility */
 const pluckImages = (p: ProductResponseDto) =>
@@ -347,6 +386,7 @@ const pluckImages = (p: ProductResponseDto) =>
 export const productApi = createApi({
   baseQuery: baseQueryWithReauth, // ⬅️ Uses the smart switch
   reducerPath: "productApi",
+  tagTypes: ["Product"] as const, // ✅ add this
   endpoints: (builder) => ({
     createCategory: builder.mutation<
       { message: string; data: ProductCategoryResponse },
@@ -470,7 +510,99 @@ export const productApi = createApi({
       }),
     }),
 
-    /** LIST by business/type (unchanged) */
+    /** ─────────────────────────────────────────────
+     *  WORKSHOP: CREATE / EDIT (multipart)
+     *  ───────────────────────────────────────────*/
+    createWorkshopProduct: builder.mutation<
+      { message: string; data: { id: string; name: string } },
+      FormData
+    >({
+      query: (formData) => ({
+        url: `/seller/product/product/workshop/create`,
+        method: "POST",
+        body: formData,
+      }),
+    }),
+    updateWorkshopProduct: builder.mutation<
+      { message: string; data: ProductDetailsResponse },
+      FormData
+    >({
+      query: (formData) => ({
+        url: `/seller/product/product/workshop/edit`,
+        method: "POST",
+        body: formData,
+      }),
+    }),
+
+    /** GET BY ID — hydrate Meeting & Workshop helpers */
+    getProductById: builder.query<ProductDetailsResponse, { id: string }>({
+      query: ({ id }) => ({
+        url: `/seller/product/product/get-by-id`,
+        method: "POST",
+        body: { id },
+      }),
+      transformResponse: (raw: { message: string; data: any }) => {
+        const p = raw.data;
+        const mtg = p.meeting ?? null;
+        const ws = p.workshop ?? null;
+
+        const toText = (b: any) => {
+          if (b == null) return undefined;
+          if (typeof b === "string") return b;
+          if (typeof b === "object" && "text" in b) return String(b.text ?? "");
+          return JSON.stringify(b);
+        };
+
+        const wsUnitLower = ws?.durationUnit
+          ? String(ws.durationUnit).toLowerCase()
+          : undefined;
+
+        // Prefer workshop link for this screen
+        const meetingLink = ws?.meetingLink ?? mtg?.meetingLink ?? null;
+
+        return {
+          id: p.id,
+          name: p.name,
+          isRecommended: p.isRecommended ?? false,
+          customerQuestionsRequired: p.customerQuestionsRequired ?? false,
+          postPurchaseNoteDesc: p.postPurchaseNoteDesc ?? null,
+
+          price: p.price ?? 0,
+          discountedPrice: p.discountedPrice ?? null,
+          description: p.description ?? null,
+          stock: p.quantity ?? undefined,
+          sku: p.sku ?? null,
+          stockStatus: (p.quantity ?? 0) > 0 ? "in_stock" : "out_of_stock",
+          images: pluckImages(p),
+          status: p.status === "ACTIVE" ? "ACTIVE" : "INACTIVE",
+
+          shippingWeight: p.shippingWeight ?? null,
+          hsnCode: p.hsnCode ?? null,
+          gstPercent: p.gstPercent ?? null,
+
+          variants: p.variants || [],
+          categoryLinks: p.categoryLinks || [],
+
+          seoMetaData: {
+            title: p.seoMetaData?.title || "",
+            description: p.seoMetaData?.description || "",
+            imageUrl: p.seoMetaData?.imageUrl || "",
+          },
+
+          questions: p.questions || [],
+
+          // helpers for the Workshop form
+          meetingChannel: toLabel(ws?.provider ?? mtg?.provider),
+          meetingChannelUrl: meetingLink, // <<—— key fix
+          meetingBreakdown: toText(mtg?.breakdown ?? ws?.breakdown),
+
+          workshopDuration: ws?.durationValue ?? undefined,
+          workshopDurationUnit:
+            (wsUnitLower as "days" | "weeks" | "months" | "sessions") ?? "days",
+        } as ProductDetailsResponse;
+      },
+    }),
+
     listProducts: builder.query<
       ProductListItem[],
       { businessId: string; type: string }
@@ -497,74 +629,77 @@ export const productApi = createApi({
           status: p.status === "ACTIVE" ? "ACTIVE" : "INACTIVE",
           isRecommended: p.isRecommended ?? undefined,
         })),
+      providesTags: (result) =>
+        result && result.length
+          ? [
+              ...result.map((p) => ({ type: "Product" as const, id: p.id })),
+              { type: "Product" as const, id: "LIST" },
+            ]
+          : [{ type: "Product" as const, id: "LIST" }],
     }),
 
-    /** GET BY ID — hydrate Meeting helpers */
-    getProductById: builder.query<ProductDetailsResponse, { id: string }>({
-      query: ({ id }) => ({
-        url: `/seller/product/product/get-by-id`,
+    updateProductStatus: builder.mutation<
+      { message: string; data: { id: string; status: string } },
+      UpdateProductStatusRequest
+    >({
+      query: (body) => ({
+        url: `/seller/product/product/update-status`,
         method: "POST",
-        body: { id },
+        body,
       }),
-      transformResponse: (raw: {
-        message: string;
-        data: ProductResponseDto;
-      }): ProductDetailsResponse => {
-        const p = raw.data;
-        const images = pluckImages(p);
+      invalidatesTags: (_res, _err, { id }) => [
+        { type: "Product" as const, id },
+        { type: "Product" as const, id: "LIST" },
+      ],
+      async onQueryStarted(
+        { id, status },
+        { dispatch, queryFulfilled, getState }
+      ) {
+        const state: any = getState();
+        const businessId =
+          state?.auth?.userDetails?.storeLinks?.[0]?.businessId;
 
-        // Meeting helpers
-        const mtg = p.meeting ?? null;
-        const meetingDuration = mtg?.durationMinutes ?? undefined;
-
-        // breakdown can be string or object; normalize to string for the form textarea
-        let meetingBreakdown: string | undefined;
-        if (mtg?.breakdown != null) {
-          if (typeof mtg.breakdown === "string")
-            meetingBreakdown = mtg.breakdown;
-          else if (typeof mtg.breakdown === "object" && "text" in mtg.breakdown)
-            meetingBreakdown = String((mtg.breakdown as any).text ?? "");
-          else meetingBreakdown = JSON.stringify(mtg.breakdown);
+        if (!businessId) {
+          try {
+            await queryFulfilled;
+          } catch {
+            /* ignore */
+          }
+          return;
         }
 
-        return {
-          id: p.id,
-          name: p.name,
-          isRecommended: p.isRecommended ?? false,
-          customerQuestionsRequired: p.customerQuestionsRequired ?? false,
-          postPurchaseNoteDesc: p.postPurchaseNoteDesc ?? null,
+        const types: Array<string> = [
+          "PHYSICAL",
+          "DIGITAL",
+          "MEETING",
+          "WORKSHOP",
+        ];
+        const patches: Array<{ undo: () => void }> = [];
 
-          price: p.price ?? 0,
-          discountedPrice: p.discountedPrice ?? null,
-          description: p.description ?? null,
-          stock: p.quantity ?? undefined,
-          sku: p.sku ?? null,
-          stockStatus: (p.quantity ?? 0) > 0 ? "in_stock" : "out_of_stock",
-          images,
-          status: p.status === "ACTIVE" ? "ACTIVE" : "INACTIVE",
+        for (const t of types) {
+          try {
+            const patch = dispatch(
+              productApi.util.updateQueryData(
+                "listProducts",
+                { businessId, type: t },
+                (draft) => {
+                  const list = draft as unknown as ProductListItem[]; // TS-safe cast
+                  const row = list.find((p) => p.id === id);
+                  if (row) row.status = status;
+                }
+              )
+            );
+            patches.push(patch);
+          } catch {
+            // cache for that args pair may not exist — ignore
+          }
+        }
 
-          shippingWeight: p.shippingWeight ?? null,
-          hsnCode: p.hsnCode ?? null,
-          gstPercent: p.gstPercent ?? null,
-
-          variants: p.variants || [],
-          categoryLinks: p.categoryLinks || [],
-
-          seoMetaData: {
-            title: p.seoMetaData?.title || "",
-            description: p.seoMetaData?.description || "",
-            imageUrl: p.seoMetaData?.imageUrl || "",
-          },
-
-          questions: p.questions || [],
-
-          // Meeting echoes for the form
-          meeting: mtg,
-          meetingDuration,
-          meetingDurationUnit: "mins",
-          meetingBreakdown,
-          meetingChannel: mtg?.provider ?? null,
-        };
+        try {
+          await queryFulfilled;
+        } catch {
+          patches.forEach((p) => p.undo());
+        }
       },
     }),
 
@@ -578,39 +713,6 @@ export const productApi = createApi({
         method: "POST",
         body: formData,
       }),
-    }),
-
-    updateProductStatus: builder.mutation<
-      { message: string; data: { id: string; status: string } },
-      UpdateProductStatusRequest
-    >({
-      query: (body) => ({
-        url: `/seller/product/product/update-status`,
-        method: "POST",
-        body,
-      }),
-      async onQueryStarted(
-        { id, status },
-        { dispatch, queryFulfilled, getState }
-      ) {
-        const state: any = getState();
-        const businessId = state.auth.userDetails?.storeLinks?.[0]?.businessId;
-        const patchResult = dispatch(
-          productApi.util.updateQueryData(
-            "listProducts",
-            { businessId, type: "" },
-            (draft) => {
-              const product = draft.find((p) => p.id === id);
-              if (product) product.status = status;
-            }
-          )
-        );
-        try {
-          await queryFulfilled;
-        } catch {
-          patchResult.undo();
-        }
-      },
     }),
 
     deleteProduct: builder.mutation<
@@ -649,4 +751,8 @@ export const {
   // MEETING (NEW)
   useCreateMeetingProductMutation,
   useUpdateMeetingProductMutation,
+
+  // WorkShop (NEW)
+  useCreateWorkshopProductMutation,
+  useUpdateWorkshopProductMutation,
 } = productApi;

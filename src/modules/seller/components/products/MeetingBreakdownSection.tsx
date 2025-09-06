@@ -3,17 +3,27 @@ import { useFormContext } from "react-hook-form";
 import CollapsibleCard from "./CollapsibleCard";
 import { useState } from "react";
 
-const MeetingBreakdownSection: React.FC = () => {
+interface Props {
+  sectionName: string;
+}
+
+const MeetingBreakdownSection: React.FC<Props> = ({ sectionName }) => {
   const { register } = useFormContext<any>();
   const [showExample, setShowExample] = useState(true);
 
+  // normalize + casing helpers
+  const base = String(sectionName).trim() || "meeting";
+  const lower = base.toLowerCase();
+  const capital = lower.charAt(0).toUpperCase() + lower.slice(1);
+
+  // dynamic id/title/subtitle
+  const sectionId = `${lower}-breakdown`;
+  const title = `${capital} breakdown`;
+  const subtitle = `share the ${lower} format`; // all lowercase
+
   return (
-    <section id="meeting-breakdown" className="scroll-mt-24">
-      <CollapsibleCard
-        title="Meeting breakdown"
-        subtitle="Share the meeting format"
-        defaultOpen
-      >
+    <section id={sectionId} className="scroll-mt-24">
+      <CollapsibleCard title={title} subtitle={subtitle} defaultOpen>
         {/* Inline editor (no bottom sheet, no Add button) */}
         <div className="rounded-xl border border-gray-200 overflow-hidden">
           <div className="flex gap-2 border-b px-3 py-2 text-gray-600 text-sm">

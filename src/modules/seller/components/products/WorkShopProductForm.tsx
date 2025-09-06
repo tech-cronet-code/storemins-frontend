@@ -1,44 +1,42 @@
+// src/modules/seller/components/products/WorkShopProductForm.tsx
 /* eslint-disable @typescript-eslint/no-explicit-any */
-// src/modules/seller/components/products/MeetingProductForm.tsx
 import { zodResolver } from "@hookform/resolvers/zod";
 import React, { useEffect } from "react";
 import { FormProvider, useForm, useWatch } from "react-hook-form";
 import { useNavigate } from "react-router-dom";
 import { showToast } from "../../../../common/utils/showToast";
 import { useAuth } from "../../../auth/contexts/AuthContext";
-import {
-  useCreateMeetingProductMutation,
-  useGetProductByIdQuery,
-  useUpdateMeetingProductMutation,
-} from "../../../auth/services/productApi";
 
 import InventorySection from "./InventorySection";
+import PostPurchaseNoteSection from "./PostPurchaseNoteSection";
 import ProductFlagsSection from "./ProductFlagsSection";
 import ProductInfoSection from "./ProductInfoSection";
 import ProductMediaSection from "./ProductMediaSection";
 import QuestionsSection from "./QuestionsSection";
 import SEOSection from "./SEOSection";
-import PostPurchaseNoteSection from "./PostPurchaseNoteSection";
 
-// Meeting UI sections
-import MeetingBreakdownSection from "./MeetingBreakdownSection";
-import MeetingChannelSection from "./MeetingChannelSection";
-import DurationSection from "./DurationSection";
-import WorkShopDurationSection from "./WorkShopDurationSection";
 import {
   WorkShopProductFormValues,
   workShopProductSchema,
 } from "../../Schemas/workShopProductSchema";
+import MeetingBreakdownSection from "./MeetingBreakdownSection";
+import MeetingChannelSection from "./MeetingChannelSection"; // <— ensure path
+import WorkShopDurationSection from "./WorkShopDurationSection";
+import {
+  useGetProductByIdQuery,
+  useCreateWorkshopProductMutation,
+  useUpdateWorkshopProductMutation,
+} from "../../../auth/services/productApi";
 
 interface WorkShopProductFormProps {
   productId?: string;
 }
 
-const LOG = "[MeetingProductForm]";
+const LOG = "[WorkShopProductForm]";
 
-function unwrapProduct(p: any): any {
+function unwrap(p: any): any {
   if (!p) return p;
-  if (p.data && typeof p.data === "object") return unwrapProduct(p.data);
+  if (p.data && typeof p.data === "object") return unwrap(p.data);
   return p;
 }
 function extractMediaTokens(obj: any): string[] {
@@ -60,7 +58,6 @@ function extractMediaTokens(obj: any): string[] {
   return [];
 }
 
-// ----- Provider mapping helpers -----
 const CODE_TO_LABEL: Record<string, string> = {
   ZOOM: "ZOOM",
   GMEET: "G-Meet",
@@ -70,7 +67,7 @@ const CODE_TO_LABEL: Record<string, string> = {
   ENDN: "Endn",
   HSHD: "Hshd",
 };
-const CODE_TO_KEY: Record<string, string> = {
+const ENUM_TO_KEY: Record<string, string> = {
   ZOOM: "zoom",
   GMEET: "gmeet",
   WHATSAPP: "whatsapp",
@@ -79,18 +76,10 @@ const CODE_TO_KEY: Record<string, string> = {
   ENDN: "endn",
   HSHD: "hshd",
 };
-function providerCodeToLabel(code?: string | null): string {
-  if (!code) return "";
-  const u = String(code).toUpperCase();
-  return CODE_TO_LABEL[u] ?? code; // if custom (e.g., "Teams"), keep as label
-}
-function providerCodeToKey(code?: string | null): string | undefined {
-  if (!code) return undefined;
-  const u = String(code).toUpperCase();
-  return CODE_TO_KEY[u];
-}
+const toProviderLabel = (code?: string | null) =>
+  code ? CODE_TO_LABEL[String(code).toUpperCase()] ?? code : "";
 
-// map visible label to backend enum (best-effort)
+// label ➜ enum
 function toProviderEnum(label?: string | null): string | undefined {
   if (!label) return undefined;
   const t = label.trim().toLowerCase();
@@ -102,10 +91,16 @@ function toProviderEnum(label?: string | null): string | undefined {
   if (t === "form") return "FORM";
   if (t === "endn") return "ENDN";
   if (t === "hshd") return "HSHD";
-  return undefined; // fall back to sending custom label in provider
+  return undefined;
 }
 
-// simple slug util for CHOICE option values
+const unitMap = {
+  days: "DAYS",
+  weeks: "WEEKS",
+  months: "MONTHS",
+  sessions: "SESSIONS",
+} as const;
+
 const slug = (s: string) =>
   s
     .toLowerCase()
@@ -113,24 +108,21 @@ const slug = (s: string) =>
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
 
-const localTZ = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
-
 const WorkShopProductForm: React.FC<WorkShopProductFormProps> = ({
   productId,
 }) => {
   const navigate = useNavigate();
   const { userDetails } = useAuth();
 
-  const [createMeeting, { isLoading: isCreating }] =
-    useCreateMeetingProductMutation();
-  const [updateMeeting, { isLoading: isUpdating }] =
-    useUpdateMeetingProductMutation();
+  const [createWorkshop, { isLoading: isCreating }] =
+    useCreateWorkshopProductMutation();
+  const [updateWorkshop, { isLoading: isUpdating }] =
+    useUpdateWorkshopProductMutation();
 
-  const { data: productRaw, isLoading: isFetchingProduct } =
-    useGetProductByIdQuery(
-      { id: productId! },
-      { skip: !productId, refetchOnMountOrArgChange: true }
-    );
+  const { data: productRaw, isLoading: isFetching } = useGetProductByIdQuery(
+    { id: productId! },
+    { skip: !productId, refetchOnMountOrArgChange: true }
+  );
 
   const methods = useForm<WorkShopProductFormValues>({
     resolver: zodResolver(workShopProductSchema),
@@ -140,14 +132,11 @@ const WorkShopProductForm: React.FC<WorkShopProductFormProps> = ({
       name: "",
       categoryLinks: [],
       categoryName: "",
-      price: "",
-      discountedPrice: "",
+      price: undefined as any,
+      discountedPrice: undefined as any,
       description: "",
       stock: undefined,
       sku: "",
-      stockStatus: undefined,
-      shippingClass: undefined,
-      taxClass: undefined,
       variants: undefined,
 
       images: undefined as any,
@@ -158,93 +147,63 @@ const WorkShopProductForm: React.FC<WorkShopProductFormProps> = ({
       seoImageUrl: "",
       seoImage: undefined as any,
 
-      shippingWeight: undefined,
-      hsnCode: "",
-      gstPercent: undefined,
-
-      type: "MEETING",
-
       isRecommended: false,
       customerQuestionsRequired: false,
 
       postPurchaseNoteDesc: null,
-
       replaceQuestions: false,
       questions: [],
 
-      // ── Meeting fields ──
-      startsAtISO: undefined,
-      endsAtISO: undefined,
-      timezone: localTZ,
-
-      meetingDuration: undefined,
-      meetingDurationUnit: "mins",
+      // workshop-only
+      workshopDuration: undefined,
+      workshopDurationUnit: "days",
       meetingBreakdown: "",
-
-      // channel selection + link (written by MeetingChannelSection)
       meetingChannel: "",
       meetingChannelUrl: "",
 
-      // optional BE fields / legacy
-      meetingLink: "",
-      capacity: undefined,
-      hostName: "",
-      instructions: "",
-
-      // state for MeetingChannelSection
+      // local state used by MeetingChannelSection
+      channelLinks: {}, // <<—— per-tile URL map (zoom/gmeet/…)
       customChannel: undefined as any,
-      customChannels: [],
-      channelLinks: {},
+      customChannels: [] as any,
     } as any,
   });
 
   const { handleSubmit, reset, control, trigger, getValues } = methods;
 
-  // validate questions live when required
   const mustAnswer = useWatch({ control, name: "customerQuestionsRequired" });
   const questions = useWatch({ control, name: "questions" }) || [];
   useEffect(() => {
     void trigger("questions");
   }, [mustAnswer, questions.length, trigger]);
 
-  // hydrate in edit mode
+  // -------- hydrate on edit --------
   useEffect(() => {
     if (!productId || !productRaw) return;
-    const p = unwrapProduct(productRaw);
+    const p = unwrap(productRaw);
     const mediaTokens = extractMediaTokens(p);
-
     const categoryLinks = p?.categoryLinks || [];
     const categoryName = categoryLinks
       .map((l: any) => l?.subCategoryName || l?.parentCategoryName)
       .filter(Boolean)
       .join(", ");
 
-    // map provider code -> tile label + per-tile key for saved link
-    const providerLabel = providerCodeToLabel(p?.meetingProvider);
-    const providerKey = providerCodeToKey(p?.meetingProvider);
-    const meetingUrl: string = p?.meetingLink ?? "";
-
-    // build per-channel saved links for the tiles so the grey text shows
-    const channelLinks: Record<string, string> = {};
-    if (providerKey && meetingUrl) channelLinks[providerKey] = meetingUrl;
-
-    // If providerLabel isn't one of our base labels, treat it as a custom tile
-    const baseLabels = new Set(Object.values(CODE_TO_LABEL));
-    const isCustom = providerLabel && !baseLabels.has(providerLabel);
+    // normalize provider + link coming from API
+    const label = toProviderLabel(p?.meetingChannel); // "ZOOM", "G-Meet", etc.
+    const urlFromApi: string = p?.meetingChannelUrl || ""; // <<—— from transform
+    const enumVal = toProviderEnum(label);
+    const key = enumVal ? ENUM_TO_KEY[enumVal] : undefined;
+    const prefillLinks = key && urlFromApi ? { [key]: urlFromApi } : {};
 
     reset({
       name: p?.name || "",
       categoryLinks,
       categoryName,
-      price: p?.price != null ? String(p.price) : "",
+      price: p?.price != null ? String(p.price) : undefined,
       discountedPrice:
-        p?.discountedPrice != null ? String(p.discountedPrice) : "",
+        p?.discountedPrice != null ? String(p.discountedPrice) : undefined,
       description: p?.description || "",
       stock: (p as any)?.stock ?? p?.quantity ?? undefined,
       sku: p?.sku ?? "",
-      stockStatus: (p as any)?.stockStatus,
-      shippingClass: "",
-      taxClass: "",
       variants: p?.variants || undefined,
 
       images: undefined as any,
@@ -254,11 +213,6 @@ const WorkShopProductForm: React.FC<WorkShopProductFormProps> = ({
       seoDescription: p?.seoMetaData?.description || "",
       seoImageUrl: p?.seoMetaData?.imageUrl || "",
 
-      shippingWeight: p?.shippingWeight ?? undefined,
-      hsnCode: p?.hsnCode || "",
-      gstPercent: p?.gstPercent ?? undefined,
-
-      type: "WORKSHOP",
       isRecommended: !!p?.isRecommended,
       customerQuestionsRequired: !!p?.customerQuestionsRequired,
       postPurchaseNoteDesc: p?.postPurchaseNoteDesc ?? null,
@@ -293,30 +247,13 @@ const WorkShopProductForm: React.FC<WorkShopProductFormProps> = ({
           }))
         : [],
 
-      // ── Meeting hydrate ──
-      startsAtISO: p?.startsAtISO ?? undefined,
-      endsAtISO: p?.endsAtISO ?? undefined,
-      timezone: p?.timezone ?? localTZ,
-      meetingDuration: p?.meetingDuration ?? undefined,
-      meetingDurationUnit: "mins",
+      // Workshop hydrate
+      workshopDuration: p?.workshopDuration ?? undefined,
+      workshopDurationUnit: p?.workshopDurationUnit ?? "days",
       meetingBreakdown: p?.meetingBreakdown ?? "",
-
-      // hydrate channel + link to the form
-      meetingChannel: providerLabel || "",
-      meetingChannelUrl: meetingUrl || "",
-      meetingLink: meetingUrl || "",
-
-      capacity: p?.capacity ?? undefined,
-      hostName: p?.hostName ?? "",
-      instructions: p?.instructions ?? "",
-
-      // section state for tile URLs and optional custom tile
-      customChannel:
-        isCustom && providerLabel
-          ? { label: providerLabel, url: meetingUrl || "" }
-          : undefined,
-      customChannels: isCustom && providerLabel ? [providerLabel] : [],
-      channelLinks,
+      meetingChannel: label,
+      meetingChannelUrl: urlFromApi, // <<—— modal input value
+      channelLinks: prefillLinks, // <<—— makes the tile show the link
     } as any);
   }, [productRaw, productId, reset]);
 
@@ -332,37 +269,11 @@ const WorkShopProductForm: React.FC<WorkShopProductFormProps> = ({
         return;
       }
 
-      // compute time window
-      const startsAt = data.startsAtISO
-        ? new Date(data.startsAtISO)
-        : new Date();
-      let endsAt = data.endsAtISO ? new Date(data.endsAtISO) : undefined;
-
-      // derive minutes from unit
-      const durationMins =
-        data.meetingDuration != null
-          ? data.meetingDurationUnit === "hrs"
-            ? Number(data.meetingDuration) * 60
-            : Number(data.meetingDuration)
-          : undefined;
-
-      if (!endsAt && durationMins && !Number.isNaN(durationMins)) {
-        endsAt = new Date(startsAt.getTime() + durationMins * 60_000);
-      }
-      if (!endsAt) {
-        showToast({
-          type: "error",
-          message: "Please provide duration or (start & end).",
-          showClose: true,
-        });
-        return;
-      }
-
       const fd = new FormData();
       fd.append("businessId", businessId);
       fd.append("name", data.name);
 
-      // numbers / strings
+      // pricing / basics
       fd.append("price", String(data.price ?? ""));
       if (String(data.discountedPrice ?? "") !== "")
         fd.append("discountedPrice", String(data.discountedPrice));
@@ -370,11 +281,6 @@ const WorkShopProductForm: React.FC<WorkShopProductFormProps> = ({
       if (data.stock != null && String(data.stock) !== "")
         fd.append("quantity", String(data.stock));
       if (data.sku) fd.append("sku", data.sku);
-      if (data.shippingWeight != null && String(data.shippingWeight) !== "")
-        fd.append("shippingWeight", String(data.shippingWeight));
-      if (data.hsnCode) fd.append("hsnCode", data.hsnCode);
-      if (data.gstPercent != null && String(data.gstPercent) !== "")
-        fd.append("gstPercent", String(data.gstPercent));
 
       // flags
       fd.append("isRecommended", String(!!data.isRecommended));
@@ -382,6 +288,11 @@ const WorkShopProductForm: React.FC<WorkShopProductFormProps> = ({
         "customerQuestionsRequired",
         String(!!data.customerQuestionsRequired)
       );
+      if (data.postPurchaseNoteDesc != null)
+        fd.append(
+          "postPurchaseNoteDesc",
+          String(data.postPurchaseNoteDesc ?? "")
+        );
 
       // categories / variants
       if (data.categoryLinks !== undefined)
@@ -389,47 +300,27 @@ const WorkShopProductForm: React.FC<WorkShopProductFormProps> = ({
       if (data.variants !== undefined)
         fd.append("variants", JSON.stringify(data.variants));
 
-      /** ── MEETING fields ───────────────────────── */
-      fd.append("startsAt", startsAt.toISOString());
-      fd.append("endsAt", endsAt.toISOString());
-      fd.append("timezone", data.timezone || localTZ);
-      if (durationMins != null && !Number.isNaN(durationMins))
-        fd.append("durationMinutes", String(durationMins));
-
-      // breakdown
+      // workshop fields
+      if (data.workshopDuration != null)
+        fd.append("durationValue", String(data.workshopDuration));
+      if (data.workshopDurationUnit)
+        fd.append("durationUnit", unitMap[data.workshopDurationUnit]);
       if (data.meetingBreakdown && data.meetingBreakdown.trim()) {
-        const breakdown = {
-          format: "markdown",
-          text: data.meetingBreakdown.trim(),
-        };
-        fd.append("breakdown", JSON.stringify(breakdown));
+        fd.append(
+          "breakdown",
+          JSON.stringify({
+            format: "markdown",
+            text: data.meetingBreakdown.trim(),
+          })
+        );
       }
-
-      // Provider:
-      // - if it's a known label, send the enum;
-      // - otherwise send the label itself so it round-trips (custom tile).
       const providerEnum = toProviderEnum(data.meetingChannel);
-      if (providerEnum) {
-        fd.append("provider", providerEnum);
-      } else if (data.meetingChannel && data.meetingChannel.trim()) {
+      if (providerEnum) fd.append("provider", providerEnum);
+      else if (data.meetingChannel?.trim())
         fd.append("provider", data.meetingChannel.trim());
-      }
 
-      // Meeting link: always take what the channel modal saved.
-      const linkFromSection = (
-        getValues("meetingChannelUrl") ||
-        data.meetingChannel ||
-        data.meetingLink ||
-        ""
-      ).trim();
-      if (linkFromSection) {
-        fd.append("meetingLink", linkFromSection);
-      }
-
-      if (data.capacity != null && String(data.capacity) !== "")
-        fd.append("capacity", String(data.capacity));
-      if (data.hostName) fd.append("hostName", data.hostName);
-      if (data.instructions) fd.append("instructions", data.instructions);
+      const link = (getValues("meetingChannelUrl") || "").trim();
+      if (link) fd.append("meetingLink", link); // <<—— persisted
 
       // SEO
       const seoFiles = data.seoImage as unknown as FileList | undefined;
@@ -451,7 +342,7 @@ const WorkShopProductForm: React.FC<WorkShopProductFormProps> = ({
         );
       }
 
-      // gallery kept tokens (edit)
+      // gallery
       const keptTokens = (data.mediaUrls || []) as string[];
       if (productId) {
         fd.append(
@@ -461,19 +352,16 @@ const WorkShopProductForm: React.FC<WorkShopProductFormProps> = ({
           )
         );
       }
-
-      // new gallery files
       const galleryFiles = data.images as unknown as FileList | undefined;
       if (galleryFiles && galleryFiles.length)
         Array.from(galleryFiles).forEach((f) => fd.append("images", f));
 
       // questions
-      const shouldSendQuestions =
+      if (
         (data.questions?.length ?? 0) > 0 ||
-        data.customerQuestionsRequired === true ||
-        data.replaceQuestions === true;
-
-      if (shouldSendQuestions) {
+        data.customerQuestionsRequired ||
+        data.replaceQuestions
+      ) {
         const clean = (data.questions || [])
           .filter((q) => q && q.prompt && q.answerType)
           .map((q, i) => {
@@ -533,17 +421,17 @@ const WorkShopProductForm: React.FC<WorkShopProductFormProps> = ({
 
       if (productId) {
         fd.append("id", productId);
-        await updateMeeting(fd).unwrap();
+        await updateWorkshop(fd).unwrap();
         showToast({
           type: "success",
-          message: "Meeting product updated!",
+          message: "Workshop product updated!",
           showClose: true,
         });
       } else {
-        await createMeeting(fd).unwrap();
+        await createWorkshop(fd).unwrap();
         showToast({
           type: "success",
-          message: "Meeting product created!",
+          message: "Workshop product created!",
           showClose: true,
         });
       }
@@ -555,15 +443,14 @@ const WorkShopProductForm: React.FC<WorkShopProductFormProps> = ({
       console.error(LOG, "submit error", err);
       showToast({
         type: "error",
-        message: err?.data?.message || "Failed to save meeting!",
+        message: err?.data?.message || "Failed to save workshop!",
         showClose: true,
       });
     }
   };
 
   const isSubmitting = isCreating || isUpdating;
-  if (isFetchingProduct && productId)
-    return <div>Loading product details...</div>;
+  if (isFetching && productId) return <div>Loading product details...</div>;
 
   return (
     <FormProvider {...methods}>
@@ -571,45 +458,30 @@ const WorkShopProductForm: React.FC<WorkShopProductFormProps> = ({
         <section id="product-media" className="scroll-mt-24">
           <ProductMediaSection />
         </section>
-
         <section id="product-info" className="scroll-mt-24">
           <ProductInfoSection />
         </section>
-
-        {/* Meeting-only sections */}
-        <section id="meeting-duration" className="scroll-mt-24">
-          <DurationSection />
-        </section>
-
-        {/* workshop-only sections */}
         <section id="workshop-duration" className="scroll-mt-24">
           <WorkShopDurationSection />
         </section>
-
-        <section id="meeting-breakdown" className="scroll-mt-24">
-          <MeetingBreakdownSection />
+        <section id="workshop-breakdown" className="scroll-mt-24">
+          <MeetingBreakdownSection sectionName={"Workshop"}/>
         </section>
-
-        <section id="meeting-channel" className="scroll-mt-24">
-          <MeetingChannelSection />
+        <section id="workshop-channel" className="scroll-mt-24">
+          <MeetingChannelSection sectionName={"Workshop"}/>
         </section>
-
         <section id="inventory" className="scroll-mt-24">
           <InventorySection />
         </section>
-
         <section id="seo" className="scroll-mt-24">
           <SEOSection />
         </section>
-
         <section id="product-flags" className="scroll-mt-24">
           <ProductFlagsSection isEdit={!!productId} />
         </section>
-
         <section id="product-questions" className="scroll-mt-24">
           <QuestionsSection />
         </section>
-
         <section id="post-purchase-note" className="scroll-mt-24">
           <PostPurchaseNoteSection />
         </section>
@@ -625,8 +497,8 @@ const WorkShopProductForm: React.FC<WorkShopProductFormProps> = ({
                 ? "Updating..."
                 : "Saving..."
               : productId
-              ? "Update WorkShop Product"
-              : "Add WorkShop Product"}
+              ? "Update Workshop Product"
+              : "Add Workshop Product"}
           </button>
         </div>
       </form>
