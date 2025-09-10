@@ -23,11 +23,10 @@ const emptyRow = (): Q => ({
   options: undefined,
   minSelect: null,
   maxSelect: null,
-  maxFiles: null,
-  maxSizeMB: null,
-  imageId: null,
-  metadata: null,
-  isActive: true,
+  maxFiles: null, // optional
+  maxSizeMB: null, // optional
+  // imageId removed from UI and defaults
+  isActive: true, // always active by default
 });
 
 const TEMPLATES: Q[] = [
@@ -41,11 +40,6 @@ const TEMPLATES: Q[] = [
     maxSelect: null,
     maxFiles: null,
     maxSizeMB: null,
-    imageId: null,
-    metadata: { ui: { hint: "Max 40 chars" } } as unknown as Record<
-      string,
-      unknown
-    >,
     isActive: true,
   },
   {
@@ -61,11 +55,6 @@ const TEMPLATES: Q[] = [
     maxSelect: 1,
     maxFiles: null,
     maxSizeMB: null,
-    imageId: null,
-    metadata: { ui: { note: "Will affect scheduling" } } as unknown as Record<
-      string,
-      unknown
-    >,
     isActive: true,
   },
   {
@@ -76,12 +65,8 @@ const TEMPLATES: Q[] = [
     options: undefined,
     minSelect: null,
     maxSelect: null,
-    maxFiles: 1,
-    maxSizeMB: 5,
-    imageId: null,
-    metadata: {
-      file: { types: ["png"], note: "Transparent preferred" },
-    } as unknown as Record<string, unknown>,
+    maxFiles: 1, // can clear to null
+    maxSizeMB: 5, // can clear to null
     isActive: true,
   },
 ];
@@ -92,14 +77,14 @@ const Badge: React.FC<{
   tone?: "gray" | "blue" | "green" | "red";
 }> = ({ children, tone = "gray" }) => {
   const tones: Record<string, string> = {
-    gray: "bg-gray-100 text-gray-700 border-gray-200",
-    blue: "bg-blue-50 text-blue-700 border-blue-200",
-    green: "bg-green-50 text-green-700 border-green-200",
-    red: "bg-red-50 text-red-700 border-red-200",
+    gray: "bg-gray-100 text-gray-700 ring-1 ring-inset ring-gray-200",
+    blue: "bg-blue-50 text-blue-700 ring-1 ring-inset ring-blue-200",
+    green: "bg-green-50 text-green-700 ring-1 ring-inset ring-green-200",
+    red: "bg-red-50 text-red-700 ring-1 ring-inset ring-red-200",
   };
   return (
     <span
-      className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] border ${tones[tone]}`}
+      className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] ${tones[tone]}`}
     >
       {children}
     </span>
@@ -130,7 +115,7 @@ const Segmented: React.FC<{
     "FILE_UPLOAD",
   ];
   return (
-    <div className="inline-flex rounded-lg border bg-white overflow-hidden">
+    <div className="inline-flex overflow-hidden rounded-xl bg-white ring-1 ring-inset ring-gray-200">
       {opts.map((opt) => (
         <button
           key={opt}
@@ -140,7 +125,7 @@ const Segmented: React.FC<{
           className={`px-3 py-1.5 text-sm transition ${
             value === opt
               ? "bg-blue-600 text-white"
-              : "bg-white text-gray-700 hover:bg-gray-50"
+              : "text-gray-700 hover:bg-gray-50"
           }`}
         >
           {opt.replace("_", " / ")}
@@ -218,10 +203,10 @@ const QuestionsSection: React.FC = () => {
 
   return (
     <section
-      className="rounded-xl border border-gray-200 bg-white shadow-sm hover:border-gray-300 transition-colors"
+      className="rounded-2xl bg-white shadow-md ring-1 ring-gray-200 transition-colors"
       aria-labelledby="questions-heading"
     >
-      {/* header — NOW CLICKABLE */}
+      {/* header — clickable */}
       <div
         className="flex items-start gap-3 px-5 py-4 cursor-pointer select-none"
         role="button"
@@ -240,16 +225,19 @@ const QuestionsSection: React.FC = () => {
           </h3>
           <p className="mt-0.5 text-xs text-gray-500">
             Collect details from buyers at checkout. Reorder with ↑/↓ (hold{" "}
-            <kbd className="px-1 border rounded">Alt</kbd>).
+            <kbd className="px-1 ring-1 ring-inset ring-gray-300 rounded">
+              Alt
+            </kbd>
+            ).
           </p>
         </div>
 
         {/* chips (right side) */}
         <div className="flex items-center gap-2">
-          <span className="inline-flex items-center rounded-full border border-gray-200 bg-gray-50 px-2.5 py-1 text-xs text-gray-700">
+          <span className="inline-flex items-center rounded-full bg-gray-50 px-2.5 py-1 text-xs text-gray-700 ring-1 ring-inset ring-gray-200">
             Total:&nbsp;<b className="tabular-nums">{total}</b>
           </span>
-          <span className="inline-flex items-center rounded-full border border-blue-200 bg-blue-50 px-2.5 py-1 text-xs text-blue-700">
+          <span className="inline-flex items-center rounded-full bg-blue-50 px-2.5 py-1 text-xs text-blue-700 ring-1 ring-inset ring-blue-200">
             Required:&nbsp;<b className="tabular-nums">{requiredCount}</b>
           </span>
         </div>
@@ -261,10 +249,10 @@ const QuestionsSection: React.FC = () => {
           aria-expanded={openCard}
           aria-controls={cardContentId}
           onClick={(e) => {
-            e.stopPropagation(); // prevent header click
+            e.stopPropagation();
             setOpenCard((v) => !v);
           }}
-          className="ml-1 -mr-1 inline-flex h-7 w-7 items-center justify-center rounded-md text-gray-600 hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+          className="ml-1 -mr-1 inline-flex h-7 w-7 items-center justify-center rounded-lg text-gray-600 hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
         >
           <ChevronUpIcon
             className={[
@@ -275,7 +263,7 @@ const QuestionsSection: React.FC = () => {
         </button>
       </div>
 
-      {/* divider */}
+      {/* subtle divider */}
       <div className="h-px w-full bg-gray-100" />
 
       {/* body */}
@@ -292,14 +280,14 @@ const QuestionsSection: React.FC = () => {
               <button
                 type="button"
                 onClick={addTemplates}
-                className="px-3 py-1.5 rounded-md border bg-white hover:bg-gray-50 text-sm"
+                className="px-3 py-1.5 rounded-lg bg-white text-sm shadow-sm ring-1 ring-inset ring-gray-200 hover:bg-gray-50"
               >
                 + Quick add templates
               </button>
               <button
                 type="button"
                 onClick={addOne}
-                className="px-3 py-1.5 rounded-md bg-blue-600 text-white hover:bg-blue-700 text-sm"
+                className="px-3 py-1.5 rounded-lg bg-blue-600 text-white hover:bg-blue-700 text-sm shadow"
               >
                 + Add question
               </button>
@@ -310,14 +298,14 @@ const QuestionsSection: React.FC = () => {
           {questionsError && (
             <div
               role="alert"
-              className="mb-3 rounded border border-red-200 bg-red-50 text-red-700 p-2 text-sm"
+              className="mb-3 rounded-xl bg-red-50 text-red-700 p-2 text-sm ring-1 ring-inset ring-red-200"
             >
               {questionsError}
             </div>
           )}
 
           {!fields.length && (
-            <div className="text-sm text-gray-500 border rounded-lg p-3 bg-gray-50">
+            <div className="text-sm text-gray-600 rounded-xl p-3 bg-gray-50 ring-1 ring-inset ring-gray-100">
               No questions yet. Click <b>+ Add question</b> or use{" "}
               <b>Quick add templates</b>.
             </div>
@@ -328,7 +316,6 @@ const QuestionsSection: React.FC = () => {
               const type = watch(`questions.${index}.answerType`);
               const promptVal = watch(`questions.${index}.prompt`);
               const requiredVal = watch(`questions.${index}.isRequired`);
-              const activeVal = watch(`questions.${index}.isActive`);
               const expanded = openMap[field.id] ?? true;
 
               const headerBadges = (
@@ -349,7 +336,6 @@ const QuestionsSection: React.FC = () => {
                   ) : (
                     <Badge>optional</Badge>
                   )}
-                  {!activeVal && <Badge tone="gray">inactive</Badge>}
                 </div>
               );
 
@@ -369,11 +355,11 @@ const QuestionsSection: React.FC = () => {
               return (
                 <div
                   key={field.id}
-                  className="border rounded-xl bg-white shadow-sm overflow-hidden"
+                  className="rounded-2xl bg-white shadow-sm ring-1 ring-gray-100 overflow-hidden"
                 >
-                  {/* row header — NOW CLICKABLE */}
+                  {/* row header */}
                   <div
-                    className="flex items-center gap-3 px-3 py-2 border-b cursor-pointer select-none"
+                    className="flex items-center gap-3 px-3 py-2 cursor-pointer select-none border-b border-gray-100"
                     role="button"
                     tabIndex={0}
                     aria-expanded={expanded}
@@ -385,10 +371,10 @@ const QuestionsSection: React.FC = () => {
                     <button
                       type="button"
                       onClick={(e) => {
-                        e.stopPropagation(); // prevent header click
+                        e.stopPropagation();
                         toggleOpen(field.id);
                       }}
-                      className="shrink-0 w-7 h-7 rounded-md text-gray-600 hover:bg-gray-50 grid place-items-center focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+                      className="shrink-0 w-7 h-7 rounded-lg text-gray-600 hover:bg-gray-50 grid place-items-center focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
                       aria-label={expanded ? "Collapse" : "Expand"}
                     >
                       <ChevronUpIcon
@@ -399,18 +385,7 @@ const QuestionsSection: React.FC = () => {
                       />
                     </button>
 
-                    <div className="w-12">
-                      <input
-                        type="number"
-                        className="w-full border rounded px-2 py-1 text-sm"
-                        aria-label="Order"
-                        {...register(`questions.${index}.order`, {
-                          valueAsNumber: true,
-                        })}
-                        onClick={(e) => e.stopPropagation()}
-                        onKeyDown={(e) => e.stopPropagation()}
-                      />
-                    </div>
+                    {/* Order input removed */}
 
                     <div className="flex-1 min-w-0">
                       <div className="truncate text-sm font-medium">
@@ -435,31 +410,41 @@ const QuestionsSection: React.FC = () => {
                     >
                       <button
                         type="button"
-                        onClick={() => index > 0 && move(index, index - 1)}
-                        className="px-2 py-1 text-sm border rounded hover:bg-gray-50"
+                        onClick={() => {
+                          if (index > 0) {
+                            move(index, index - 1);
+                            requestAnimationFrame(reindexOrders);
+                          }
+                        }}
+                        className="px-2 py-1 text-sm rounded-md hover:bg-gray-50 ring-1 ring-inset ring-gray-200"
                         aria-label="Move up"
                       >
                         ↑
                       </button>
                       <button
                         type="button"
-                        onClick={() =>
-                          index < fields.length - 1 && move(index, index + 1)
-                        }
-                        className="px-2 py-1 text-sm border rounded hover:bg-gray-50"
+                        onClick={() => {
+                          if (index < fields.length - 1) {
+                            move(index, index + 1);
+                            requestAnimationFrame(reindexOrders);
+                          }
+                        }}
+                        className="px-2 py-1 text-sm rounded-md hover:bg-gray-50 ring-1 ring-inset ring-gray-200"
                         aria-label="Move down"
                       >
                         ↓
                       </button>
                       <button
                         type="button"
-                        onClick={() =>
+                        onClick={() => {
                           append({
                             ...(questions[index] ?? emptyRow()),
                             order: index + 1,
-                          })
-                        }
-                        className="px-2 py-1 text-sm border rounded hover:bg-gray-50"
+                            isActive: true,
+                          });
+                          requestAnimationFrame(reindexOrders);
+                        }}
+                        className="px-2 py-1 text-sm rounded-md hover:bg-gray-50 ring-1 ring-inset ring-gray-200"
                         aria-label="Duplicate"
                         title="Duplicate"
                       >
@@ -468,7 +453,7 @@ const QuestionsSection: React.FC = () => {
                       <button
                         type="button"
                         onClick={() => remove(index)}
-                        className="px-2 py-1 text-sm border rounded text-red-600 hover:bg-red-50"
+                        className="px-2 py-1 text-sm rounded-md text-red-600 hover:bg-red-50 ring-1 ring-inset ring-red-200"
                         aria-label="Remove"
                       >
                         ✕
@@ -490,7 +475,7 @@ const QuestionsSection: React.FC = () => {
                           </label>
                           <input
                             type="text"
-                            className="w-full border rounded px-2 py-1"
+                            className="w-full rounded-lg px-2 py-1 text-sm bg-white ring-1 ring-inset ring-gray-200 focus:ring-2 focus:ring-blue-500/50 focus:outline-none"
                             placeholder="Enter the question displayed to customer"
                             {...register(`questions.${index}.prompt`)}
                             onKeyDown={(e) => onPromptKeyDown(index, e)}
@@ -572,37 +557,28 @@ const QuestionsSection: React.FC = () => {
                         <label className="flex items-center gap-2">
                           <input
                             type="checkbox"
-                            className="h-4 w-4"
+                            className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                             {...register(`questions.${index}.isRequired`)}
                             onClick={(e) => e.stopPropagation()}
                           />
                           <span className="text-sm">Required</span>
                         </label>
-
-                        <label className="flex items-center gap-2">
-                          <input
-                            type="checkbox"
-                            className="h-4 w-4"
-                            defaultChecked
-                            {...register(`questions.${index}.isActive`)}
-                            onClick={(e) => e.stopPropagation()}
-                          />
-                          <span className="text-sm">Active</span>
-                        </label>
+                        {/* Active toggle removed (always active) */}
                       </div>
 
                       {showOptions && <ChoiceEditor index={index} />}
 
                       {type === "FILE_UPLOAD" && (
-                        <div className="grid sm:grid-cols-3 gap-3">
+                        <div className="grid sm:grid-cols-2 gap-3">
                           <div>
                             <label className="block text-xs text-gray-600">
-                              Max Files
+                              Max Files{" "}
+                              <span className="text-gray-400">(optional)</span>
                             </label>
                             <input
                               type="number"
-                              className="w-full border rounded px-2 py-1"
-                              placeholder="e.g. 1"
+                              className="w-full rounded-lg px-2 py-1 text-sm bg-white ring-1 ring-inset ring-gray-200 focus:ring-2 focus:ring-blue-500/50 focus:outline-none"
+                              placeholder="leave blank for unlimited"
                               {...register(`questions.${index}.maxFiles`, {
                                 setValueAs: (v) =>
                                   v === "" || v == null ? null : Number(v),
@@ -612,12 +588,13 @@ const QuestionsSection: React.FC = () => {
                           </div>
                           <div>
                             <label className="block text-xs text-gray-600">
-                              Max Size (MB)
+                              Max Size (MB){" "}
+                              <span className="text-gray-400">(optional)</span>
                             </label>
                             <input
                               type="number"
-                              className="w-full border rounded px-2 py-1"
-                              placeholder="e.g. 5"
+                              className="w-full rounded-lg px-2 py-1 text-sm bg-white ring-1 ring-inset ring-gray-200 focus:ring-2 focus:ring-blue-500/50 focus:outline-none"
+                              placeholder="leave blank for unlimited"
                               {...register(`questions.${index}.maxSizeMB`, {
                                 setValueAs: (v) =>
                                   v === "" || v == null ? null : Number(v),
@@ -625,37 +602,9 @@ const QuestionsSection: React.FC = () => {
                               onClick={(e) => e.stopPropagation()}
                             />
                           </div>
-                          <div>
-                            <label className="block text-xs text-gray-600">
-                              Image ID (placeholder)
-                            </label>
-                            <input
-                              type="text"
-                              className="w-full border rounded px-2 py-1"
-                              placeholder="optional imageId"
-                              {...register(`questions.${index}.imageId`)}
-                              onClick={(e) => e.stopPropagation()}
-                            />
-                          </div>
+                          {/* Image ID field removed */}
                         </div>
                       )}
-
-                      <div onClick={(e) => e.stopPropagation()}>
-                        <label className="block text-xs text-gray-600 mb-1">
-                          Metadata (JSON)
-                        </label>
-                        <MetadataEditor
-                          value={
-                            questions[index]?.metadata as
-                              | Record<string, unknown>
-                              | null
-                              | undefined
-                          }
-                          onChange={(obj) =>
-                            setValue(`questions.${index}.metadata`, obj)
-                          }
-                        />
-                      </div>
                     </div>
                   </div>
                 </div>
@@ -663,24 +612,7 @@ const QuestionsSection: React.FC = () => {
             })}
           </div>
 
-          {!!fields.length && (
-            <div className="mt-3 flex items-center justify-between pt-2">
-              <button
-                type="button"
-                onClick={reindexOrders}
-                className="px-3 py-1.5 rounded-md border bg-white hover:bg-gray-50 text-sm"
-                title="Set order = visible position"
-              >
-                Reindex orders by position
-              </button>
-              <div className="text-xs text-gray-500">
-                Tip: Hold <kbd className="px-1 border rounded">Alt</kbd> and
-                press <kbd className="px-1 border rounded">↑</kbd>/
-                <kbd className="px-1 border rounded">↓</kbd> in the Prompt field
-                to reorder quickly.
-              </div>
-            </div>
-          )}
+          {/* Footer (reindex button + tip) removed */}
         </div>
       </div>
     </section>
@@ -708,6 +640,17 @@ const ChoiceEditor: React.FC<{ index: number }> = ({ index }) => {
   const canAdd = fields.length < 10;
   const canRemove = fields.length > 2;
 
+  // keep sortOrder in sync with visual order
+  const reindexOptionSortOrders = () => {
+    const opts = (watch(`questions.${index}.options`) ?? []) as Opt[];
+    opts.forEach((_, i) =>
+      setValue(`questions.${index}.options.${i}.sortOrder`, i, {
+        shouldValidate: false,
+        shouldDirty: true,
+      })
+    );
+  };
+
   const addOption = () => {
     const next = fields.length;
     append({
@@ -722,6 +665,7 @@ const ChoiceEditor: React.FC<{ index: number }> = ({ index }) => {
         (watch(`questions.${index}.options`)?.length || 1) + 1
       );
     }
+    requestAnimationFrame(reindexOptionSortOrders);
   };
 
   const onLabelBlur = (i: number, e: React.FocusEvent<HTMLInputElement>) => {
@@ -746,11 +690,12 @@ const ChoiceEditor: React.FC<{ index: number }> = ({ index }) => {
           });
       }
     }
+    reindexOptionSortOrders();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isSingle, options.length]);
 
   return (
-    <div className="rounded-lg border p-3 bg-gray-50 space-y-3">
+    <div className="rounded-xl bg-gray-50 p-3 space-y-3 ring-1 ring-inset ring-gray-100">
       <div className="flex flex-wrap items-end gap-3">
         <div className="grow">
           <div className="text-sm font-medium">Options</div>
@@ -762,7 +707,7 @@ const ChoiceEditor: React.FC<{ index: number }> = ({ index }) => {
             <label className="text-xs text-gray-600">Min Select</label>
             <input
               type="number"
-              className="w-16 border rounded px-2 py-1 text-sm"
+              className="w-16 rounded-lg px-2 py-1 text-sm bg-white ring-1 ring-inset ring-gray-200 focus:ring-2 focus:ring-blue-500/50 focus:outline-none"
               disabled={isSingle}
               {...register(`questions.${index}.minSelect`, {
                 setValueAs: (v) => (v === "" || v == null ? null : Number(v)),
@@ -773,7 +718,7 @@ const ChoiceEditor: React.FC<{ index: number }> = ({ index }) => {
             <label className="text-xs text-gray-600">Max Select</label>
             <input
               type="number"
-              className="w-16 border rounded px-2 py-1 text-sm"
+              className="w-16 rounded-lg px-2 py-1 text-sm bg-white ring-1 ring-inset ring-gray-200 focus:ring-2 focus:ring-blue-500/50 focus:outline-none"
               disabled={isSingle}
               {...register(`questions.${index}.maxSelect`, {
                 setValueAs: (v) => (v === "" || v == null ? null : Number(v)),
@@ -785,7 +730,7 @@ const ChoiceEditor: React.FC<{ index: number }> = ({ index }) => {
             type="button"
             onClick={addOption}
             disabled={!canAdd}
-            className="px-3 py-1.5 rounded-md border bg-white hover:bg-gray-100 text-sm disabled:opacity-50"
+            className="px-3 py-1.5 rounded-lg bg-white text-sm shadow-sm ring-1 ring-inset ring-gray-200 hover:bg-gray-100 disabled:opacity-50"
           >
             + Add option
           </button>
@@ -796,32 +741,26 @@ const ChoiceEditor: React.FC<{ index: number }> = ({ index }) => {
         {fields.map((opt, i) => (
           <div
             key={opt.id}
-            className="grid grid-cols-[40px_1fr_1fr_120px_90px_90px] gap-2"
+            className="grid grid-cols-[1fr_1fr_120px_90px_90px] gap-2"
           >
-            <input
-              type="number"
-              className="w-full border rounded px-2 py-1 text-sm"
-              {...register(`questions.${index}.options.${i}.sortOrder`, {
-                valueAsNumber: true,
-              })}
-            />
+            {/* sortOrder input removed */}
             <input
               type="text"
               placeholder="Label"
-              className="w-full border rounded px-2 py-1 text-sm"
+              className="w-full rounded-lg px-2 py-1 text-sm bg-white ring-1 ring-inset ring-gray-200 focus:ring-2 focus:ring-blue-500/50 focus:outline-none"
               {...register(`questions.${index}.options.${i}.label`)}
               onBlur={(e) => onLabelBlur(i, e)}
             />
             <input
               type="text"
               placeholder="Value (slug)"
-              className="w-full border rounded px-2 py-1 text-sm"
+              className="w-full rounded-lg px-2 py-1 text-sm bg-white ring-1 ring-inset ring-gray-200 focus:ring-2 focus:ring-blue-500/50 focus:outline-none"
               {...register(`questions.${index}.options.${i}.value`)}
             />
             <label className="inline-flex items-center gap-2 text-sm">
               <input
                 type="checkbox"
-                className="h-4 w-4"
+                className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                 {...register(`questions.${index}.options.${i}.isActive`)}
                 defaultChecked
               />
@@ -831,16 +770,26 @@ const ChoiceEditor: React.FC<{ index: number }> = ({ index }) => {
             <div className="flex items-center gap-1">
               <button
                 type="button"
-                onClick={() => i > 0 && move(i, i - 1)}
-                className="px-2 py-1 text-sm border rounded hover:bg-gray-50"
+                onClick={() => {
+                  if (i > 0) {
+                    move(i, i - 1);
+                    requestAnimationFrame(reindexOptionSortOrders);
+                  }
+                }}
+                className="px-2 py-1 text-sm rounded-md hover:bg-gray-50 ring-1 ring-inset ring-gray-200"
                 aria-label="Move up"
               >
                 ↑
               </button>
               <button
                 type="button"
-                onClick={() => i < fields.length - 1 && move(i, i + 1)}
-                className="px-2 py-1 text-sm border rounded hover:bg-gray-50"
+                onClick={() => {
+                  if (i < fields.length - 1) {
+                    move(i, i + 1);
+                    requestAnimationFrame(reindexOptionSortOrders);
+                  }
+                }}
+                className="px-2 py-1 text-sm rounded-md hover:bg-gray-50 ring-1 ring-inset ring-gray-200"
                 aria-label="Move down"
               >
                 ↓
@@ -850,8 +799,13 @@ const ChoiceEditor: React.FC<{ index: number }> = ({ index }) => {
             <div className="flex items-center justify-end">
               <button
                 type="button"
-                onClick={() => canRemove && remove(i)}
-                className="px-2 py-1 text-sm border rounded text-red-600 hover:bg-red-50 disabled:opacity-50"
+                onClick={() => {
+                  if (canRemove) {
+                    remove(i);
+                    requestAnimationFrame(reindexOptionSortOrders);
+                  }
+                }}
+                className="px-2 py-1 text-sm rounded-md text-red-600 hover:bg-red-50 ring-1 ring-inset ring-red-200 disabled:opacity-50"
                 disabled={!canRemove}
               >
                 ✕
@@ -859,92 +813,6 @@ const ChoiceEditor: React.FC<{ index: number }> = ({ index }) => {
             </div>
           </div>
         ))}
-      </div>
-    </div>
-  );
-};
-
-/* ------------------ tiny JSON editor ------------------ */
-const MetadataEditor: React.FC<{
-  value: Record<string, unknown> | null | undefined;
-  onChange: (obj: Record<string, unknown> | null) => void;
-}> = ({ value, onChange }) => {
-  const [text, setText] = useState(() =>
-    value ? JSON.stringify(value, null, 2) : ""
-  );
-  const [error, setError] = useState<string | null>(null);
-
-  const onBlur = () => {
-    const t = text.trim();
-    if (!t) {
-      setError(null);
-      onChange(null);
-      return;
-    }
-    try {
-      const obj = JSON.parse(t);
-      if (obj && typeof obj === "object" && !Array.isArray(obj)) {
-        setError(null);
-        onChange(obj as Record<string, unknown>);
-      } else setError("Metadata must be a JSON object.");
-    } catch {
-      setError("Invalid JSON.");
-    }
-  };
-
-  const pretty = () => {
-    try {
-      const obj = JSON.parse(text);
-      setText(JSON.stringify(obj, null, 2));
-      setError(null);
-    } catch {
-      setError("Cannot prettify: invalid JSON.");
-    }
-  };
-
-  const clear = () => {
-    setText("");
-    setError(null);
-    onChange(null);
-  };
-
-  return (
-    <div>
-      <div className="flex items-center justify-between mb-1">
-        <p className="text-xs text-gray-600">
-          Paste JSON to control UI/validation (optional)
-        </p>
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={pretty}
-            className="text-xs px-2 py-1 border rounded hover:bg-gray-50"
-          >
-            Prettify
-          </button>
-          <button
-            type="button"
-            onClick={clear}
-            className="text-xs px-2 py-1 border rounded hover:bg-gray-50"
-          >
-            Clear
-          </button>
-        </div>
-      </div>
-      <textarea
-        className={`w-full border rounded px-2 py-1 font-mono text-xs min-h-[96px] ${
-          error ? "border-red-300 bg-red-50" : ""
-        }`}
-        value={text}
-        onChange={(e) => setText(e.target.value)}
-        onBlur={onBlur}
-        placeholder='{"ui":{"hint":"e.g., Name to print"}}'
-      />
-      <div className="flex items-center justify-between mt-1">
-        <span className={`text-xs ${error ? "text-red-600" : "text-gray-400"}`}>
-          {error || "Valid JSON object or leave blank."}
-        </span>
-        <span className="text-[10px] text-gray-400">{text.length} chars</span>
       </div>
     </div>
   );

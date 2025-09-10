@@ -23,7 +23,7 @@ const ChevronUpIcon: React.FC<{ className?: string }> = ({ className }) => (
 
 /** Reusable visual switch with RHF Controller (keyboard & a11y friendly). */
 const SwitchRow: React.FC<{
-  name: "isRecommended" | "customerQuestionsRequired" | "replaceQuestions";
+  name: "isRecommended" | "customerQuestionsRequired";
   label: React.ReactNode;
   hint?: React.ReactNode;
 }> = ({ name, label, hint }) => {
@@ -106,7 +106,6 @@ const ProductFlagsSection: React.FC<Props> = ({
     []) as unknown[];
   const questionsCount = Array.isArray(questions) ? questions.length : 0;
 
-  // keyboard support for header toggle
   const onHeaderKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
     if (e.key === " " || e.key === "Enter") {
       e.preventDefault();
@@ -119,7 +118,7 @@ const ProductFlagsSection: React.FC<Props> = ({
       className="rounded-xl border border-gray-200 bg-white shadow-sm hover:border-gray-300 transition-colors"
       aria-labelledby="product-flags-heading"
     >
-      {/* Card header — NOW CLICKABLE */}
+      {/* Card header */}
       <div
         className="flex items-start gap-3 px-5 py-4 cursor-pointer select-none"
         role="button"
@@ -141,7 +140,6 @@ const ProductFlagsSection: React.FC<Props> = ({
           </p>
         </div>
 
-        {/* Right-side status chips */}
         <div className="flex items-center gap-2">
           <span className="inline-flex items-center rounded-full border border-gray-200 bg-gray-50 px-2.5 py-1 text-xs text-gray-700">
             Questions:&nbsp;<b className="tabular-nums">{questionsCount}</b>
@@ -153,14 +151,13 @@ const ProductFlagsSection: React.FC<Props> = ({
           )}
         </div>
 
-        {/* Chevron toggle (still works) */}
         <button
           type="button"
           aria-label="Toggle section"
           aria-expanded={open}
           aria-controls={contentId}
           onClick={(e) => {
-            e.stopPropagation(); // prevent header onClick from firing too
+            e.stopPropagation();
             setOpen((v) => !v);
           }}
           className="ml-1 -mr-1 inline-flex h-7 w-7 items-center justify-center rounded-md text-gray-600 hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
@@ -174,10 +171,8 @@ const ProductFlagsSection: React.FC<Props> = ({
         </button>
       </div>
 
-      {/* Divider */}
       <div className="h-px w-full bg-gray-100" />
 
-      {/* Card body (collapsible) */}
       <div
         id={contentId}
         aria-hidden={!open}
@@ -197,25 +192,6 @@ const ProductFlagsSection: React.FC<Props> = ({
               hint="Buyer cannot add to cart until all required questions are satisfied."
             />
           </div>
-
-          {isEdit && (
-            <div className="mt-5 rounded-lg border border-amber-200 bg-amber-50 p-4">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:gap-4">
-                <SwitchRow
-                  name="replaceQuestions"
-                  label={
-                    <span className="font-medium text-amber-900">
-                      Replace existing questions on save
-                    </span>
-                  }
-                />
-                <p className="text-sm leading-6 text-amber-800">
-                  When checked, the set below will overwrite the current saved
-                  questions. Leave unchecked to keep them untouched.
-                </p>
-              </div>
-            </div>
-          )}
         </div>
       </div>
     </section>

@@ -21,7 +21,6 @@ const ProductInfoSection: React.FC<ProductInfoSectionProps> = () => {
   const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([]);
   const [selectedCategoryNames, setSelectedCategoryNames] = useState("");
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   const categoryLinks = watch("categoryLinks") || [];
   const { userDetails } = useAuth();
   const businessId = userDetails?.storeLinks?.[0]?.businessId;
@@ -31,7 +30,7 @@ const ProductInfoSection: React.FC<ProductInfoSectionProps> = () => {
     { skip: !businessId }
   );
 
-  // When product is loaded or categories change, update displayed category names
+  // sync category names + ids when product/category changes
   useEffect(() => {
     if (!categories.length || !categoryLinks.length) return;
 
@@ -105,15 +104,27 @@ const ProductInfoSection: React.FC<ProductInfoSectionProps> = () => {
     console.log("Add new category clicked");
   };
 
-  const categoryOptions = categories.map((cat) => ({
+  // helper to get count from various backend shapes
+  const getCount = (c: any): number =>
+    Number(
+      c?.productCount ??
+        c?.productsCount ??
+        c?._count?.products ??
+        (Array.isArray(c?.products) ? c.products.length : 0) ??
+        0
+    ) || 0;
+
+  const categoryOptions = (categories || []).map((cat: any) => ({
     id: cat.id,
     name: cat.name,
-    productCount: 0,
+    image: cat.image ?? undefined,
+    productCount: getCount(cat),
     subcategories:
-      cat.subCategories?.map((sub) => ({
+      (cat.subCategories || []).map((sub: any) => ({
         id: sub.id,
         name: sub.name,
-        productCount: 0,
+        image: sub.image ?? undefined,
+        productCount: getCount(sub),
       })) || [],
   }));
 
@@ -176,7 +187,7 @@ const ProductInfoSection: React.FC<ProductInfoSectionProps> = () => {
         )}
       </div>
 
-      {/* Category Input (Opens Modal) */}
+      {/* Category Input */}
       <div className="space-y-1">
         <label
           htmlFor="category"
