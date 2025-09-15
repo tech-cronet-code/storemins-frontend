@@ -126,7 +126,10 @@ const menuItems = [
     active: false,
     children: [
       { label: "Store Setting", path: "/seller/appearance/store-setting" },
-      { label: "Dispaly Setting", path: "/seller/appearance/display-setting" },
+      {
+        label: "Appearance & info",
+        path: "/seller/appearance/display-setting",
+      },
       { label: "Themes", path: "/seller/appearance/themes" },
       { label: "Store Blog", path: "/seller/appearance/store-blog" },
       { label: "Store Pages", path: "/seller/appearance/store-page" },

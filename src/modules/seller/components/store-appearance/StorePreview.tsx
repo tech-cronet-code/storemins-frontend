@@ -1,34 +1,41 @@
-// StorePreview.tsx
-import React from "react";
+import React, { useMemo } from "react";
+import { mergeAnnBarFromUI } from "../../../../shared/blocks/announcementBar";
+import { RenderLayout } from "../../../../shared/blocks/registry";
 
 interface StorePreviewProps {
   generalSettings: any;
-  headerSettings: any;
+  headerSettings: any; // your UI state for the editor
+  runtimeLayout?: any[]; // storefront?.layout from API
 }
 
+/** Editor preview that renders the SAME block components as public storefront,
+ *  but overlays the current form (headerSettings) on top of runtime layout. */
 const StorePreview: React.FC<StorePreviewProps> = ({
   generalSettings,
   headerSettings,
+  runtimeLayout = [],
 }) => {
+  // Overlay the announcement bar block settings with UI state while editing
+  const previewLayout = useMemo(() => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return (runtimeLayout || []).map((b: any) => {
+      if (b?.code !== "announcement_bar") return b;
+      return {
+        ...b,
+        settings: mergeAnnBarFromUI(b.settings, headerSettings),
+      };
+    });
+  }, [runtimeLayout, headerSettings]);
+
   return (
     <div
       className="rounded shadow bg-white text-sm"
       style={{ fontFamily: generalSettings.font }}
     >
-      {/* Announcement Bar */}
-      {headerSettings.showAnnouncement && (
-        <div
-          className="text-center py-2 text-sm"
-          style={{
-            backgroundColor: headerSettings.barColor,
-            color: headerSettings.fontColor,
-          }}
-        >
-          {headerSettings.message}
-        </div>
-      )}
+      {/* same renderer used by public site */}
+      <RenderLayout layout={previewLayout} />
 
-      {/* Product Preview */}
+      {/* You can keep your product demo below if you like */}
       <div className="p-4 space-y-4">
         <div className="p-4 border rounded">
           <div className="text-md font-semibold mb-2">Product Name</div>
@@ -47,7 +54,7 @@ const StorePreview: React.FC<StorePreviewProps> = ({
             )}
             {generalSettings.buyNow && (
               <button
-                className="px-4 py-2 bg-black text-white"
+                className="px-4 py-2 text-white"
                 style={{
                   backgroundColor: generalSettings.themeColor,
                   borderRadius: generalSettings.borderRadius,

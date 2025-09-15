@@ -45,6 +45,7 @@ import SellerMeetingProductsPage from "./modules/seller/pages/SellerMeetingProdu
 import AddMeetingProductPage from "./modules/seller/pages/AddMeetingProductPage";
 import SellerWorkShopProductsPage from "./modules/seller/pages/SellerWorkShopProductsPage";
 import AddWorkShopProductPage from "./modules/seller/pages/AddWorkShopProductPage";
+import PublicStorefrontPage from "./modules/storefront/pages/PublicStorefrontPage";
 // import AuthFormPage from "./modules/auth/pages/AuthForm";
 
 const App = () => {
@@ -52,6 +53,9 @@ const App = () => {
     <BrowserRouter>
       <ScrollToTop />
       <Routes>
+        {/* 🟢 Public storefront (PATH MODE) */}
+        <Route path=":slug/*" element={<PublicStorefrontPage />} />
+
         {/* ✅ Public Routes */}
         <Route element={<PublicRoute />}>
           <Route path="/home" element={<AuthFormPage />} />
@@ -122,7 +126,7 @@ const App = () => {
               element={<AddMeetingProductPage />}
             />
 
-              <Route
+            <Route
               path="/seller/catalogue/products/workshop"
               element={<SellerWorkShopProductsPage />}
             />

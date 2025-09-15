@@ -43,6 +43,7 @@ const isAdminEndpoint = (url: string) =>
   url.startsWith("/super-admin/") ||
   url.startsWith("/seller/business") ||
   url.startsWith("/seller/product") ||
+  url.startsWith("/seller/business") ||
   url.startsWith("/files");
 
 // ➍ The wrapper

@@ -10,6 +10,7 @@ export const getColorName = (hex: string): string => {
 };
 
 // utils/cleanObject.ts
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function removeEmptyStrings<T extends Record<string, any>>(obj: T): T {
   const cleaned = {} as T;
 
