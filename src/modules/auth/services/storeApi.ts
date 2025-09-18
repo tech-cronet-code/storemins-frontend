@@ -173,6 +173,7 @@ export interface DeleteBlockResponseDto {
 
 /* ----- NEW: Storefront runtime (published layout + settings) ----- */
 export interface StorefrontLayoutItemDto {
+  is_active: any;
   type: "designElement";
   id: string;
   code: string;

@@ -1,9 +1,9 @@
 import { useParams } from "react-router-dom";
 import {
-  RenderLayout,
-  StorefrontLayoutItemDto,
+  RenderLayout
 } from "../../../shared/blocks/registry";
 import { useGetStorefrontBootstrapQuery } from "../../auth/services/storefrontPublicApi";
+import { StorefrontLayoutItemDto } from "../../auth/services/storeApi";
 
 export default function PublicStorefrontPage() {
   // Keep slug optional in the params typing (router v6 friendly)
@@ -20,12 +20,12 @@ export default function PublicStorefrontPage() {
     return <div className="p-6 text-red-600">Failed to load storefront.</div>;
   if (!data) return <div className="p-6">No data.</div>;
 
-  const settings = data.settings || {};
+  // const settings = data.settings || {};
   const layout: StorefrontLayoutItemDto[] = data.layout || [];
 
   return (
     <div className="min-h-dvh">
-      <header className="p-4 flex items-center gap-3 border-b">
+      {/* <header className="p-4 flex items-center gap-3 border-b">
         {settings.logoUrl && (
           <img
             src={settings.logoUrl}
@@ -36,7 +36,7 @@ export default function PublicStorefrontPage() {
         <div className="font-semibold text-lg">
           {settings.storeName || slug}
         </div>
-      </header>
+      </header> */}
 
       <main className="p-4">
         <RenderLayout layout={layout} />

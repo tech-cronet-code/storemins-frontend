@@ -1,56 +1,45 @@
+// shared/blocks/registry.tsx
 import React from "react";
-import { AnnouncementBarBlock, AnnBarSettings } from "./announcementBar";
+import { AnnouncementBarBlock } from "./announcementBar"; // existing in your project
+import { TopNavBlock } from "./topNav"; // existing in your project
+import { StoreHeroBlock } from "./storeHero";
 
-/** Backend DTO shape coming from your API */
-export type StorefrontLayoutItemDto = {
-  id: string;
-  code: string; // e.g. "announcement_bar", "hero_banner", etc.
-  settings?: unknown; // block-specific payload
-  position?: number; // for ordering
+type Block = {
+  id?: string;
+  code: string;
+  position?: number;
+  is_active?: number;
+  settings?: any;
 };
 
-type BlockDef<TSettings = unknown> = {
-  Component: React.ComponentType<{ settings?: TSettings }>;
+type BlockEntry = {
+  Component: React.ComponentType<{ settings?: any }>;
 };
 
-/** Registry of known blocks (can safely grow over time) */
-// eslint-disable-next-line react-refresh/only-export-components, @typescript-eslint/no-explicit-any
-export const BlockRegistry: Record<string, BlockDef<any>> = {
+// eslint-disable-next-line react-refresh/only-export-components
+export const BlockRegistry: Record<string, BlockEntry> = {
   announcement_bar: { Component: AnnouncementBarBlock },
-  // add more blocks here as you build them, e.g.
-  // hero_banner: { Component: HeroBannerBlock },
+  top_nav: { Component: TopNavBlock },
+  store_hero: { Component: StoreHeroBlock },
 };
 
-/** Renders layout from DTOs without over-narrowing generics */
-export function RenderLayout({
-  layout,
-}: {
-  layout: StorefrontLayoutItemDto[];
-}) {
-  const sorted = [...(layout || [])].sort(
-    (a, b) => (a.position ?? 0) - (b.position ?? 0)
-  );
+export const RenderBlock: React.FC<{ block: Block }> = ({ block }) => {
+  const entry = BlockRegistry[block.code];
+  if (!entry) return null;
+  const Cmp = entry.Component;
+  if (block.is_active === 0) return null;
+  return <Cmp settings={block.settings} />;
+};
 
+export const RenderLayout: React.FC<{ layout: Block[] }> = ({ layout }) => {
+  const sorted = [...(layout || [])].sort(
+    (a, b) => (a?.position ?? 0) - (b?.position ?? 0)
+  );
   return (
     <>
-      {sorted.map((b) => {
-        const def = BlockRegistry[b.code];
-        if (!def) return null;
-
-        // Narrow types for known blocks to get prop safety
-        if (b.code === "announcement_bar") {
-          const Comp = def.Component as React.ComponentType<{
-            settings?: Partial<AnnBarSettings>;
-          }>;
-          return (
-            <Comp key={b.id} settings={b.settings as Partial<AnnBarSettings>} />
-          );
-        }
-
-        // Fallback for unknown/other blocks
-        const Comp = def.Component;
-        return <Comp key={b.id} settings={b.settings} />;
-      })}
+      {sorted.map((b) => (
+        <RenderBlock key={b.id || `${b.code}-${b.position}`} block={b} />
+      ))}
     </>
   );
-}
+};
