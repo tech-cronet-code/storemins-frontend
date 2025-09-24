@@ -1,8 +1,13 @@
-// shared/blocks/registry.tsx
 import React from "react";
-import { AnnouncementBarBlock } from "./announcementBar"; // existing in your project
-import { TopNavBlock } from "./topNav"; // existing in your project
+import { AnnouncementBarBlock } from "./announcementBar";
+import { TopNavBlock } from "./topNav";
 import { StoreHeroBlock } from "./storeHero";
+import { StoreStatsBlock } from "./storeStats";
+import { StoreDeliveryInfoBlock } from "./storeDeliveryInfo";
+import { FlashSaleHeroBlock } from "./flashSaleHero";
+import { SocialProofStripBlock } from "./socialProofStripBlock";
+import { MainCouponBlock } from "./mainCouponBlock"; // ← NEW
+import OffersCollections from "./OffersCollections";
 
 type Block = {
   id?: string;
@@ -11,6 +16,10 @@ type Block = {
   is_active?: number;
   settings?: any;
 };
+
+export const OffersCollectionsBlock: React.FC<{ settings?: any }> = ({
+  settings,
+}) => <OffersCollections settings={settings || {}} />;
 
 type BlockEntry = {
   Component: React.ComponentType<{ settings?: any }>;
@@ -21,6 +30,12 @@ export const BlockRegistry: Record<string, BlockEntry> = {
   announcement_bar: { Component: AnnouncementBarBlock },
   top_nav: { Component: TopNavBlock },
   store_hero: { Component: StoreHeroBlock },
+  flash_sale_hero: { Component: FlashSaleHeroBlock },
+  store_stats: { Component: StoreStatsBlock },
+  social_proof_strip: { Component: SocialProofStripBlock },
+  offers_collections: { Component: OffersCollectionsBlock }, // NEW
+  main_coupon: { Component: MainCouponBlock }, // ← NEW
+  store_delivery_info: { Component: StoreDeliveryInfoBlock },
 };
 
 export const RenderBlock: React.FC<{ block: Block }> = ({ block }) => {
