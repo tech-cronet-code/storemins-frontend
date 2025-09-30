@@ -1,11 +1,38 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import React, { useMemo } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { RenderLayout } from "../../../../shared/blocks/registry";
 import { mergeAnnBarFromUI } from "../../../../shared/blocks/announcementBar";
 import { mergeTopNavFromUI } from "../../../../shared/blocks/topNav";
 import { StoreStatsSettings } from "../../../../shared/blocks/storeStats";
 import { StoreDeliveryInfoSettings } from "../../../../shared/blocks/storeDeliveryInfo";
 import { FlashSaleHeroServerSettings } from "../../pages/store-appearance/FlashSaleHeroSettings";
+import { useAuth } from "../../../auth/contexts/AuthContext";
+import { mergeAboutUsFromUI } from "../../../../shared/blocks/about_Us";
+
+/* small util */
+const cn = (...v: Array<string | false | null | undefined>) =>
+  v.filter(Boolean).join(" ");
+
+/* ——— preview helper: flip to “mobile” when the preview pane is narrow ——— */
+function useForceMobileThreshold(threshold = 920) {
+  const ref = useRef<HTMLDivElement | null>(null);
+  const [force, setForce] = useState(false);
+  const [width, setWidth] = useState<number>(0);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const ro = new ResizeObserver(([entry]) => {
+      const w = entry?.contentRect?.width ?? 0;
+      setWidth(w);
+      setForce(w < threshold);
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [threshold]);
+
+  return { ref, force, width };
+}
 
 /** ---- Store Hero merge ---- */
 const mergeStoreHeroFromUI = (existing: any, ui: any) => ({
@@ -106,6 +133,24 @@ const mergeOffersCollectionsFromUI = (existing: any, ui: any) => ({
   ...(ui || {}),
 });
 
+/** ---- Customer Testimonials merge (adds preview flags) ---- */
+const mergeCustomerTestimonialsFromUI = (existing: any, ui: any) => ({
+  ...(existing || {}),
+  ...(ui || {}),
+});
+
+/** ---- Social Proof Strip merge ---- */
+const mergeSocialProofFromUI = (existing: any, ui: any) => ({
+  ...(existing || {}),
+  ...(ui || {}),
+});
+
+/** ---- Footer / Bottom Nav merge ---- */
+const mergeFooterFromUI = (existing: any, ui: any) => ({
+  ...(existing || {}),
+  ...(ui || {}),
+});
+
 interface StorePreviewProps {
   generalSettings: any;
   headerSettings: any;
@@ -115,10 +160,12 @@ interface StorePreviewProps {
   flashSaleUi?: Partial<FlashSaleHeroServerSettings> & { enabled?: boolean };
   storeStatsUi?: Partial<StoreStatsSettings> & { enabled?: boolean };
   storeDeliveryUi?: Partial<StoreDeliveryInfoSettings> & { enabled?: boolean };
-
-  /** NEW: allow live enable/disable in preview */
   mainCouponUi?: any & { enabled?: boolean };
   offersUi?: any & { enabled?: boolean };
+  testimonialsUi?: any & { enabled?: boolean };
+  aboutUsUi?: any & { enabled?: boolean };
+  socialProofUi?: any & { enabled?: boolean };
+  footerUi?: any & { enabled?: boolean };
 }
 
 const StorePreview: React.FC<StorePreviewProps> = ({
@@ -132,7 +179,17 @@ const StorePreview: React.FC<StorePreviewProps> = ({
   storeDeliveryUi,
   mainCouponUi,
   offersUi,
+  testimonialsUi,
+  aboutUsUi,
+  socialProofUi,
+  footerUi,
 }) => {
+  const { userDetails } = useAuth();
+  const businessId = userDetails?.storeLinks?.[0]?.businessId ?? "";
+
+  /* force mobile behavior + live preview width */
+  const { ref, force, width } = useForceMobileThreshold(920);
+
   const previewLayout = useMemo(() => {
     const out: any[] = [];
     let hasAnn = false;
@@ -143,6 +200,10 @@ const StorePreview: React.FC<StorePreviewProps> = ({
     let hasDelivery = false;
     let hasCoupon = false;
     let hasOffers = false;
+    let hasTestimonials = false;
+    let hasAbout = false;
+    let hasSocialProof = false;
+    let hasFooter = false;
 
     let annPos: number | undefined;
     let navPos: number | undefined;
@@ -151,6 +212,10 @@ const StorePreview: React.FC<StorePreviewProps> = ({
     let statsPos: number | undefined;
     let couponPos: number | undefined;
     let offersPos: number | undefined;
+    let testiPos: number | undefined;
+    let aboutPos: number | undefined;
+    let spsPos: number | undefined;
+    let footerPos: number | undefined;
 
     for (const b of Array.isArray(runtimeLayout) ? runtimeLayout : []) {
       if (b?.code === "announcement_bar") {
@@ -192,6 +257,29 @@ const StorePreview: React.FC<StorePreviewProps> = ({
           settings: mergeStoreStatsFromUI(b.settings, storeStatsUi || {}),
           is_active: storeStatsUi?.enabled ?? true ? 1 : 0,
         });
+      } else if (b?.code === "customer_testimonials") {
+        hasTestimonials = true;
+        testiPos = typeof b.position === "number" ? b.position : testiPos;
+        out.push({
+          ...b,
+          settings: {
+            ...mergeCustomerTestimonialsFromUI(
+              b.settings,
+              testimonialsUi || {}
+            ),
+            __forceMobile: !!force,
+            __forceViewportPx: Math.max(320, Math.floor(width || 0)),
+          },
+          is_active: testimonialsUi?.enabled ?? true ? 1 : 0,
+        });
+      } else if (b?.code === "social_proof_strip") {
+        hasSocialProof = true;
+        spsPos = typeof b.position === "number" ? b.position : spsPos;
+        out.push({
+          ...b,
+          settings: mergeSocialProofFromUI(b.settings, socialProofUi || {}),
+          is_active: socialProofUi?.enabled ?? true ? 1 : 0,
+        });
       } else if (b?.code === "main_coupon") {
         hasCoupon = true;
         couponPos = typeof b.position === "number" ? b.position : couponPos;
@@ -215,12 +303,28 @@ const StorePreview: React.FC<StorePreviewProps> = ({
           settings: mergeDeliveryInfoFromUI(b.settings, storeDeliveryUi || {}),
           is_active: storeDeliveryUi?.enabled ?? true ? 1 : 0,
         });
+      } else if (b?.code === "about_us") {
+        hasAbout = true;
+        aboutPos = typeof b.position === "number" ? b.position : aboutPos;
+        out.push({
+          ...b,
+          settings: mergeAboutUsFromUI(b.settings, aboutUsUi || {}),
+          is_active: aboutUsUi?.enabled ?? true ? 1 : 0,
+        });
+      } else if (b?.code === "bottom_nav") {
+        hasFooter = true;
+        footerPos = typeof b.position === "number" ? b.position : footerPos;
+        out.push({
+          ...b,
+          settings: mergeFooterFromUI(b.settings, footerUi || {}),
+          is_active: footerUi?.enabled ?? true ? 1 : 0,
+        });
       } else {
         out.push({ ...b });
       }
     }
 
-    // Ensure presence + positions for preview (so toggles reflect instantly)
+    // Auto-add blocks if missing in runtime
     if (!hasTopNav) {
       navPos = typeof annPos === "number" ? annPos + 1 : 2;
       out.push({
@@ -265,9 +369,29 @@ const StorePreview: React.FC<StorePreviewProps> = ({
       });
     }
 
+    if (!hasTestimonials && testimonialsUi) {
+      testiPos =
+        typeof (statsPos ?? flashPos) === "number"
+          ? (statsPos ?? flashPos)! + 1
+          : 6;
+      out.push({
+        id: "preview-customer_testimonials",
+        code: "customer_testimonials",
+        position: testiPos,
+        is_active: testimonialsUi?.enabled ?? true ? 1 : 0,
+        settings: {
+          ...mergeCustomerTestimonialsFromUI({}, testimonialsUi || {}),
+          __forceMobile: !!force,
+          __forceViewportPx: Math.max(320, Math.floor(width || 0)),
+        },
+      });
+    }
+
     if (!hasOffers && offersUi) {
       offersPos =
-        typeof statsPos === "number" ? statsPos + 1 : (offersPos as any) ?? 6;
+        typeof (testiPos ?? statsPos) === "number"
+          ? (testiPos ?? statsPos)! + 1
+          : 7;
       out.push({
         id: "preview-offers_collections",
         code: "offers_collections",
@@ -279,9 +403,9 @@ const StorePreview: React.FC<StorePreviewProps> = ({
 
     if (!hasCoupon && mainCouponUi) {
       couponPos =
-        typeof (offersPos ?? statsPos) === "number"
-          ? (offersPos ?? statsPos)! + 1
-          : (couponPos as any) ?? 7;
+        typeof (offersPos ?? testiPos ?? statsPos) === "number"
+          ? (offersPos ?? testiPos ?? statsPos)! + 1
+          : 8;
       out.push({
         id: "preview-main_coupon",
         code: "main_coupon",
@@ -293,15 +417,72 @@ const StorePreview: React.FC<StorePreviewProps> = ({
 
     if (!hasDelivery) {
       const pos =
-        typeof (couponPos ?? offersPos ?? statsPos) === "number"
-          ? (couponPos ?? offersPos ?? statsPos)! + 1
-          : 8;
+        typeof (couponPos ?? offersPos ?? testiPos ?? statsPos) === "number"
+          ? (couponPos ?? offersPos ?? testiPos ?? statsPos)! + 1
+          : 9;
       out.push({
         id: "preview-store_delivery_info",
         code: "store_delivery_info",
         position: pos,
         is_active: storeDeliveryUi?.enabled ?? true ? 1 : 0,
         settings: mergeDeliveryInfoFromUI({}, storeDeliveryUi || {}),
+      });
+    }
+
+    if (!hasSocialProof && socialProofUi) {
+      spsPos =
+        typeof (couponPos ?? offersPos ?? testiPos ?? statsPos) === "number"
+          ? (couponPos ?? offersPos ?? testiPos ?? statsPos)! + 1
+          : 10;
+      out.push({
+        id: "preview-social_proof_strip",
+        code: "social_proof_strip",
+        position: spsPos,
+        is_active: socialProofUi?.enabled ?? true ? 1 : 0,
+        settings: mergeSocialProofFromUI({}, socialProofUi || {}),
+      });
+    }
+
+    // About Us after Delivery / Social Proof
+    if (!hasAbout && aboutUsUi) {
+      aboutPos =
+        typeof (spsPos ?? couponPos ?? offersPos ?? testiPos ?? statsPos) ===
+        "number"
+          ? (spsPos ?? couponPos ?? offersPos ?? testiPos ?? statsPos)! + 1
+          : 11;
+      out.push({
+        id: "preview-about_us",
+        code: "about_us",
+        position: aboutPos,
+        is_active: aboutUsUi?.enabled ?? true ? 1 : 0,
+        settings: mergeAboutUsFromUI({}, aboutUsUi || {}),
+      });
+    }
+
+    // Footer last
+    if (!hasFooter && footerUi) {
+      footerPos =
+        typeof (
+          aboutPos ??
+          spsPos ??
+          couponPos ??
+          offersPos ??
+          testiPos ??
+          statsPos
+        ) === "number"
+          ? (aboutPos ??
+              spsPos ??
+              couponPos ??
+              offersPos ??
+              testiPos ??
+              statsPos)! + 1
+          : 12;
+      out.push({
+        id: "preview-bottom_nav",
+        code: "bottom_nav",
+        position: footerPos,
+        is_active: footerUi?.enabled ?? true ? 1 : 0,
+        settings: mergeFooterFromUI({}, footerUi || {}),
       });
     }
 
@@ -325,54 +506,42 @@ const StorePreview: React.FC<StorePreviewProps> = ({
     storeDeliveryUi,
     mainCouponUi,
     offersUi,
+    testimonialsUi,
+    aboutUsUi,
+    socialProofUi,
+    footerUi,
+    force,
+    width,
   ]);
 
   return (
     <div
-      className="rounded shadow bg-white text-sm"
+      ref={ref}
+      className={cn(
+        "rounded shadow bg-white text-sm overflow-hidden",
+        force && "preview-force-mobile"
+      )}
       style={{ fontFamily: generalSettings.font }}
     >
-      <RenderLayout layout={previewLayout} />
+      <style>{`
+        /* Flip lg/xl visibility when forcing mobile inside preview */
+        .preview-force-mobile .lg\\:hidden { display: block !important; }
+        .preview-force-mobile .lg\\:block  { display: none !important; }
+        .preview-force-mobile .xl\\:block  { display: none !important; }
+        .preview-force-mobile .2xl\\:block { display: none !important; }
 
-      {/* Demo product */}
-      <div className="p-4 space-y-4">
-        <div className="p-4 border rounded">
-          <div className="text-md font-semibold mb-2">Product Name</div>
-          <div className="text-gray-600 mb-2">₹999</div>
-          <div className="flex gap-2 flex-wrap">
-            {generalSettings.addToCart && (
-              <button
-                className="px-4 py-2 text-white"
-                style={{
-                  backgroundColor: generalSettings.themeColor,
-                  borderRadius: generalSettings.borderRadius,
-                }}
-              >
-                Add to Cart
-              </button>
-            )}
-            {generalSettings.buyNow && (
-              <button
-                className="px-4 py-2 text-white"
-                style={{
-                  backgroundColor: generalSettings.themeColor,
-                  borderRadius: generalSettings.borderRadius,
-                }}
-              >
-                Buy Now
-              </button>
-            )}
-            {generalSettings.showWhatsApp && (
-              <button
-                className="p-2 bg-green-500 text-white"
-                style={{ borderRadius: generalSettings.borderRadius }}
-              >
-                WhatsApp
-              </button>
-            )}
-          </div>
-        </div>
-      </div>
+        /* Collapse desktop multi-column grids */
+        .preview-force-mobile .lg\\:grid-cols-\\[260px\\,1px\\,1fr],
+        .preview-force-mobile .xl\\:grid-cols-\\[300px\\,1px\\,1fr],
+        .preview-force-mobile .2xl\\:grid-cols-\\[340px\\,1px\\,1fr] {
+          grid-template-columns: 1fr !important;
+        }
+
+        /* Neutralize sticky in the narrow preview column */
+        .preview-force-mobile .sticky { position: static !important; top: auto !important; }
+      `}</style>
+
+      <RenderLayout layout={previewLayout} businessId={businessId} />
     </div>
   );
 };

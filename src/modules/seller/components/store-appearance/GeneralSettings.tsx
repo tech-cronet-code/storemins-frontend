@@ -1,59 +1,59 @@
-import React, { useEffect, useRef, useState } from 'react'
-import { Check, ChevronLeft, ChevronRight } from 'lucide-react'
-import StoreFont from './StoreFont'
+import React, { useEffect, useRef, useState } from "react";
+import { Check, ChevronLeft, ChevronRight } from "lucide-react";
+import StoreFont from "./StoreFont";
 
 /* ---------------------- constants ---------------------- */
 const borderStyles = [
-  { label: 'Square', value: '0px' },
-  { label: 'Soft Rounded', value: '12px' },
-  { label: 'Rounded', value: '9999px' }
-]
+  { label: "Square", value: "0px" },
+  { label: "Soft Rounded", value: "12px" },
+  { label: "Rounded", value: "9999px" },
+];
 
 const themeColors = [
-  '#296FC2',
-  '#E02858',
-  '#2A5EE1',
-  '#29A56C',
-  '#F6740C',
-  '#29A13C',
-  '#F6A401'
-]
+  "#296FC2",
+  "#E02858",
+  "#2A5EE1",
+  "#29A56C",
+  "#F6740C",
+  "#29A13C",
+  "#F6A401",
+];
 
 interface Props {
-  generalSettings: any
-  onChange: (d: any) => void
+  generalSettings: any;
+  onChange: (d: any) => void;
 }
 
 const GeneralSettings: React.FC<Props> = ({ generalSettings, onChange }) => {
   /* -------------- border-radius dropdown -------------- */
-  const [radiusOpen, setRadiusOpen] = useState(false)
+  const [radiusOpen, setRadiusOpen] = useState(false);
 
   /* -------------- theme color scroller -------------- */
-  const scrollRef = useRef<HTMLDivElement>(null)
-  const [showLeft, setShowLeft] = useState(false)
-  const [showRight, setShowRight] = useState(false)
-  const [hasOverflow, setHasOverflow] = useState(false)
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [showLeft, setShowLeft] = useState(false);
+  const [showRight, setShowRight] = useState(false);
+  const [hasOverflow, setHasOverflow] = useState(false);
 
   const updateArrows = () => {
-    const el = scrollRef.current
-    if (!el) return
-    const { scrollLeft, scrollWidth, clientWidth } = el
-    const overflow = scrollWidth > clientWidth + 1
-    setHasOverflow(overflow)
-    setShowLeft(overflow && scrollLeft > 0)
-    setShowRight(overflow && scrollLeft + clientWidth < scrollWidth - 1)
-  }
+    const el = scrollRef.current;
+    if (!el) return;
+    const { scrollLeft, scrollWidth, clientWidth } = el;
+    const overflow = scrollWidth > clientWidth + 1;
+    setHasOverflow(overflow);
+    setShowLeft(overflow && scrollLeft > 0);
+    setShowRight(overflow && scrollLeft + clientWidth < scrollWidth - 1);
+  };
 
   useEffect(() => {
-    updateArrows()
-    window.addEventListener('resize', updateArrows)
-    const el = scrollRef.current
-    el?.addEventListener('scroll', updateArrows)
+    updateArrows();
+    window.addEventListener("resize", updateArrows);
+    const el = scrollRef.current;
+    el?.addEventListener("scroll", updateArrows);
     return () => {
-      window.removeEventListener('resize', updateArrows)
-      el?.removeEventListener('scroll', updateArrows)
-    }
-  }, [])
+      window.removeEventListener("resize", updateArrows);
+      el?.removeEventListener("scroll", updateArrows);
+    };
+  }, []);
 
   /* ---------------------- jsx ---------------------- */
   return (
@@ -61,7 +61,7 @@ const GeneralSettings: React.FC<Props> = ({ generalSettings, onChange }) => {
       {/* font picker */}
       <StoreFont
         value={generalSettings.font}
-        onChange={font => onChange({ ...generalSettings, font })}
+        onChange={(font) => onChange({ ...generalSettings, font })}
       />
 
       {/* border radius picker */}
@@ -73,38 +73,44 @@ const GeneralSettings: React.FC<Props> = ({ generalSettings, onChange }) => {
         <button
           type="button"
           className="flex w-full items-center gap-3 rounded-lg border border-gray-300 bg-gray-50 px-4 py-2 text-left"
-          onClick={() => setRadiusOpen(prev => !prev)}
+          onClick={() => setRadiusOpen((prev) => !prev)}
         >
           <span
             className="h-6 w-6 border"
             style={{ borderRadius: generalSettings.borderRadius }}
           />
           <span className="grow">
-            {borderStyles.find(b => b.value === generalSettings.borderRadius)?.label ??
-              'Select'}
+            {borderStyles.find((b) => b.value === generalSettings.borderRadius)
+              ?.label ?? "Select"}
           </span>
           <ChevronRight className="h-4 w-4 shrink-0" />
         </button>
 
         {radiusOpen && (
           <ul className="absolute z-20 mt-2 w-full overflow-hidden rounded-xl border border-gray-200 bg-white shadow-lg">
-            {borderStyles.map(s => {
-              const isActive = generalSettings.borderRadius === s.value
+            {borderStyles.map((s) => {
+              const isActive = generalSettings.borderRadius === s.value;
               return (
                 <li
                   key={s.value}
-                  className={`flex cursor-pointer items-center gap-4 px-5 py-3 text-sm hover:bg-gray-50 ${isActive && 'bg-gray-100 font-medium'
-                    }`}
+                  className={`flex cursor-pointer items-center gap-4 px-5 py-3 text-sm hover:bg-gray-50 ${
+                    isActive && "bg-gray-100 font-medium"
+                  }`}
                   onClick={() => {
-                    onChange({ ...generalSettings, borderRadius: s.value })
-                    setRadiusOpen(false)
+                    onChange({ ...generalSettings, borderRadius: s.value });
+                    setRadiusOpen(false);
                   }}
                 >
-                  <span className="h-6 w-6 border" style={{ borderRadius: s.value }} />
+                  <span
+                    className="h-6 w-6 border"
+                    style={{ borderRadius: s.value }}
+                  />
                   {s.label}
-                  {isActive && <Check className="ml-auto h-4 w-4 text-emerald-600" />}
+                  {isActive && (
+                    <Check className="ml-auto h-4 w-4 text-emerald-600" />
+                  )}
                 </li>
-              )
+              );
             })}
           </ul>
         )}
@@ -123,7 +129,10 @@ const GeneralSettings: React.FC<Props> = ({ generalSettings, onChange }) => {
                 className="absolute left-2 z-20 bg-white shadow-md rounded-full p-1"
                 style={{ top: "50%", transform: "translateY(-50%)" }}
                 onClick={() =>
-                  scrollRef.current?.scrollBy({ left: -120, behavior: "smooth" })
+                  scrollRef.current?.scrollBy({
+                    left: -120,
+                    behavior: "smooth",
+                  })
                 }
               >
                 <ChevronLeft size={18} />
@@ -132,15 +141,17 @@ const GeneralSettings: React.FC<Props> = ({ generalSettings, onChange }) => {
 
             {/* Scroll container */}
             <div
-              className={`w-full overflow-hidden relative ${hasOverflow ? "px-12" : ""
-                }`}
+              className={`w-full overflow-hidden relative ${
+                hasOverflow ? "px-12" : ""
+              }`}
             >
               <div
                 ref={scrollRef}
-                className={`flex gap-6 py-2 overflow-x-auto scroll-smooth hide-scrollbar ${hasOverflow ? "" : "justify-center"
-                  }`}
+                className={`flex gap-6 py-2 overflow-x-auto scroll-smooth hide-scrollbar ${
+                  hasOverflow ? "" : "justify-center"
+                }`}
               >
-                {themeColors.map(color => {
+                {themeColors.map((color) => {
                   const isSelected = generalSettings.themeColor === color;
                   return (
                     <div
@@ -152,28 +163,34 @@ const GeneralSettings: React.FC<Props> = ({ generalSettings, onChange }) => {
                           onChange({ ...generalSettings, themeColor: color })
                         }
                         style={{ backgroundColor: color }}
-                        className={`w-10 h-10 rounded-full flex items-center justify-center cursor-pointer transition ${isSelected
+                        className={`w-10 h-10 rounded-full flex items-center justify-center cursor-pointer transition ${
+                          isSelected
                             ? "ring-2 ring-green-600"
                             : "border border-gray-300"
-                          }`}
+                        }`}
                       >
                         {isSelected && (
-                          <Check className="text-white w-4 h-4" strokeWidth={3} />
+                          <Check
+                            className="text-white w-4 h-4"
+                            strokeWidth={3}
+                          />
                         )}
                       </div>
                       <span
-                        className={`text-xs ${isSelected
+                        className={`text-xs ${
+                          isSelected
                             ? "font-bold text-gray-800"
                             : "text-gray-500"
-                          }`}
+                        }`}
                       >
                         Color
                       </span>
                       <span
-                        className={`text-xs ${isSelected
+                        className={`text-xs ${
+                          isSelected
                             ? "text-gray-700 font-semibold"
                             : "text-gray-500"
-                          }`}
+                        }`}
                       >
                         {color.replace("#", "")}
                       </span>
@@ -214,12 +231,12 @@ const GeneralSettings: React.FC<Props> = ({ generalSettings, onChange }) => {
         </label>
 
         {[
-          { label: 'Add to Cart', key: 'addToCart' },
-          { label: 'Buy Now', key: 'buyNow' },
-          { label: 'WhatsApp', key: 'showWhatsApp' }
-        ].map(i => {
-          const checked = generalSettings[i.key]
-          const id = `cta-${i.key}`        // unique id for a11y
+          { label: "Add to Cart", key: "addToCart" },
+          { label: "Buy Now", key: "buyNow" },
+          { label: "WhatsApp", key: "showWhatsApp" },
+        ].map((i) => {
+          const checked = generalSettings[i.key];
+          const id = `cta-${i.key}`; // unique id for a11y
           return (
             /* <<< entire row is now clickable >>> */
             <label
@@ -235,7 +252,7 @@ const GeneralSettings: React.FC<Props> = ({ generalSettings, onChange }) => {
                 id={id}
                 type="checkbox"
                 checked={checked}
-                onChange={e =>
+                onChange={(e) =>
                   onChange({ ...generalSettings, [i.key]: e.target.checked })
                 }
                 className="peer sr-only"
@@ -252,12 +269,11 @@ const GeneralSettings: React.FC<Props> = ({ generalSettings, onChange }) => {
                 />
               </div>
             </label>
-          )
+          );
         })}
       </div>
-
     </div>
-  )
-}
+  );
+};
 
-export default GeneralSettings
+export default GeneralSettings;

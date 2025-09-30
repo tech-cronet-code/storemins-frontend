@@ -1,5 +1,4 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-// client/src/seller/pages/store-appearance/AddStoreDiplaySettingPage.tsx
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import Layout from "../../../dashboard/components/Layout";
 import { UserRoleName } from "../../../auth/constants/userRoles";
@@ -19,12 +18,14 @@ import {
 } from "../../../auth/services/storeApi";
 import { useAuth } from "../../../auth/contexts/AuthContext";
 
+/* ---------- top_nav ---------- */
 import {
   mapTopNavToUI,
   mergeTopNavFromUI,
 } from "../../../../shared/blocks/topNav";
 import { TopNavSettingsCard } from "./TopNavSettings";
 
+/* ---------- store_hero ---------- */
 import {
   StoreHeroUI,
   defaultStoreHeroUI,
@@ -52,17 +53,52 @@ import StoreDeliveryInfoSettingsCard, {
   StoreDeliveryInfoUI,
 } from "../../components/store-appearance/StoreDeliveryInfoSettings";
 
-/* ---------- Deals / Coupons Rail (settings card component file) ---------- */
+/* ---------- Deals / Coupons Rail ---------- */
 import MainCouponSettingsCard, {
   defaultMainCouponUI,
   MainCouponUI,
 } from "./MainCouponSettings";
 
-/* ---------- NEW: Offers / Collections (settings card) ---------- */
+/* ---------- Offers / Collections ---------- */
 import OffersCollectionsSettingsCard, {
   defaultOffersCollectionsUI,
   OffersCollectionsUI,
 } from "./OffersCollectionsSettings";
+
+/* ---------- Product Categories ---------- */
+import ProductCategorySettingsCard, {
+  defaultProductCategoryUI,
+  ProductCategoryUI,
+  mapProductCategoryToUI,
+  mergeProductCategoryFromUI,
+  ProductCategoryServerSettings,
+} from "./ProductCategorySetting";
+
+/* ---------- Scrollable Tabs ---------- */
+import ScrollableTabs from "../../components/store-appearance/ScrollableTabs";
+
+/* ---------- Customer Testimonials ---------- */
+import {
+  CustomerTestimonialsSettingsCard,
+  defaultCustomerTestimonialsUI,
+  CustomerTestimonialsUI,
+} from "./CustomerTestimonialsSettings";
+
+/* ---------- About Us (NEW) ---------- */
+import {
+  AboutUsUI,
+  defaultAboutUsUI,
+  mapAboutUsToUI,
+  mergeAboutUsFromUI,
+} from "../../../../shared/blocks/about_Us";
+import AboutUsSettingsCard from "./AboutUsSettings";
+import SocialProofStripSettingsCard from "./SocialProofStripSettings";
+
+/* ---------- Footer / Bottom Nav (NEW) ---------- */
+import BottomNavSettingsCard, {
+  defaultFooterUI,
+  FooterUI,
+} from "./BottomNavSettings";
 
 /* ---------------- Announcement Bar types & mappers ---------------- */
 type AnnBarSettings = {
@@ -305,7 +341,7 @@ const mergeDeliveryFromUI = (
   visibility: ui.visibility,
 });
 
-/* ---------------- Social Proof Strip (inline UI card + mappers) ---------------- */
+/* ---------------- Social Proof (inline card kept local) ---------------- */
 type SocialSlot = {
   enabled?: boolean;
   platform?: string;
@@ -323,24 +359,20 @@ type SocialProofServerSettings = {
   section_background_color?: string;
   compact?: boolean;
   max_items?: number;
-
   chip_radius?: number;
   chip_background_color?: string;
   chip_border_color?: string;
   chip_shadow?: boolean;
   hover_lift?: boolean;
-
   icon_size?: number;
   icon_pad?: number;
   icon_radius?: number;
-
   item1?: SocialSlot;
   item2?: SocialSlot;
   item3?: SocialSlot;
   item4?: SocialSlot;
   item5?: SocialSlot;
   items?: SocialSlot[];
-
   visibility?: "all" | "desktop" | "mobile";
   custom_css?: string | null;
 };
@@ -350,21 +382,16 @@ type SocialProofUI = {
   section_background_color: string;
   compact: boolean;
   max_items: number;
-
   chip_radius: number;
   chip_background_color: string;
   chip_border_color: string;
   chip_shadow: boolean;
   hover_lift: boolean;
-
   icon_size: number;
   icon_pad: number;
   icon_radius: number;
-
-  // editing path: prefer array editing; optionally force using it
   use_items_array: boolean;
   items_json: string;
-
   visibility: "all" | "desktop" | "mobile";
   custom_css: string | null;
 };
@@ -374,17 +401,14 @@ const defaultSocialProofUI: SocialProofUI = {
   section_background_color: "#ffffff",
   compact: true,
   max_items: 5,
-
   chip_radius: 18,
   chip_background_color: "#ffffff",
   chip_border_color: "#ECEFF3",
   chip_shadow: true,
   hover_lift: true,
-
   icon_size: 20,
   icon_pad: 10,
   icon_radius: 12,
-
   use_items_array: false,
   items_json: JSON.stringify(
     [
@@ -421,21 +445,10 @@ const defaultSocialProofUI: SocialProofUI = {
         icon_bg: "#1877F2",
         icon_color: "#ffffff",
       },
-      {
-        enabled: true,
-        platform: "Podcasts",
-        value: "20+",
-        label: "Podcasts",
-        icon_img:
-          "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23111827'><path d='M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3z'/><path d='M5 11a1 1 0 1 0-2 0c0 4.08 3.06 7.44 7 7.93V22h4v-3.07c3.94-.49 7-3.85 7-7.93a1 1 0 1 0-2 0 6 6 0 0 1-12 0z'/></svg>",
-        icon_bg: "#F59E0B",
-        icon_color: "#111827",
-      },
     ],
     null,
     2
   ),
-
   visibility: "all",
   custom_css: null,
 };
@@ -450,7 +463,6 @@ const mapSocialProofToUI = (s?: SocialProofServerSettings): SocialProofUI => {
       defaultSocialProofUI.section_background_color,
     compact: s?.compact ?? defaultSocialProofUI.compact,
     max_items: s?.max_items ?? defaultSocialProofUI.max_items,
-
     chip_radius: s?.chip_radius ?? defaultSocialProofUI.chip_radius,
     chip_background_color:
       s?.chip_background_color ?? defaultSocialProofUI.chip_background_color,
@@ -458,17 +470,14 @@ const mapSocialProofToUI = (s?: SocialProofServerSettings): SocialProofUI => {
       s?.chip_border_color ?? defaultSocialProofUI.chip_border_color,
     chip_shadow: s?.chip_shadow ?? defaultSocialProofUI.chip_shadow,
     hover_lift: s?.hover_lift ?? defaultSocialProofUI.hover_lift,
-
     icon_size: s?.icon_size ?? defaultSocialProofUI.icon_size,
     icon_pad: s?.icon_pad ?? defaultSocialProofUI.icon_pad,
     icon_radius: s?.icon_radius ?? defaultSocialProofUI.icon_radius,
-
-    use_items_array: itemsArr.length > 0, // if theme already stores array
+    use_items_array: itemsArr.length > 0,
     items_json:
       itemsArr.length > 0
         ? JSON.stringify(itemsArr, null, 2)
         : defaultSocialProofUI.items_json,
-
     visibility: (s?.visibility as any) ?? defaultSocialProofUI.visibility,
     custom_css: s?.custom_css ?? defaultSocialProofUI.custom_css,
   };
@@ -501,7 +510,6 @@ const mergeSocialProofFromUI = (
       const arr = JSON.parse(ui.items_json || "[]");
       if (Array.isArray(arr)) {
         out.items = arr;
-        // disable explicit slots if array is used
         out.item1 = { ...(existing?.item1 || {}), enabled: false };
         out.item2 = { ...(existing?.item2 || {}), enabled: false };
         out.item3 = { ...(existing?.item3 || {}), enabled: false };
@@ -509,234 +517,84 @@ const mergeSocialProofFromUI = (
         out.item5 = { ...(existing?.item5 || {}), enabled: false };
       }
     } catch {
-      // ignore parse errors
+      /* ignore */
     }
   }
 
   return out;
 };
 
-// Minimal, inline settings card for Social Proof (unchanged UI)
-const SocialProofStripSettingsCard: React.FC<{
-  ui: SocialProofUI;
-  onChange: (next: SocialProofUI) => void;
-}> = ({ ui, onChange }) => {
-  const s = { ...defaultSocialProofUI, ...(ui || {}) };
-  const set = (patch: Partial<SocialProofUI>) => onChange({ ...s, ...patch });
+/* ---------- Customer Testimonials mappers ---------- */
+type CustomerTestimonialsServerSettings = {
+  enabled?: boolean;
+  section_background_color?: string;
+  display_title?: boolean;
+  title?: string;
+  title_color?: string;
+  display_subtitle?: boolean;
+  subtitle?: string;
+  subtitle_color?: string;
+  testimonials?: any[];
+  show_navigation?: boolean;
+  auto_slide?: boolean;
+  slide_interval?: number;
+  custom_css?: string | null;
+  visibility?: "all" | "desktop" | "mobile";
+};
 
-  const [itemsText, setItemsText] = useState<string>(s.items_json);
-  const [err, setErr] = useState<string | null>(null);
+const mapTestimonialsToUI = (
+  s?: CustomerTestimonialsServerSettings
+): CustomerTestimonialsUI => ({
+  ...defaultCustomerTestimonialsUI,
+  enabled: s?.enabled ?? defaultCustomerTestimonialsUI.enabled,
+  section_background_color:
+    s?.section_background_color ??
+    defaultCustomerTestimonialsUI.section_background_color,
+  display_title:
+    s?.display_title ?? defaultCustomerTestimonialsUI.display_title,
+  title: s?.title ?? defaultCustomerTestimonialsUI.title,
+  title_color: s?.title_color ?? defaultCustomerTestimonialsUI.title_color,
+  display_subtitle:
+    s?.display_subtitle ?? defaultCustomerTestimonialsUI.display_subtitle,
+  subtitle: s?.subtitle ?? defaultCustomerTestimonialsUI.subtitle,
+  subtitle_color:
+    s?.subtitle_color ?? defaultCustomerTestimonialsUI.subtitle_color,
+  show_navigation:
+    s?.show_navigation ?? defaultCustomerTestimonialsUI.show_navigation,
+  auto_slide: s?.auto_slide ?? defaultCustomerTestimonialsUI.auto_slide,
+  slide_interval:
+    s?.slide_interval ?? defaultCustomerTestimonialsUI.slide_interval,
+  testimonials_json:
+    JSON.stringify(s?.testimonials || [], null, 2) ||
+    defaultCustomerTestimonialsUI.testimonials_json,
+});
 
-  const applyItems = () => {
-    try {
-      const arr = JSON.parse(itemsText);
-      if (!Array.isArray(arr)) throw new Error("Must be an array");
-      set({ items_json: JSON.stringify(arr, null, 2) });
-      setErr(null);
-    } catch (e: any) {
-      setErr(e?.message || "Invalid JSON");
-    }
+const mergeTestimonialsFromUI = (
+  existing: CustomerTestimonialsServerSettings | undefined,
+  ui: CustomerTestimonialsUI
+): CustomerTestimonialsServerSettings => {
+  let parsed: any[] = [];
+  try {
+    const a = JSON.parse(ui.testimonials_json || "[]");
+    parsed = Array.isArray(a) ? a : [];
+  } catch {
+    parsed = existing?.testimonials || [];
+  }
+  return {
+    ...(existing || {}),
+    enabled: !!ui.enabled,
+    section_background_color: ui.section_background_color,
+    display_title: !!ui.display_title,
+    title: ui.title,
+    title_color: ui.title_color,
+    display_subtitle: !!ui.display_subtitle,
+    subtitle: ui.subtitle,
+    subtitle_color: ui.subtitle_color,
+    show_navigation: !!ui.show_navigation,
+    auto_slide: !!ui.auto_slide,
+    slide_interval: Number(ui.slide_interval) || 5000,
+    testimonials: parsed,
   };
-
-  return (
-    <div className="rounded-xl border border-gray-200 p-5 space-y-5">
-      <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold">Social Proof Strip</h3>
-        <label className="flex items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            checked={s.enabled}
-            onChange={(e) => set({ enabled: e.target.checked })}
-          />
-          Enabled
-        </label>
-      </div>
-
-      {/* Display */}
-      <div className="grid md:grid-cols-3 sm:grid-cols-2 grid-cols-1 gap-4">
-        <div>
-          <label className="block text-sm mb-1">Section background</label>
-          <input
-            type="color"
-            className="w-full h-10 p-1 border rounded"
-            value={s.section_background_color}
-            onChange={(e) => set({ section_background_color: e.target.value })}
-          />
-        </div>
-        <div className="flex items-end gap-3">
-          <label className="flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={s.compact}
-              onChange={(e) => set({ compact: e.target.checked })}
-            />
-            Compact
-          </label>
-          <div className="flex items-center gap-2 text-sm">
-            <span>Max items</span>
-            <input
-              type="number"
-              min={1}
-              max={5}
-              className="w-20 border rounded px-2 py-1"
-              value={s.max_items}
-              onChange={(e) => set({ max_items: Number(e.target.value) || 5 })}
-            />
-          </div>
-        </div>
-      </div>
-
-      {/* Card style */}
-      <div>
-        <h4 className="font-medium mb-3">Card style</h4>
-        <div className="grid md:grid-cols-3 sm:grid-cols-2 grid-cols-1 gap-4">
-          <div>
-            <label className="block text-sm mb-1">Radius (px)</label>
-            <input
-              type="number"
-              min={0}
-              max={24}
-              className="w-full border rounded px-3 py-2"
-              value={s.chip_radius}
-              onChange={(e) =>
-                set({ chip_radius: Number(e.target.value) || 0 })
-              }
-            />
-          </div>
-          <div>
-            <label className="block text-sm mb-1">Card background</label>
-            <input
-              type="color"
-              className="w-full h-10 p-1 border rounded"
-              value={s.chip_background_color}
-              onChange={(e) => set({ chip_background_color: e.target.value })}
-            />
-          </div>
-          <div>
-            <label className="block text-sm mb-1">Border color</label>
-            <input
-              type="color"
-              className="w-full h-10 p-1 border rounded"
-              value={s.chip_border_color}
-              onChange={(e) => set({ chip_border_color: e.target.value })}
-            />
-          </div>
-          <div className="flex items-end gap-3">
-            <label className="flex items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                checked={s.chip_shadow}
-                onChange={(e) => set({ chip_shadow: e.target.checked })}
-              />
-              Soft shadow
-            </label>
-            <label className="flex items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                checked={s.hover_lift}
-                onChange={(e) => set({ hover_lift: e.target.checked })}
-              />
-              Hover lift
-            </label>
-          </div>
-        </div>
-      </div>
-
-      {/* Icon style */}
-      <div>
-        <h4 className="font-medium mb-3">Icon style</h4>
-        <div className="grid md:grid-cols-3 sm:grid-cols-2 grid-cols-1 gap-4">
-          <div>
-            <label className="block text-sm mb-1">Icon size (px)</label>
-            <input
-              type="number"
-              min={12}
-              max={32}
-              className="w-full border rounded px-3 py-2"
-              value={s.icon_size}
-              onChange={(e) => set({ icon_size: Number(e.target.value) || 20 })}
-            />
-          </div>
-          <div>
-            <label className="block text-sm mb-1">Icon padding (px)</label>
-            <input
-              type="number"
-              min={6}
-              max={16}
-              className="w-full border rounded px-3 py-2"
-              value={s.icon_pad}
-              onChange={(e) => set({ icon_pad: Number(e.target.value) || 10 })}
-            />
-          </div>
-          <div>
-            <label className="block text-sm mb-1">Icon radius (px)</label>
-            <input
-              type="number"
-              min={0}
-              max={20}
-              className="w-full border rounded px-3 py-2"
-              value={s.icon_radius}
-              onChange={(e) =>
-                set({ icon_radius: Number(e.target.value) || 12 })
-              }
-            />
-          </div>
-        </div>
-      </div>
-
-      {/* Items JSON */}
-      <div className="space-y-2">
-        <label className="flex items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            checked={s.use_items_array}
-            onChange={(e) => set({ use_items_array: e.target.checked })}
-          />
-          Use items[] array (disables explicit item1–item5)
-        </label>
-        <textarea
-          className="w-full border rounded px-3 py-2 font-mono text-xs"
-          rows={10}
-          value={itemsText}
-          onChange={(e) => setItemsText(e.target.value)}
-        />
-        <div className="flex items-center gap-3">
-          <button
-            onClick={applyItems}
-            className="px-3 py-1.5 rounded bg-blue-600 text-white text-sm"
-          >
-            Apply
-          </button>
-          {err ? <span className="text-red-600 text-sm">{err}</span> : null}
-        </div>
-      </div>
-
-      {/* Advanced */}
-      <div className="grid sm:grid-cols-2 grid-cols-1 gap-4">
-        <div>
-          <label className="block text-sm mb-1">Visibility</label>
-          <select
-            className="w-full border rounded px-3 py-2"
-            value={s.visibility}
-            onChange={(e) => set({ visibility: e.target.value as any })}
-          >
-            <option value="all">all</option>
-            <option value="desktop">desktop</option>
-            <option value="mobile">mobile</option>
-          </select>
-        </div>
-        <div>
-          <label className="block text-sm mb-1">Custom CSS</label>
-          <textarea
-            className="w-full border rounded px-3 py-2 font-mono text-xs"
-            rows={5}
-            value={s.custom_css || ""}
-            onChange={(e) => set({ custom_css: e.target.value })}
-          />
-        </div>
-      </div>
-    </div>
-  );
 };
 
 /* ------------------------------ Page ------------------------------ */
@@ -753,7 +611,9 @@ const AddStoreDiplaySettingPage: React.FC<
     | "flash"
     | "offers"
     | "deals"
+    | "category"
     | "stats"
+    | "testimonials"
     | "delivery"
     | "footer"
     | "about"
@@ -827,7 +687,7 @@ const AddStoreDiplaySettingPage: React.FC<
     defaultFlashSaleHeroUI
   );
 
-  /* -------- NEW: offers / collections UI -------- */
+  /* -------- offers / collections UI -------- */
   const [offersUi, setOffersUi] = useState<OffersCollectionsUI>(
     defaultOffersCollectionsUI
   );
@@ -835,6 +695,11 @@ const AddStoreDiplaySettingPage: React.FC<
   /* -------- store stats UI -------- */
   const [storeStatsUi, setStoreStatsUi] =
     useState<StoreStatsUI>(defaultStoreStatsUI);
+
+  /* -------- customer testimonials UI -------- */
+  const [testimonialsUi, setTestimonialsUi] = useState<CustomerTestimonialsUI>(
+    defaultCustomerTestimonialsUI
+  );
 
   /* -------- social proof strip UI -------- */
   const [socialProofUi, setSocialProofUi] =
@@ -844,10 +709,21 @@ const AddStoreDiplaySettingPage: React.FC<
   const [mainCouponUi, setMainCouponUi] =
     useState<MainCouponUI>(defaultMainCouponUI);
 
+  /* -------- product categories UI -------- */
+  const [productCategoryUi, setProductCategoryUi] = useState<ProductCategoryUI>(
+    defaultProductCategoryUI
+  );
+
   /* -------- delivery info UI -------- */
   const [storeDeliveryUi, setStoreDeliveryUi] = useState<StoreDeliveryInfoUI>(
     defaultStoreDeliveryInfoUI
   );
+
+  /* -------- About Us UI (NEW) -------- */
+  const [aboutUsUi, setAboutUsUi] = useState<AboutUsUI>(defaultAboutUsUI);
+
+  /* -------- Footer / Bottom Nav UI (NEW) -------- */
+  const [footerUi, setFooterUi] = useState<FooterUI>(defaultFooterUI);
 
   /* -------- policies UI -------- */
   interface PolicySettings {
@@ -873,13 +749,20 @@ const AddStoreDiplaySettingPage: React.FC<
   }, []);
 
   /* --------------------------- LOAD DATA --------------------------- */
-  const { data: storefront, isFetching: loadingRuntime } =
-    useGetStorefrontDataQuery(
-      { businessStoreId: businessStoreId || "" },
-      { skip: !businessStoreId }
-    );
+  const {
+    data: storefront,
+    isFetching: loadingRuntime,
+    refetch: refetchStorefront,
+  } = useGetStorefrontDataQuery(
+    { businessStoreId: businessStoreId || "" },
+    { skip: !businessStoreId }
+  );
 
-  const { data: themeData, isFetching: loadingTheme } = useGetCurrentThemeQuery(
+  const {
+    data: themeData,
+    isFetching: loadingTheme,
+    refetch: refetchTheme,
+  } = useGetCurrentThemeQuery(
     { businessStoreId: businessStoreId || "" },
     { skip: !businessStoreId }
   );
@@ -1015,7 +898,7 @@ const AddStoreDiplaySettingPage: React.FC<
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [flashFromRuntime?.id, flashFromTheme?.id]);
 
-  // NEW: offers_collections
+  // offers_collections
   const offersFromRuntime = useMemo(() => {
     const layout = storefront?.layout || [];
     return layout.find((i: any) => i?.code === "offers_collections");
@@ -1082,6 +965,44 @@ const AddStoreDiplaySettingPage: React.FC<
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [statsFromRuntime?.id, statsFromTheme?.id]);
 
+  // customer_testimonials
+  const testiFromRuntime = useMemo(() => {
+    const layout = storefront?.layout || [];
+    return layout.find((i: any) => i?.code === "customer_testimonials");
+  }, [storefront]);
+
+  const testiFromTheme = useMemo(() => {
+    const blocks = themeData?.design_elements || [];
+    return blocks.find((b) => b.code === "customer_testimonials");
+  }, [themeData]);
+
+  const originalTestimonialsSettings =
+    useMemo<CustomerTestimonialsServerSettings>(() => {
+      try {
+        if (testiFromRuntime?.settings)
+          return testiFromRuntime.settings as CustomerTestimonialsServerSettings;
+        if (!testiFromTheme) return {};
+        return typeof testiFromTheme.settings === "string"
+          ? JSON.parse(testiFromTheme.settings || "{}")
+          : (testiFromTheme.settings as any) || {};
+      } catch {
+        return {};
+      }
+    }, [testiFromRuntime?.settings, testiFromTheme]);
+
+  useEffect(() => {
+    const activeFlag =
+      (typeof testiFromRuntime?.is_active === "number"
+        ? testiFromRuntime.is_active
+        : testiFromTheme?.is_active) ?? 1;
+
+    setTestimonialsUi({
+      ...mapTestimonialsToUI(originalTestimonialsSettings),
+      enabled: activeFlag !== 0,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [testiFromRuntime?.id, testiFromTheme?.id]);
+
   // social_proof_strip
   const spsFromRuntime = useMemo(() => {
     const layout = storefront?.layout || [];
@@ -1120,12 +1041,10 @@ const AddStoreDiplaySettingPage: React.FC<
     const layout = storefront?.layout || [];
     return layout.find((i: any) => i?.code === "main_coupon");
   }, [storefront]);
-
   const couponFromTheme = useMemo(() => {
     const blocks = themeData?.design_elements || [];
     return blocks.find((b) => b.code === "main_coupon");
   }, [themeData]);
-
   const originalCouponSettings = useMemo<any>(() => {
     try {
       if (couponFromRuntime?.settings) return couponFromRuntime.settings;
@@ -1137,7 +1056,6 @@ const AddStoreDiplaySettingPage: React.FC<
       return {};
     }
   }, [couponFromRuntime?.settings, couponFromTheme]);
-
   useEffect(() => {
     const activeFlag =
       (typeof couponFromRuntime?.is_active === "number"
@@ -1151,6 +1069,41 @@ const AddStoreDiplaySettingPage: React.FC<
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [couponFromRuntime?.id, couponFromTheme?.id]);
+
+  // product_category
+  const categoryFromRuntime = useMemo(() => {
+    const layout = storefront?.layout || [];
+    return layout.find((i: any) => i?.code === "product_category");
+  }, [storefront]);
+  const categoryFromTheme = useMemo(() => {
+    const blocks = themeData?.design_elements || [];
+    return blocks.find((b) => b.code === "product_category");
+  }, [themeData]);
+  const originalCategorySettings =
+    useMemo<ProductCategoryServerSettings>(() => {
+      try {
+        if (categoryFromRuntime?.settings)
+          return categoryFromRuntime.settings as ProductCategoryServerSettings;
+        if (!categoryFromTheme) return {};
+        return typeof categoryFromTheme.settings === "string"
+          ? JSON.parse(categoryFromTheme.settings || "{}")
+          : (categoryFromTheme.settings as any) || {};
+      } catch {
+        return {};
+      }
+    }, [categoryFromRuntime?.settings, categoryFromTheme]);
+  useEffect(() => {
+    const activeFlag =
+      (typeof categoryFromRuntime?.is_active === "number"
+        ? categoryFromRuntime.is_active
+        : categoryFromTheme?.is_active) ?? 1;
+
+    setProductCategoryUi({
+      ...mapProductCategoryToUI(originalCategorySettings),
+      enabled: activeFlag !== 0,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [categoryFromRuntime?.id, categoryFromTheme?.id]);
 
   // store_delivery_info
   const deliveryFromRuntime = useMemo(() => {
@@ -1185,6 +1138,83 @@ const AddStoreDiplaySettingPage: React.FC<
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [deliveryFromRuntime?.id, deliveryFromTheme?.id]);
+
+  // about_us (NEW)
+  const aboutFromRuntime = useMemo(() => {
+    const layout = storefront?.layout || [];
+    return layout.find((i: any) => i?.code === "about_us");
+  }, [storefront]);
+  const aboutFromTheme = useMemo(() => {
+    const blocks = themeData?.design_elements || [];
+    return blocks.find((b) => b.code === "about_us");
+  }, [themeData]);
+  const originalAboutSettings = useMemo<any>(() => {
+    try {
+      if (aboutFromRuntime?.settings) return aboutFromRuntime.settings;
+      if (!aboutFromTheme) return {};
+      return typeof aboutFromTheme.settings === "string"
+        ? JSON.parse(aboutFromTheme.settings || "{}")
+        : (aboutFromTheme.settings as any) || {};
+    } catch {
+      return {};
+    }
+  }, [aboutFromRuntime?.settings, aboutFromTheme]);
+  useEffect(() => {
+    const activeFlag =
+      (typeof aboutFromRuntime?.is_active === "number"
+        ? aboutFromRuntime.is_active
+        : aboutFromTheme?.is_active) ?? 1;
+    setAboutUsUi({
+      ...mapAboutUsToUI(originalAboutSettings),
+      enabled: activeFlag !== 0,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [aboutFromRuntime?.id, aboutFromTheme?.id]);
+
+  // bottom_nav (FOOTER)
+  const footerFromRuntime = useMemo(() => {
+    const layout = storefront?.layout || [];
+    return layout.find((i: any) => i?.code === "bottom_nav");
+  }, [storefront]);
+
+  const footerFromTheme = useMemo(() => {
+    const blocks = themeData?.design_elements || [];
+    return blocks.find((b) => b.code === "bottom_nav");
+  }, [themeData]);
+
+  const originalFooterSettings = useMemo<any>(() => {
+    try {
+      if (footerFromRuntime?.settings) return footerFromRuntime.settings;
+      if (!footerFromTheme) return {};
+      return typeof footerFromTheme.settings === "string"
+        ? JSON.parse(footerFromTheme.settings || "{}")
+        : (footerFromTheme.settings as any) || {};
+    } catch {
+      return {};
+    }
+  }, [footerFromRuntime?.settings, footerFromTheme]);
+
+  useEffect(() => {
+    const activeFlag =
+      (typeof footerFromRuntime?.is_active === "number"
+        ? footerFromRuntime.is_active
+        : footerFromTheme?.is_active) ?? 1;
+
+    setFooterUi({
+      ...defaultFooterUI,
+      ...(originalFooterSettings || {}),
+      visibility:
+        (originalFooterSettings?.visibility as FooterUI["visibility"]) ??
+        defaultFooterUI.visibility,
+      show_desktop_footer:
+        originalFooterSettings?.show_desktop_footer ??
+        defaultFooterUI.show_desktop_footer,
+      show_desktop_footer_in_mobile_too:
+        originalFooterSettings?.show_desktop_footer_in_mobile_too ??
+        defaultFooterUI.show_desktop_footer_in_mobile_too,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [footerFromRuntime?.id, footerFromTheme?.id]);
 
   /* --------------------------- Mutations --------------------------- */
   const [createBlock, { isLoading: creating }] = useCreateBlockMutation();
@@ -1324,11 +1354,10 @@ const AddStoreDiplaySettingPage: React.FC<
         }).unwrap();
       }
 
-      // D) Flash Sale Hero (after Store Hero)
+      // D) Flash Sale Hero
       let flashId =
         (flashFromTheme?.id as string | undefined) ||
         (flashFromRuntime?.id as string | undefined);
-
       const flashPos =
         (flashFromTheme?.position as number | undefined) ??
         (flashFromRuntime?.position as number | undefined) ??
@@ -1365,11 +1394,10 @@ const AddStoreDiplaySettingPage: React.FC<
         }).unwrap();
       }
 
-      // E) NEW: Offers / Collections (after Flash Sale)
+      // E) Offers / Collections
       let offersId =
         (offersFromTheme?.id as string | undefined) ||
         (offersFromRuntime?.id as string | undefined);
-
       const offersPos =
         (offersFromTheme?.position as number | undefined) ??
         (offersFromRuntime?.position as number | undefined) ??
@@ -1406,7 +1434,7 @@ const AddStoreDiplaySettingPage: React.FC<
         }).unwrap();
       }
 
-      // F) Store Stats (after Offers)
+      // F) Store Stats
       let statsId =
         (statsFromTheme?.id as string | undefined) ||
         (statsFromRuntime?.id as string | undefined);
@@ -1446,15 +1474,54 @@ const AddStoreDiplaySettingPage: React.FC<
         }).unwrap();
       }
 
-      // G) Social Proof Strip (after Store Stats)
+      // F2) Customer Testimonials
+      let testiId =
+        (testiFromTheme?.id as string | undefined) ||
+        (testiFromRuntime?.id as string | undefined);
+      const testiPos =
+        (testiFromTheme?.position as number | undefined) ??
+        (testiFromRuntime?.position as number | undefined) ??
+        (typeof statsPos === "number" ? statsPos + 1 : 7);
+
+      const testiSettingsPayload = mergeTestimonialsFromUI(
+        originalTestimonialsSettings,
+        testimonialsUi
+      );
+
+      if (!testiId) {
+        const createdTesti = await createBlock({
+          businessStoreId,
+          themeId,
+          body: {
+            code: "customer_testimonials",
+            name: "Customer Testimonials",
+            is_active: testimonialsUi.enabled ? 1 : 0,
+            position: Number(testiPos) || 7,
+            settings: testiSettingsPayload,
+          },
+        }).unwrap();
+        testiId = createdTesti.id;
+      } else {
+        await updateBlockMutation({
+          id: testiId,
+          body: {
+            name: testiFromTheme?.name || "Customer Testimonials",
+            custom_name: (testiFromTheme as any)?.custom_name || "",
+            position: Number(testiPos) || 7,
+            is_active: testimonialsUi.enabled ? 1 : 0,
+            settings: testiSettingsPayload,
+          },
+        }).unwrap();
+      }
+
+      // G) Social Proof Strip
       let spsId =
         (spsFromTheme?.id as string | undefined) ||
         (spsFromRuntime?.id as string | undefined);
-
       const spsPos =
         (spsFromTheme?.position as number | undefined) ??
         (spsFromRuntime?.position as number | undefined) ??
-        (typeof statsPos === "number" ? statsPos + 1 : 7);
+        (typeof testiPos === "number" ? testiPos + 1 : 8);
 
       const spsSettingsPayload = mergeSocialProofFromUI(
         originalSpsSettings,
@@ -1469,7 +1536,7 @@ const AddStoreDiplaySettingPage: React.FC<
             code: "social_proof_strip",
             name: "Social Proof Strip",
             is_active: socialProofUi.enabled ? 1 : 0,
-            position: Number(spsPos) || 7,
+            position: Number(spsPos) || 8,
             settings: spsSettingsPayload,
           },
         }).unwrap();
@@ -1480,26 +1547,25 @@ const AddStoreDiplaySettingPage: React.FC<
           body: {
             name: spsFromTheme?.name || "Social Proof Strip",
             custom_name: (spsFromTheme as any)?.custom_name || "",
-            position: Number(spsPos) || 7,
+            position: Number(spsPos) || 8,
             is_active: socialProofUi.enabled ? 1 : 0,
             settings: spsSettingsPayload,
           },
         }).unwrap();
       }
 
-      // H) Deals / Coupons Rail (after Social Proof)
+      // H) Deals / Coupons Rail
       let couponId =
         (couponFromTheme?.id as string | undefined) ||
         (couponFromRuntime?.id as string | undefined);
-
       const couponPos =
         (couponFromTheme?.position as number | undefined) ??
         (couponFromRuntime?.position as number | undefined) ??
         (typeof spsPos === "number"
           ? spsPos + 1
-          : typeof statsPos === "number"
-          ? statsPos + 1
-          : 8);
+          : typeof testiPos === "number"
+          ? testiPos + 1
+          : 9);
 
       const couponSettingsPayload = {
         ...(originalCouponSettings || {}),
@@ -1514,7 +1580,7 @@ const AddStoreDiplaySettingPage: React.FC<
             code: "main_coupon",
             name: "Deals / Coupons Rail",
             is_active: mainCouponUi.enabled ? 1 : 0,
-            position: Number(couponPos) || 8,
+            position: Number(couponPos) || 9,
             settings: couponSettingsPayload,
           },
         }).unwrap();
@@ -1525,9 +1591,49 @@ const AddStoreDiplaySettingPage: React.FC<
           body: {
             name: couponFromTheme?.name || "Deals / Coupons Rail",
             custom_name: (couponFromTheme as any)?.custom_name || "",
-            position: Number(couponPos) || 8,
+            position: Number(couponPos) || 9,
             is_active: mainCouponUi.enabled ? 1 : 0,
             settings: couponSettingsPayload,
+          },
+        }).unwrap();
+      }
+
+      // H2) Product Categories
+      let categoryId =
+        (categoryFromTheme?.id as string | undefined) ||
+        (categoryFromRuntime?.id as string | undefined);
+      const categoryPos =
+        (categoryFromTheme?.position as number | undefined) ??
+        (categoryFromRuntime?.position as number | undefined) ??
+        (typeof couponPos === "number" ? couponPos + 1 : 10);
+
+      const categorySettingsPayload = mergeProductCategoryFromUI(
+        originalCategorySettings,
+        productCategoryUi
+      );
+
+      if (!categoryId) {
+        const createdCategory = await createBlock({
+          businessStoreId,
+          themeId,
+          body: {
+            code: "product_category",
+            name: "Product Categories",
+            is_active: productCategoryUi.enabled ? 1 : 0,
+            position: Number(categoryPos) || 10,
+            settings: categorySettingsPayload,
+          },
+        }).unwrap();
+        categoryId = createdCategory.id;
+      } else {
+        await updateBlockMutation({
+          id: categoryId,
+          body: {
+            name: categoryFromTheme?.name || "Product Categories",
+            custom_name: (categoryFromTheme as any)?.custom_name || "",
+            position: Number(categoryPos) || 10,
+            is_active: productCategoryUi.enabled ? 1 : 0,
+            settings: categorySettingsPayload,
           },
         }).unwrap();
       }
@@ -1539,7 +1645,11 @@ const AddStoreDiplaySettingPage: React.FC<
       const deliveryPos =
         (deliveryFromTheme?.position as number | undefined) ??
         (deliveryFromRuntime?.position as number | undefined) ??
-        (typeof couponPos === "number" ? couponPos + 1 : 9);
+        (typeof categoryPos === "number"
+          ? categoryPos + 1
+          : typeof couponPos === "number"
+          ? couponPos + 1
+          : 11);
 
       const deliverySettingsPayload = mergeDeliveryFromUI(
         originalDeliverySettings,
@@ -1554,7 +1664,7 @@ const AddStoreDiplaySettingPage: React.FC<
             code: "store_delivery_info",
             name: "Store Delivery Info",
             is_active: storeDeliveryUi.enabled ? 1 : 0,
-            position: Number(deliveryPos) || 9,
+            position: Number(deliveryPos) || 11,
             settings: deliverySettingsPayload,
           },
         }).unwrap();
@@ -1565,15 +1675,99 @@ const AddStoreDiplaySettingPage: React.FC<
           body: {
             name: deliveryFromTheme?.name || "Store Delivery Info",
             custom_name: (deliveryFromTheme as any)?.custom_name || "",
-            position: Number(deliveryPos) || 9,
+            position: Number(deliveryPos) || 11,
             is_active: storeDeliveryUi.enabled ? 1 : 0,
             settings: deliverySettingsPayload,
           },
         }).unwrap();
       }
 
-      // Publish
+      // J) About Us (NEW — after Delivery Info)
+      let aboutId =
+        (aboutFromTheme?.id as string | undefined) ||
+        (aboutFromRuntime?.id as string | undefined);
+      const aboutPos =
+        (aboutFromTheme?.position as number | undefined) ??
+        (aboutFromRuntime?.position as number | undefined) ??
+        (typeof deliveryPos === "number" ? deliveryPos + 1 : 12);
+
+      const aboutSettingsPayload = mergeAboutUsFromUI(
+        originalAboutSettings,
+        aboutUsUi
+      );
+
+      if (!aboutId) {
+        const createdAbout = await createBlock({
+          businessStoreId,
+          themeId,
+          body: {
+            code: "about_us",
+            name: "About Us",
+            is_active: aboutUsUi.enabled ? 1 : 0,
+            position: Number(aboutPos) || 12,
+            settings: aboutSettingsPayload,
+          },
+        }).unwrap();
+        aboutId = createdAbout.id;
+      } else {
+        await updateBlockMutation({
+          id: aboutId,
+          body: {
+            name: aboutFromTheme?.name || "About Us",
+            custom_name: (aboutFromTheme as any)?.custom_name || "",
+            position: Number(aboutPos) || 12,
+            is_active: aboutUsUi.enabled ? 1 : 0,
+            settings: aboutSettingsPayload,
+          },
+        }).unwrap();
+      }
+
+      // K) FOOTER (bottom_nav)
+      let footerId =
+        (footerFromTheme?.id as string | undefined) ||
+        (footerFromRuntime?.id as string | undefined);
+
+      const footerPos =
+        (footerFromTheme?.position as number | undefined) ??
+        (footerFromRuntime?.position as number | undefined) ??
+        (typeof aboutPos === "number" ? aboutPos + 1 : 13);
+
+      const footerSettingsPayload = {
+        ...originalFooterSettings,
+        ...footerUi,
+      };
+
+      if (!footerId) {
+        const createdFooter = await createBlock({
+          businessStoreId,
+          themeId,
+          body: {
+            code: "bottom_nav",
+            name: "Footer",
+            is_active: 1,
+            position: Number(footerPos) || 13,
+            settings: footerSettingsPayload,
+          },
+        }).unwrap();
+        footerId = createdFooter.id;
+      } else {
+        await updateBlockMutation({
+          id: footerId,
+          body: {
+            name: footerFromTheme?.name || "Footer",
+            custom_name: (footerFromTheme as any)?.custom_name || "",
+            position: Number(footerPos) || 13,
+            is_active: 1,
+            settings: footerSettingsPayload,
+          },
+        }).unwrap();
+      }
+
+      // Publish & refresh local caches so UI reflects saved API state
       await publishTheme({ businessStoreId }).unwrap();
+      await Promise.allSettled([refetchTheme(), refetchStorefront()]);
+
+      alert("Saved!");
     } catch (e: any) {
       const data = e?.data || e?.response?.data;
       alert(data?.error || data?.message || e?.message || "Save failed");
@@ -1582,7 +1776,23 @@ const AddStoreDiplaySettingPage: React.FC<
 
   const handleCancel = () => window.location.reload();
 
-  /* ------------------------------ Tabs ------------------------------ */
+  /* ------------------------------ Tabs list ------------------------------ */
+  const TABS: { label: string; key: typeof selectedTab }[] = [
+    { label: "General", key: "general" },
+    { label: "Header", key: "header" },
+    { label: "Flash Sale", key: "flash" },
+    { label: "Offers", key: "offers" },
+    { label: "Deals", key: "deals" },
+    { label: "Product/Categories", key: "category" },
+    { label: "Social Stats", key: "stats" },
+    { label: "Testimonials", key: "testimonials" },
+    { label: "Delivery Info", key: "delivery" },
+    { label: "About Us", key: "about" },
+    { label: "Footer", key: "footer" },
+    { label: "Terms Of Service", key: "terms" },
+  ];
+
+  /* ------------------------------ Tab content ------------------------------ */
   const renderTab = () => {
     switch (selectedTab) {
       case "general":
@@ -1599,7 +1809,6 @@ const AddStoreDiplaySettingPage: React.FC<
               headerSettings={headerSettings}
               onChange={setHeaderSettings}
             />
-            {/* Keep the enabled flag in our state */}
             <TopNavSettingsCard
               ui={menuSettings}
               onChange={(ui) => setMenuSettings((prev) => ({ ...prev, ...ui }))}
@@ -1625,6 +1834,13 @@ const AddStoreDiplaySettingPage: React.FC<
             onChange={setMainCouponUi}
           />
         );
+      case "category":
+        return (
+          <ProductCategorySettingsCard
+            ui={productCategoryUi}
+            onChange={setProductCategoryUi}
+          />
+        );
       case "stats":
         return (
           <>
@@ -1638,6 +1854,13 @@ const AddStoreDiplaySettingPage: React.FC<
             />
           </>
         );
+      case "testimonials":
+        return (
+          <CustomerTestimonialsSettingsCard
+            ui={testimonialsUi}
+            onChange={setTestimonialsUi}
+          />
+        );
       case "delivery":
         return (
           <StoreDeliveryInfoSettingsCard
@@ -1645,6 +1868,10 @@ const AddStoreDiplaySettingPage: React.FC<
             onChange={setStoreDeliveryUi}
           />
         );
+      case "about":
+        return <AboutUsSettingsCard ui={aboutUsUi} onChange={setAboutUsUi} />;
+      case "footer":
+        return <BottomNavSettingsCard ui={footerUi} onChange={setFooterUi} />;
       case "terms":
         return (
           <TermsOfServiceSettings
@@ -1661,44 +1888,25 @@ const AddStoreDiplaySettingPage: React.FC<
     <Layout role={UserRoleName.SELLER}>
       <div className="flex h-screen w-full bg-[#f9fafb] overflow-hidden flex-col md:flex-row">
         {/* Left Settings Panel */}
-        <div className="w-full md:w-[50%] flex flex-col p-6 bg-white border-r border-gray-200 overflow-hidden">
-          {/* Tabs */}
-          <div className="flex gap-6 border-b border-gray-300 mb-6 text-sm font-semibold text-gray-700">
-            {[
-              { label: "General", key: "general" },
-              { label: "Header", key: "header" },
-              { label: "Flash Sale", key: "flash" },
-              { label: "Offers", key: "offers" }, // NEW
-              { label: "Deals", key: "deals" },
-              { label: "Social Stats", key: "stats" },
-              { label: "Delivery Info", key: "delivery" },
-              { label: "Footer", key: "footer" },
-              { label: "About Us", key: "about" },
-              { label: "Terms Of Service", key: "terms" },
-            ].map((tab) => (
-              <button
-                key={tab.key}
-                onClick={() => setSelectedTab(tab.key as any)}
-                className={`relative pb-3 transition-all duration-200 ${
-                  selectedTab === (tab.key as any)
-                    ? "text-blue-600 after:content-[''] after:absolute after:bottom-0 after:left-0 after:w-full after:h-[2px] after:bg-blue-600"
-                    : "text-gray-500 hover:text-blue-600"
-                }`}
-              >
-                {tab.label}
-              </button>
-            ))}
+        <div className="w-full md:w-[50%] flex flex-col bg-white border-r border-gray-200 overflow-hidden">
+          {/* Sticky, single-line, scrollable tabs */}
+          <div className="sticky top-0 z-20 bg-white pt-6 pb-2 border-b border-gray-200">
+            <ScrollableTabs
+              tabs={TABS}
+              value={selectedTab}
+              onChange={(k) => setSelectedTab(k)}
+            />
           </div>
 
           {/* Scrollable Form Section */}
           <div
             ref={formContainerRef}
-            className="flex-1 overflow-y-auto pr-2 space-y-6 pb-16"
+            className="flex-1 overflow-y-auto px-6 space-y-6 pb-16"
           >
             {renderTab()}
 
             {/* Actions */}
-            <div className="bottom-0 bg-white pt-4 pb-6 flex justify-end gap-4 border-t border-gray-200">
+            <div className="bg-white pt-4 pb-6 flex justify-end gap-4 border-t border-gray-200">
               <button
                 onClick={handleCancel}
                 className="px-6 py-2 rounded-md border border-gray-300 text-gray-700 font-medium hover:bg-gray-100 transition"
@@ -1729,6 +1937,11 @@ const AddStoreDiplaySettingPage: React.FC<
             flashSaleUi={flashSaleUi}
             storeStatsUi={storeStatsUi}
             storeDeliveryUi={storeDeliveryUi}
+            mainCouponUi={mainCouponUi}
+            offersUi={offersUi}
+            testimonialsUi={testimonialsUi}
+            aboutUsUi={aboutUsUi as any}
+            footerUi={footerUi as any}
           />
         </div>
       </div>

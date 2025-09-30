@@ -21,6 +21,7 @@ export interface ProductCategoryRequest {
 export interface ProductCategoryResponse {
   id: string;
   name: string;
+  slug: string;
   status: string;
   categoryType: string;
   description?: string;
@@ -42,6 +43,8 @@ export interface ProductCategoryListResponse {
   categoryType: string;
   id: string;
   name: string;
+  slug: string;
+  productCount: string;
   status: string;
   description?: string;
   imageUrl?: string;
@@ -228,6 +231,9 @@ export interface WorkshopDto {
 interface ProductResponseDto {
   id: string;
   name: string;
+  slug: string;
+  currency: string;
+  discountPercent: number;
   type?: "PHYSICAL" | "DIGITAL" | "MEETING" | "WORKSHOP";
   status?: "ACTIVE" | "INACTIVE";
   createdAt?: string;
@@ -289,21 +295,28 @@ export interface ProductListItem {
   discountedPrice?: number;
   description?: string;
 
-  // existing fields your UI uses
   stock?: number;
   stockStatus?: "in_stock" | "out_of_stock";
   images?: string[];
   status: "ACTIVE" | "INACTIVE";
   isRecommended?: boolean;
 
-  // make these OPTIONAL so the mapper isn't forced to supply them
-  quantity?: number;
+  // extras your UI reads
+  slug?: string;
+  currency?: string;
+  discountPercent?: number;
+
+  // 🔧 Make each field optional to match the API payload
   categoryLinks?: Array<{
-    parentCategoryId: string;
-    parentCategoryName: string;
+    parentCategoryId?: string;
+    parentCategoryName?: string;
+    subCategoryId?: string;
+    subCategoryName?: string;
   }>;
-  variant?: any; // or the real type if you have one
-  category?: string; // convenient string for first/combined category name
+
+  quantity?: number;
+  variant?: any;
+  category?: string;
 }
 
 export interface VariantDto {
@@ -619,6 +632,9 @@ export const productApi = createApi({
         (raw.data || []).map((p) => ({
           id: p.id,
           name: p.name,
+          slug: p.slug,
+          currency: p.currency,
+          discountPercent: p.discountPercent,
           price: p.price ?? 0,
           discountedPrice: p.discountedPrice ?? undefined,
           description: p.description ?? undefined,
@@ -628,6 +644,15 @@ export const productApi = createApi({
           images: pluckImages(p),
           status: p.status === "ACTIVE" ? "ACTIVE" : "INACTIVE",
           isRecommended: p.isRecommended ?? undefined,
+          // 🔧 Keep API shape, but map explicitly so TS is happy
+          categoryLinks: Array.isArray(p.categoryLinks)
+            ? p.categoryLinks.map((l) => ({
+                parentCategoryId: l.parentCategoryId ?? undefined,
+                parentCategoryName: l.parentCategoryName ?? undefined,
+                subCategoryId: l.subCategoryId ?? undefined,
+                subCategoryName: l.subCategoryName ?? undefined,
+              }))
+            : [],
         })),
       providesTags: (result) =>
         result && result.length
