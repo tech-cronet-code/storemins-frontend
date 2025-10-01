@@ -199,7 +199,8 @@ const ProductCard = ({
 
   return (
     <div className="bg-white border border-slate-200 rounded-2xl sm:rounded-3xl overflow-hidden flex flex-col shadow-[0_6px_24px_-12px_rgba(0,0,0,0.2)] transition-all hover:shadow-[0_16px_40px_-18px_rgba(0,0,0,0.25)]">
-      <Link to={`/p/${p.slug || p.id}`} className="block">
+      {/* 👇 This path matches <Route path="p/:productSlug" .../> inside PublicStorefrontPage */}
+      <Link to={`p/${p.slug || p.id}`} className="block">
         <div className="relative aspect-square bg-slate-50">
           <img
             src={img}

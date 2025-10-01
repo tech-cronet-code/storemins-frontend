@@ -64,6 +64,12 @@ export type TopNavSettings = {
   icon_size_sm?: number | string;
   icon_size_md?: number | string;
   icon_size_lg?: number | string;
+
+  // ---------- NEW (for PDP) ----------
+  /** Force show the Menu (hamburger) regardless of left_button config */
+  forceMenu?: boolean;
+  /** If true, hides menu on /p/:productSlug routes (ignored when forceMenu=true) */
+  hideMenuOnDetail?: boolean;
 };
 
 /* ============================== Utils / hooks ============================== */
@@ -91,7 +97,7 @@ function visibilityClass(v?: TopNavSettings["visibility"]) {
   }
 }
 
-function useIsMdUp() { 
+function useIsMdUp() {
   const [mdUp, setMdUp] = useState(false);
 
   useEffect(() => {
@@ -100,18 +106,14 @@ function useIsMdUp() {
     const mq = window.matchMedia("(min-width: 768px)");
     const onChange = (e: MediaQueryListEvent) => setMdUp(e.matches);
 
-    // set initial value
     setMdUp(mq.matches);
 
-    // Modern browsers
     if (typeof mq.addEventListener === "function") {
       mq.addEventListener("change", onChange);
       return () => {
         mq.removeEventListener("change", onChange);
       };
     }
-
-    // Fallback (older browsers) — cast to any to avoid deprecated TS warnings
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (mq as any).addListener?.(onChange);
     return () => {
@@ -284,10 +286,10 @@ const IconTap: React.FC<{
   </button>
 );
 
-const PillSearchButton: React.FC<{
-  s: TopNavSettings;
-  onOpen: () => void;
-}> = ({ s, onOpen }) => {
+const PillSearchButton: React.FC<{ s: TopNavSettings; onOpen: () => void }> = ({
+  s,
+  onOpen,
+}) => {
   const bg = s.desktop_search_bar_background_color || "#ffffff";
   const ph = s.desktop_search_bar_placeholder_text_color || "#6b7280";
   const radius = s.desktop_search_bar_radius || "full";
@@ -496,7 +498,6 @@ const AuthModal: React.FC<{
         className="relative w-full max-w-md bg-white rounded-2xl shadow-2xl"
         onMouseDown={(e) => e.stopPropagation()}
       >
-        {/* Close */}
         <button
           aria-label="Close"
           className="absolute right-3 top-3 h-8 w-8 rounded-full flex items-center justify-center text-slate-600 hover:bg-slate-100"
@@ -513,14 +514,12 @@ const AuthModal: React.FC<{
           </svg>
         </button>
 
-        {/* Header */}
         <div className="px-5 pt-6 pb-2 text-center">
           <div className="text-lg font-semibold text-slate-900">
             {mode === "signin" ? "Sign In" : "Sign Up"}
           </div>
         </div>
 
-        {/* Form */}
         <div className="px-5 pb-5">
           {mode === "signup" && (
             <div className="mb-3">
@@ -671,13 +670,29 @@ export const TopNavBlock: React.FC<{ settings?: Partial<TopNavSettings> }> = ({
   const showWhatsApp = s.show_whatsapp !== false;
   const showProfile = s.show_profile !== false;
 
+  // ---------- NEW: effective button logic ----------
+  const pathname =
+    typeof window !== "undefined" ? window.location.pathname : "";
+  const onProductDetail = /(^|\/)p(\/|$)/.test(pathname); // matches /p or /.../p/...
+
+  const effectiveLeft: NonNullable<TopNavSettings["left_button"]> =
+    useMemo(() => {
+      if (s.forceMenu) return "MENU"; // hard force
+      if (s.hideMenuOnDetail && onProductDetail) return "NONE";
+      // default to MENU if nothing specified
+      return s.left_button ?? "MENU";
+    }, [s.forceMenu, s.hideMenuOnDetail, s.left_button, onProductDetail]);
+
+  const effectiveRight: NonNullable<TopNavSettings["right_button"]> =
+    s.right_button ?? "NONE";
+
   const classes = cn(
     "w-full",
     visibilityClass(s.visibility),
     "fixed top-0 left-0 right-0 z-[100] md:static md:top-auto md:left-auto md:right-auto md:z-auto",
     desktopStickyOn && !desktopFixedOn && "md:sticky md:top-0 md:z-[100]",
     desktopFixedOn && "md:fixed md:top-0 md:left-0 md:right-0 md:z-[100]",
-    s.border ? "border-b-0" : ""
+    s.border ? "" : "" // small tidy
   );
 
   const rowClass = isEditor
@@ -697,25 +712,26 @@ export const TopNavBlock: React.FC<{ settings?: Partial<TopNavSettings> }> = ({
         }}
       >
         <div className={rowClass}>
-          {/* Legacy left button */}
+          {/* Left button (effective) */}
           <div className="w-12 sm:w-16 md:w-24">
-            {s.left_button && s.left_button !== "NONE" && (
+            {effectiveLeft !== "NONE" && (
               <button
                 type="button"
                 onClick={() => {
-                  if (s.left_button === "MENU") setMenuOpen(true);
-                  if (s.left_button === "SEARCH") openSearch();
+                  if (effectiveLeft === "MENU") setMenuOpen(true);
+                  if (effectiveLeft === "SEARCH") openSearch();
                 }}
                 className="inline-flex items-center gap-1.5 md:gap-2 text-xs md:text-sm px-2 py-1 rounded-md hover:bg-slate-100"
                 style={{ color: textColor }}
+                aria-label={effectiveLeft === "MENU" ? "Menu" : "Search"}
               >
-                {s.left_button === "MENU" ? (
+                {effectiveLeft === "MENU" ? (
                   <Icon.menu size={iconSize} />
-                ) : s.left_button === "SEARCH" ? (
+                ) : effectiveLeft === "SEARCH" ? (
                   <Icon.search size={iconSize} />
                 ) : null}
                 <span className="hidden sm:inline opacity-80">
-                  {s.left_button?.[0] + s.left_button?.slice(1).toLowerCase()}
+                  {effectiveLeft[0] + effectiveLeft.slice(1).toLowerCase()}
                 </span>
               </button>
             )}
@@ -771,20 +787,20 @@ export const TopNavBlock: React.FC<{ settings?: Partial<TopNavSettings> }> = ({
               </IconTap>
             )}
 
-            {s.right_button && s.right_button !== "NONE" && (
+            {effectiveRight !== "NONE" && (
               <IconTap
                 color={textColor}
                 label={
-                  s.right_button?.[0] + s.right_button?.slice(1).toLowerCase()
+                  effectiveRight[0] + effectiveRight.slice(1).toLowerCase()
                 }
                 onClick={() => {
-                  if (s.right_button === "MENU") setMenuOpen(true);
-                  if (s.right_button === "SEARCH") openSearch();
+                  if (effectiveRight === "MENU") setMenuOpen(true);
+                  if (effectiveRight === "SEARCH") openSearch();
                 }}
               >
-                {s.right_button === "MENU" ? (
+                {effectiveRight === "MENU" ? (
                   <Icon.menu size={iconSize} />
-                ) : s.right_button === "SEARCH" ? (
+                ) : effectiveRight === "SEARCH" ? (
                   <Icon.search size={iconSize} />
                 ) : null}
               </IconTap>
@@ -848,7 +864,6 @@ export const TopNavBlock: React.FC<{ settings?: Partial<TopNavSettings> }> = ({
         onModeChange={setAuthMode}
         onClose={() => setAuthOpen(false)}
         onRequestOtp={({ mode, name, phone }) => {
-          // Hook BE here later
           console.log("Request OTP:", { mode, name, phone });
         }}
       />
@@ -864,7 +879,6 @@ export const TopNavBlock: React.FC<{ settings?: Partial<TopNavSettings> }> = ({
 export function mapTopNavToUI(s?: Partial<TopNavSettings>) {
   const v = s || {};
   return {
-    // minimal set that the seller editor manipulates
     backgroundColor: v.background_color ?? "#ffffff",
     textColor: v.text_color ?? "#111827",
     sticky: !!v.sticky_header,
@@ -896,6 +910,9 @@ export function mapTopNavToUI(s?: Partial<TopNavSettings>) {
       TopNavSettings["desktop_search_bar_border_size"]
     >,
     borderColor: v.desktop_search_bar_border_color ?? "#111827",
+    // pass through new flags for editor awareness
+    forceMenu: !!v.forceMenu,
+    hideMenuOnDetail: !!v.hideMenuOnDetail,
   };
 }
 
@@ -927,5 +944,8 @@ export function mergeTopNavFromUI(
     desktop_search_bar_border_size: ui.borderSize,
     desktop_search_bar_border_color: ui.borderColor,
     menu_items: Array.isArray(ui.menuItems) ? ui.menuItems : [],
+    // pass through new flags
+    forceMenu: !!ui.forceMenu,
+    hideMenuOnDetail: !!ui.hideMenuOnDetail,
   };
 }

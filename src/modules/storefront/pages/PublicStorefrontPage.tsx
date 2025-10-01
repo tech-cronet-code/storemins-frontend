@@ -1,41 +1,81 @@
-import { useParams } from "react-router-dom";
-import { RenderLayout } from "../../../shared/blocks/registry";
-import { useGetStorefrontBootstrapQuery } from "../../auth/services/storefrontPublicApi";
-import { StorefrontLayoutItemDto } from "../../auth/services/storeApi";
+// modules/storefront/pages/PublicStorefrontPage.tsx
+import { Route, Routes, useParams } from "react-router-dom";
+import { RenderLayout, type Block } from "../../../shared/blocks/registry";
 import { useAuth } from "../../auth/contexts/AuthContext";
+import { useGetStorefrontBootstrapQuery } from "../../auth/services/storefrontPublicApi";
+import ProductDetail from "../../../shared/blocks/ProductDetail";
+
+/** Public API bootstrap response (minimal shape used here) */
+type StorefrontBootstrap = {
+  layout?: Array<{
+    id?: string;
+    _id?: string;
+    code: string;
+    position?: number;
+    order?: number;
+    settings?: unknown;
+    is_active?: number;
+    isActive?: boolean;
+    active?: boolean;
+    enabled?: boolean;
+  }>;
+  businessStoreId?: string | number;
+  businessId?: string | number;
+  store?: { businessStoreId?: string | number } | null;
+};
 
 export default function PublicStorefrontPage() {
-  const { slug = "" } = useParams<{ slug?: string }>();
+  const { storeSlug = "" } = useParams<{ storeSlug?: string }>();
   const { userDetails } = useAuth();
-  const businessIdFromAuth = userDetails?.storeLinks?.[0]?.businessId ?? "";
+
+  const businessIdFromAuth: string =
+    userDetails?.storeLinks?.[0]?.businessId ?? "";
 
   const { data, isLoading, isError } = useGetStorefrontBootstrapQuery(
-    { slug },
-    { skip: !slug }
+    { slug: storeSlug },
+    { skip: !storeSlug }
   );
 
-  if (!slug) return <div className="p-6">Missing slug.</div>;
+  if (!storeSlug) return <div className="p-6">Missing slug.</div>;
   if (isLoading) return <div className="p-6">Loading store…</div>;
   if (isError)
     return <div className="p-6 text-red-600">Failed to load storefront.</div>;
   if (!data) return <div className="p-6">No data.</div>;
 
-  const layout: StorefrontLayoutItemDto[] = data.layout || [];
+  const api = data as StorefrontBootstrap;
 
-  // Prefer the id from auth; fall back to anything the bootstrap might expose.
-  const businessId =
+  //  Normalize to the Block[] shape expected by RenderLayout
+  const layout: Block[] = (api.layout ?? []).map((b) => ({
+    id: b.id ?? b._id ?? undefined,
+    code: b.code,
+    position: typeof b.position === "number" ? b.position : b.order ?? 0,
+    settings: b.settings ?? {},
+    is_active:
+      b.is_active ??
+      (typeof b.isActive === "boolean" ? (b.isActive ? 1 : 0) : undefined) ??
+      (typeof b.active === "boolean" ? (b.active ? 1 : 0) : undefined) ??
+      (typeof b.enabled === "boolean" ? (b.enabled ? 1 : 0) : undefined) ??
+      1,
+  }));
+
+  const businessId: string =
     businessIdFromAuth ||
     String(
-      (data as any)?.businessStoreId ??
-        (data as any)?.businessId ??
-        (data as any)?.store?.businessStoreId ??
-        ""
+      api.businessStoreId ?? api.businessId ?? api.store?.businessStoreId ?? ""
     );
 
   return (
     <div className="min-h-dvh">
       <main className="p-4">
-        <RenderLayout layout={layout} businessId={businessId} />
+        <Routes>
+          {/* storefront home: /{storeSlug} */}
+          <Route
+            index
+            element={<RenderLayout layout={layout} businessId={businessId} />}
+          />
+          {/* product details: /{storeSlug}/p/:productSlug */}
+          <Route path="p/:productSlug" element={<ProductDetail />} />
+        </Routes>
       </main>
     </div>
   );

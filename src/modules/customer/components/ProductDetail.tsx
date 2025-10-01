@@ -1,15 +1,15 @@
 // ProductDetail.tsx
 
 import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import CustomerLayout from "../components/CustomerLayout";
+// import { useNavigate } from "react-router-dom";
 import { UserRoleName } from "../../auth/constants/userRoles";
-import PriceDisplay from "./PriceDisplay";
+import CustomerLayout from "../components/CustomerLayout";
 import ColorSelector, { ColorOption } from "./ColorSelector";
-import SizeSelector, { SizeOption } from "./SizeSelector";
 import OutOfStockBanner from "./OutOfStockBanner";
-import TrustBadges from "./TrustBadges";
+import PriceDisplay from "./PriceDisplay";
 import ShareButton from "./ShareButton";
+import SizeSelector, { SizeOption } from "./SizeSelector";
+import TrustBadges from "./TrustBadges";
 
 interface ProductDetailData {
   id: string;
@@ -49,7 +49,7 @@ const dummyProduct: ProductDetailData = {
 const ProductDetail: React.FC<{ product?: ProductDetailData }> = ({
   product = dummyProduct,
 }) => {
-  const navigate = useNavigate();
+  // const navigate = useNavigate();
   const [selectedColor, setSelectedColor] = useState<string | null>(
     product.colors[0]?.id || null
   );
