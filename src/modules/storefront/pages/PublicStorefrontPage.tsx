@@ -4,6 +4,7 @@ import { RenderLayout, type Block } from "../../../shared/blocks/registry";
 import { useAuth } from "../../auth/contexts/AuthContext";
 import { useGetStorefrontBootstrapQuery } from "../../auth/services/storefrontPublicApi";
 import ProductDetail from "../../../shared/blocks/ProductDetail";
+import AddToCart from "../../../shared/blocks/Addtocart";
 
 /** Public API bootstrap response (minimal shape used here) */
 type StorefrontBootstrap = {
@@ -44,7 +45,7 @@ export default function PublicStorefrontPage() {
 
   const api = data as StorefrontBootstrap;
 
-  //  Normalize to the Block[] shape expected by RenderLayout
+  // Normalize to the Block[] shape expected by RenderLayout
   const layout: Block[] = (api.layout ?? []).map((b) => ({
     id: b.id ?? b._id ?? undefined,
     code: b.code,
@@ -73,8 +74,15 @@ export default function PublicStorefrontPage() {
             index
             element={<RenderLayout layout={layout} businessId={businessId} />}
           />
+
           {/* product details: /{storeSlug}/p/:productSlug */}
           <Route path="p/:productSlug" element={<ProductDetail />} />
+
+          {/* NEW: add-to-cart style page routes */}
+          {/* /{storeSlug}/cart */}
+          <Route path="cart" element={<AddToCart />} />
+          {/* /{storeSlug}/checkout */}
+          <Route path="checkout" element={<AddToCart />} />
         </Routes>
       </main>
     </div>
