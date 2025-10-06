@@ -1,5 +1,4 @@
-// src/common/services/baseQueryWithReauth.ts
-
+// src/modules/auth/services/baseQueryWithReauth.ts
 import { fetchBaseQuery, FetchArgs } from "@reduxjs/toolkit/query/react";
 import { RootState } from "../../../common/state/store";
 import { loginSuccess, logout } from "../slices/authSlice";
@@ -27,8 +26,8 @@ const authBase = fetchBaseQuery({
   },
 });
 
-// ➋ “Admin” base (no `/auth` prefix, but still adds headers)
-const adminBase = fetchBaseQuery({
+// ➋ “Root” base (no `/auth` prefix, still adds headers)
+const rootBase = fetchBaseQuery({
   baseUrl: API_ROOT,
   credentials: "include",
   prepareHeaders: (headers, { getState }) => {
@@ -38,15 +37,35 @@ const adminBase = fetchBaseQuery({
   },
 });
 
-// ➌ Which paths should use the “adminBase” instead of authBase?
-const isAdminEndpoint = (url: string) =>
+// ➌ Use rootBase for these paths (no `/auth` prefix)
+const isRootEndpoint = (url: string) =>
   url.startsWith("/super-admin/") ||
   url.startsWith("/seller/business") ||
   url.startsWith("/seller/product") ||
-  url.startsWith("/seller/business") ||
-  url.startsWith("/files");
+  url.startsWith("/files") ||
+  url.startsWith("/customer/auth"); // ✅ match your Nest controller @Controller("customer/auth")
 
-// ➍ The wrapper
+// Helper: endpoints to skip refresh attempts (bootstrap flows)
+const shouldSkipRefresh = (url: string) => {
+  const path = url.split("?")[0];
+  const skipList = new Set<string>([
+    // seller
+    "/login",
+    "/register",
+    // customer OTP-first
+    "/customer/auth/login-init",
+    "/customer/auth/register",
+    "/customer/auth/confirm-mobile-otp",
+    "/customer/auth/resend-mobile-otp",
+    "/customer/auth/logout",
+
+    // refresh itself
+    "/refresh-auth-token",
+  ]);
+  return skipList.has(path);
+};
+
+// ➍ Wrapper with refresh
 export const baseQueryWithReauth: typeof authBase = async (
   args,
   api,
@@ -54,19 +73,19 @@ export const baseQueryWithReauth: typeof authBase = async (
 ) => {
   const url = typeof args === "string" ? args : args.url;
 
-  // 1️⃣ If it’s an admin endpoint, use adminBase
-  if (isAdminEndpoint(url)) {
-    return adminBase(args as FetchArgs, api, extraOptions);
+  // 1) Routes under API root (no `/auth` prefix)
+  if (isRootEndpoint(url)) {
+    return rootBase(args as FetchArgs, api, extraOptions);
   }
 
-  // 2️⃣ Otherwise use authBase + refresh logic
+  // 2) `/auth` prefixed routes + refresh logic
   let result = await authBase(args, api, extraOptions);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const err = result.error as any;
   const statusCode: number | undefined = err?.data?.statusCode;
 
   const requestUrl = typeof args === "string" ? args : args.url;
-  const skipRefresh = ["/login", "/register"].includes(requestUrl);
+  const skipRefresh = shouldSkipRefresh(requestUrl);
 
   if (result.error && statusCode === 401 && !skipRefresh) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -76,7 +95,7 @@ export const baseQueryWithReauth: typeof authBase = async (
       return result;
     }
 
-    // attempt token refresh
+    // try refresh
     const refreshRes = await authBase(
       { url: "/refresh-auth-token", method: "POST" },
       api,
@@ -90,7 +109,7 @@ export const baseQueryWithReauth: typeof authBase = async (
         id: string;
         name?: string;
         mobile: string;
-        role: UserRoleName[];
+        role: UserRoleName[] | string[];
         permissions: string[];
         mobile_confirmed?: boolean;
       };
@@ -110,7 +129,7 @@ export const baseQueryWithReauth: typeof authBase = async (
         })
       );
 
-      // retry original
+      // retry original once
       result = await authBase(args, api, {
         ...extraOptions,
         __isRetryAttempt: true,

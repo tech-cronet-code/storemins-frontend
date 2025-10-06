@@ -78,16 +78,54 @@ interface LoginPayload {
   password: string;
 }
 
+/* ---------------- Customer types ---------------- */
+export interface CustomerLoginInitPayload {
+  mobile: string;
+}
+export interface CustomerLoginInitResult {
+  id: string; // empty string if not found
+  needs_confirm_otp_code: boolean;
+  otpExpiresAt: string | null;
+  message?: string;
+}
+
+export interface CustomerRegisterPayload {
+  name: string;
+  mobile: string;
+  isTermAndPrivarcyEnable: boolean;
+  email?: string;
+}
+export interface CustomerRegisterResult {
+  id: string;
+  needs_confirm_otp_code: boolean;
+  otpExpiresAt: string | null;
+  message?: string;
+}
+
 // Add these imports at top
 interface ConfirmMobileOtpPayload {
   mobile: string;
   confirm_mobile_otp_code: string;
 }
 
+// interface ConfirmMobileOtpResponse {
+//   id: string;
+//   mobile: string;
+//   mobile_confirmed: boolean;
+//   message?: string;
+// }
+
 interface ConfirmMobileOtpResponse {
+  // your BE returns JwtResponseDto here (tokens + user)
   id: string;
+  name?: string;
   mobile: string;
-  mobile_confirmed: boolean;
+  role?: string[]; // keep lenient
+  permissions?: string[];
+  access_token: string;
+  refresh_token?: string | null; // cookie in BE, may be stripped from body
+  tenentId?: string | null;
+  mobile_confirmed?: boolean;
   message?: string;
 }
 
@@ -103,6 +141,18 @@ interface ResendMobileOtpResponse {
 //   name: string;
 // }
 
+export interface JwtResponseDto {
+  id: string;
+  name?: string;
+  mobile: string;
+  role?: UserRoleName[] | string[]; // normalized later
+  permissions?: string[];
+  access_token: string;
+  refresh_token?: string | null; // optional (cookie on BE)
+  tenentId?: string | null;
+  mobile_confirmed?: boolean;
+}
+
 interface UpdateProfileResponseDto {
   id: string;
   name: string;
@@ -114,6 +164,99 @@ export const apiClient = createApi({
   baseQuery: baseQueryWithReauth,
   reducerPath: "apiClient",
   endpoints: (builder) => ({
+    /* ======================= CUSTOMER AUTH ======================= */
+
+    // 1) login-init (mobile only) — always drive OTP flow
+    customerLoginInit: builder.mutation<
+      CustomerLoginInitResult,
+      CustomerLoginInitPayload
+    >({
+      query: (body) => ({
+        url: "/customer/auth/login-init",
+        method: "POST",
+        body,
+      }),
+      transformResponse: (raw: {
+        success: boolean;
+        message?: string;
+        statusCode: number;
+        data: CustomerLoginInitResult;
+      }) => ({
+        ...raw.data,
+        message: raw.message ?? raw.data?.message,
+      }),
+    }),
+
+    // 2) register (name + mobile [+ email?]) → sends OTP
+    customerRegister: builder.mutation<
+      CustomerRegisterResult,
+      CustomerRegisterPayload
+    >({
+      query: (body) => ({
+        url: "/customer/auth/register",
+        method: "POST",
+        body,
+      }),
+      transformResponse: (raw: {
+        success: boolean;
+        message?: string;
+        statusCode: number;
+        data: CustomerRegisterResult;
+      }) => ({
+        ...raw.data,
+        message: raw.message ?? raw.data?.message,
+      }),
+    }),
+
+    // 3) confirm-mobile-otp → issues tokens (access in body, refresh via cookie)
+    customerConfirmOtp: builder.mutation<
+      JwtResponseDto,
+      ConfirmMobileOtpPayload
+    >({
+      query: (body) => ({
+        url: "/customer/auth/confirm-mobile-otp",
+        method: "POST",
+        body,
+      }),
+      transformResponse: (raw: {
+        success: boolean;
+        message?: string;
+        statusCode: number;
+        data: JwtResponseDto;
+      }) => raw.data,
+    }),
+
+    // 4) resend-mobile-otp
+    customerResendOtp: builder.mutation<
+      ResendMobileOtpResponse,
+      ResendMobileOtpPayload
+    >({
+      query: (body) => ({
+        url: "/customer/auth/resend-mobile-otp",
+        method: "POST",
+        body,
+      }),
+      transformResponse: (raw: {
+        success: boolean;
+        statusCode: number;
+        data: ResendMobileOtpResponse;
+      }) => raw.data,
+    }),
+
+    // 5) logout
+    customerLogout: builder.mutation<
+      { message: string; statusCode: number },
+      { access_token: string }
+    >({
+      query: (body) => ({
+        url: "/customer/auth/logout",
+        method: "POST",
+        body,
+      }),
+    }),
+
+    /* ======================= SELLER AUTH (existing) ======================= */
+
     login: builder.mutation<LoginResponse, LoginPayload>({
       query: (body) => ({
         url: "/login",
@@ -368,7 +511,15 @@ export const apiClient = createApi({
   }),
 });
 
+/* ---------------- hooks ---------------- */
 export const {
+  // customer
+  useCustomerLoginInitMutation,
+  useCustomerRegisterMutation,
+  useCustomerConfirmOtpMutation,
+  useCustomerResendOtpMutation,
+  useCustomerLogoutMutation,
+
   useLoginMutation,
   useRegisterMutation,
   useGetUserDetailsQuery,

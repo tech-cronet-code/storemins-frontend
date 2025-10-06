@@ -7,6 +7,7 @@ import React, {
   useState,
 } from "react";
 import cn from "classnames";
+import CustomerLoginModal from "./CustomerLoginModal";
 
 /* ============================== Types ============================== */
 
@@ -423,189 +424,6 @@ const Drawer: React.FC<
   );
 };
 
-/* ============================== Auth Modal (inline) ============================== */
-
-type AuthMode = "signin" | "signup";
-
-const isValidPhone = (raw: string) => {
-  const digits = (raw || "").replace(/\D/g, "");
-  return digits.length >= 10 && digits.length <= 15;
-};
-
-const AuthModal: React.FC<{
-  open: boolean;
-  mode?: AuthMode;
-  onClose: () => void;
-  onModeChange?: (m: AuthMode) => void;
-  onRequestOtp?: (payload: {
-    mode: AuthMode;
-    name?: string;
-    phone: string;
-  }) => void;
-}> = ({
-  open,
-  mode: externalMode = "signin",
-  onClose,
-  onModeChange,
-  onRequestOtp,
-}) => {
-  useLockBodyScroll(open);
-  const [mode, setMode] = useState<AuthMode>(externalMode);
-  const [name, setName] = useState("");
-  const [phone, setPhone] = useState("");
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => setMode(externalMode), [externalMode]);
-
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
-    document.addEventListener("keydown", onKey);
-    setTimeout(() => inputRef.current?.focus(), 0);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [open, mode, onClose]);
-
-  if (!open) return null;
-
-  const canSubmit =
-    mode === "signin"
-      ? isValidPhone(phone)
-      : !!name.trim() && isValidPhone(phone);
-
-  const reqOtp = () => {
-    if (!canSubmit) return;
-    onRequestOtp?.({
-      mode,
-      name: mode === "signup" ? name.trim() : undefined,
-      phone,
-    });
-  };
-
-  const switchMode = (next: AuthMode) => {
-    setMode(next);
-    onModeChange?.(next);
-    setTimeout(() => inputRef.current?.focus(), 0);
-  };
-
-  return (
-    <div
-      className="fixed inset-0 z-[1000] bg-black/60 flex items-start justify-center p-3 sm:p-4 md:p-8"
-      onMouseDown={onClose}
-      role="dialog"
-      aria-modal="true"
-    >
-      <div
-        className="relative w-full max-w-md bg-white rounded-2xl shadow-2xl"
-        onMouseDown={(e) => e.stopPropagation()}
-      >
-        <button
-          aria-label="Close"
-          className="absolute right-3 top-3 h-8 w-8 rounded-full flex items-center justify-center text-slate-600 hover:bg-slate-100"
-          onClick={onClose}
-        >
-          <svg viewBox="0 0 24 24" width="18" height="18">
-            <path
-              d="M6 6l12 12M18 6l-12 12"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              fill="none"
-            />
-          </svg>
-        </button>
-
-        <div className="px-5 pt-6 pb-2 text-center">
-          <div className="text-lg font-semibold text-slate-900">
-            {mode === "signin" ? "Sign In" : "Sign Up"}
-          </div>
-        </div>
-
-        <div className="px-5 pb-5">
-          {mode === "signup" && (
-            <div className="mb-3">
-              <input
-                ref={inputRef}
-                type="text"
-                placeholder="Your Name *"
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-slate-200"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                autoComplete="name"
-              />
-            </div>
-          )}
-
-          {mode === "signin" && (
-            <div className="mb-3">
-              <input
-                ref={inputRef}
-                type="tel"
-                placeholder="Mobile Number *"
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-slate-200"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                autoComplete="tel"
-              />
-            </div>
-          )}
-
-          {mode === "signup" && (
-            <div className="mb-3">
-              <input
-                type="tel"
-                placeholder="Mobile Number *"
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-slate-200"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                autoComplete="tel"
-              />
-            </div>
-          )}
-
-          <button
-            type="button"
-            disabled={!canSubmit}
-            onClick={reqOtp}
-            className={`w-full rounded-md px-4 py-2 text-sm font-semibold tracking-wide ${
-              canSubmit
-                ? "bg-slate-900 text-white hover:bg-slate-800"
-                : "bg-slate-200 text-slate-500 cursor-not-allowed"
-            }`}
-          >
-            REQUEST OTP
-          </button>
-
-          <div className="mt-4 text-center text-sm text-slate-700">
-            {mode === "signin" ? (
-              <>
-                Don&apos;t have an account?{" "}
-                <button
-                  type="button"
-                  onClick={() => switchMode("signup")}
-                  className="text-emerald-700 font-medium hover:underline"
-                >
-                  Sign Up
-                </button>
-              </>
-            ) : (
-              <>
-                Already have an account?{" "}
-                <button
-                  type="button"
-                  onClick={() => switchMode("signin")}
-                  className="text-emerald-700 font-medium hover:underline"
-                >
-                  Sign In
-                </button>
-              </>
-            )}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
-
 /* ============================== Component ============================== */
 
 export const TopNavBlock: React.FC<{ settings?: Partial<TopNavSettings> }> = ({
@@ -628,9 +446,8 @@ export const TopNavBlock: React.FC<{ settings?: Partial<TopNavSettings> }> = ({
   const [menuOpen, setMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
 
-  // NEW: auth modal state
+  // NEW: external auth modal state
   const [authOpen, setAuthOpen] = useState(false);
-  const [authMode, setAuthMode] = useState<AuthMode>("signin");
 
   const showOnMobile = s.visibility !== "desktop";
   const showOnDesktop = s.visibility !== "mobile";
@@ -779,7 +596,6 @@ export const TopNavBlock: React.FC<{ settings?: Partial<TopNavSettings> }> = ({
                 color={textColor}
                 label="Profile"
                 onClick={() => {
-                  setAuthMode("signin");
                   setAuthOpen(true);
                 }}
               >
@@ -857,16 +673,8 @@ export const TopNavBlock: React.FC<{ settings?: Partial<TopNavSettings> }> = ({
         placeholder={s.desktop_search_bar_placeholder_text || "Search products"}
       />
 
-      {/* Auth modal */}
-      <AuthModal
-        open={authOpen}
-        mode={authMode}
-        onModeChange={setAuthMode}
-        onClose={() => setAuthOpen(false)}
-        onRequestOtp={({ mode, name, phone }) => {
-          console.log("Request OTP:", { mode, name, phone });
-        }}
-      />
+      {/* Auth modal (external) */}
+      <CustomerLoginModal open={authOpen} onClose={() => setAuthOpen(false)} />
 
       {s.custom_css ? <style>{s.custom_css}</style> : null}
     </>
