@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Link, useParams, useNavigate } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 
 import StorefrontLayout from "./StorefrontLayout";
 
@@ -9,6 +9,7 @@ import {
 } from "../../modules/auth/services/productApi";
 import { convertPath } from "../../modules/auth/utils/useImagePath";
 import { useAuth } from "../../modules/auth/contexts/AuthContext";
+import CartDock from "./CartDock";
 
 /* ------------------------------ local types ------------------------------ */
 type MediaItem = { url?: string; order?: number | null | undefined };
@@ -46,13 +47,13 @@ type ProductLike = ProductListItem & {
 
 type Coupon = {
   id: string;
-  title: string; // e.g. "Items At ₹99"
-  subtitle: string; // e.g. "ON SELECT ITEMS"
-  code?: string; // e.g. "TRYNEW"
+  title: string;
+  subtitle: string;
+  code?: string;
   badge: "DEAL" | "NEW" | "₹" | "%";
-  badgeBg: string; // Tailwind color classes
-  badgeFg: string; // Tailwind fg classes
-  accent?: string; // Tailwind text/border color for tiny accents
+  badgeBg: string;
+  badgeFg: string;
+  accent?: string;
 };
 
 /* ------------------------------ utilities ------------------------------ */
@@ -163,7 +164,14 @@ const PriceText: React.FC<{
   currency?: string;
   strike?: boolean;
   strong?: boolean;
-}> = ({ valuePaise, currency = "INR", strike = false, strong = false }) => {
+  className?: string;
+}> = ({
+  valuePaise,
+  currency = "INR",
+  strike = false,
+  strong = false,
+  className,
+}) => {
   const formatted = useMemo(() => {
     const rupees = Math.round(valuePaise / 100);
     if (currency === "INR") {
@@ -184,6 +192,7 @@ const PriceText: React.FC<{
   return (
     <span
       className={cn(
+        className,
         strike && "line-through text-slate-400",
         strong && "font-semibold text-slate-900"
       )}
@@ -193,14 +202,7 @@ const PriceText: React.FC<{
   );
 };
 
-/**
- * Compute selling price, MRP and discount %.
- * Matches the ProductCard logic:
- * - Selling price: discounted/sale/final/current/price
- * - MRP: mrp/listPrice/original/compareAt/strike
- * - If MRP missing BUT we have a discounted price and a base price,
- *   treat base `price` as MRP (common pattern from APIs).
- */
+/** Compute selling price, MRP and discount %. */
 function computePrice(p?: ProductLike) {
   if (!p) return { price: 0, mrp: 0, pct: null as number | null };
 
@@ -216,7 +218,6 @@ function computePrice(p?: ProductLike) {
     p.mrp ?? p.listPrice ?? p.originalPrice ?? p.compareAtPrice ?? p.strikePrice
   );
 
-  // Align with card where `price` acts as MRP when discountedPrice is present.
   const basePricePaise = toPaise(p.price);
   const hasExplicitDiscount =
     toPaise(
@@ -224,7 +225,7 @@ function computePrice(p?: ProductLike) {
     ) > 0 && basePricePaise > 0;
 
   if (mrpPaise === 0 && hasExplicitDiscount) {
-    mrpPaise = basePricePaise; // treat listed `price` as the MRP
+    mrpPaise = basePricePaise;
   }
 
   let pct: number | null = null;
@@ -234,7 +235,6 @@ function computePrice(p?: ProductLike) {
       Math.min(100, Math.round(((mrpPaise - sellPaise) / mrpPaise) * 100))
     );
   } else if (sellPaise > 0 && mrpPaise === 0) {
-    // soft fallback so UI looks reasonable if only one price is known
     mrpPaise = Math.round(sellPaise * 1.25);
     pct = Math.max(
       0,
@@ -267,7 +267,6 @@ const Thumb: React.FC<{
   </button>
 );
 
-/** Consistent inner spacing when using divide-y containers */
 type SectionPadProps = React.PropsWithChildren<{
   top?: boolean;
   bottom?: boolean;
@@ -435,7 +434,6 @@ const CouponsCarousel: React.FC<{
       </div>
 
       <div className="relative">
-        {/* desktop arrows */}
         <button
           onClick={() => scrollBy("left")}
           className="hidden md:flex absolute -left-3 top-1/2 -translate-y-1/2 z-10 h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white shadow hover:bg-slate-50"
@@ -599,13 +597,44 @@ const RefundReturnsCard: React.FC = () => (
 );
 
 /* ------------------------------ main component ------------------------------ */
+
+/** Try to pick category name from various possible API shapes */
+function pickCategoryName(p?: ProductLike | null): string | null {
+  if (!p) return null;
+  const anyp: any = p;
+
+  const direct =
+    anyp?.category?.name ||
+    anyp?.category?.title ||
+    anyp?.categoryName ||
+    (Array.isArray(anyp?.categories) && anyp.categories[0]?.name) ||
+    (Array.isArray(anyp?.categories) && anyp.categories[0]?.title);
+
+  if (direct && String(direct).trim()) return String(direct).trim();
+
+  const links = anyp?.categoryLinks;
+  if (Array.isArray(links) && links.length) {
+    const l = links[0] ?? {};
+    const viaLink =
+      l.categoryName ||
+      l.name ||
+      l?.category?.name ||
+      l?.category?.title ||
+      l?.parentCategoryName ||
+      l?.parentCategory?.name ||
+      l?.parent?.name;
+    if (viaLink && String(viaLink).trim()) return String(viaLink).trim();
+  }
+
+  return null;
+}
+
 const ProductDetail: React.FC = () => {
   // Route params: /:storeSlug/p/:productSlug
   const { storeSlug = "", productSlug = "" } = useParams<{
     storeSlug?: string;
     productSlug?: string;
   }>();
-  const navigate = useNavigate();
 
   // businessId from auth
   type AuthDetails = { storeLinks?: Array<{ businessId?: string | null }> };
@@ -649,7 +678,7 @@ const ProductDetail: React.FC = () => {
   const [couponOpen, setCouponOpen] = useState(false);
   const [selectedCoupon, setSelectedCoupon] = useState<Coupon | null>(null);
 
-  // sample coupons (can be API-driven later)
+  // sample coupons
   const coupons = useMemo<Coupon[]>(
     () => [
       {
@@ -710,11 +739,12 @@ const ProductDetail: React.FC = () => {
   );
   const primaryImage = images[0] ?? FALLBACK_IMG;
 
-  // ensure at least 3 thumbs; repeat primary
   const thumbs = useMemo(() => {
     const need = Math.max(3, images.length || 1);
     return Array.from({ length: need }, (_, i) => images[i] ?? primaryImage);
   }, [images, primaryImage]);
+
+  const categoryLabel = useMemo(() => pickCategoryName(product), [product]);
 
   /* ---------------------- early returns ---------------------- */
   if (!productSlug) return <div className="p-6">Missing product slug.</div>;
@@ -746,9 +776,9 @@ const ProductDetail: React.FC = () => {
       type CartItem = {
         id: string;
         name: string;
-        price: number; // rupees
-        mrp?: number; // rupees
-        pct?: number | null; // %
+        price: number;
+        mrp?: number;
+        pct?: number | null;
         image: string;
         qty: number;
         currency: string;
@@ -791,18 +821,6 @@ const ProductDetail: React.FC = () => {
     } catch {
       /* ignore */
     }
-
-    // redirect after adding
-    navigate(`/${storeSlug}/checkout`);
-  }
-
-  function buyNow(p: ProductLike, quantity: number) {
-    addToCart(p, quantity);
-    try {
-      window.dispatchEvent(new CustomEvent("cart:open"));
-    } catch {
-      /* ignore */
-    }
   }
 
   /* ------------------------------- RENDER ------------------------------- */
@@ -822,10 +840,9 @@ const ProductDetail: React.FC = () => {
             ← Back to store
           </Link>
         </div>
-        {/* subtle liner under top bar */}
         <div className="mt-3 border-t border-slate-200/70" />
 
-        {/* MOBILE gallery + info */}
+        {/* MOBILE */}
         <div className="lg:hidden mt-3">
           <div className="relative w-full aspect-[4/5] sm:aspect-[3/4] rounded-3xl overflow-hidden border border-slate-200 shadow-md bg-gradient-to-b from-slate-50 to-white">
             <img
@@ -846,11 +863,10 @@ const ProductDetail: React.FC = () => {
             ))}
           </div>
 
-          {/* MOBILE INFO */}
           <div className="mt-5">
-            <div className="text-sky-600 font-semibold">
-              Godavari spicy pickles
-            </div>
+            {categoryLabel && (
+              <div className="text-sky-600 font-semibold">{categoryLabel}</div>
+            )}
             <h1 className="mt-1 text-2xl font-semibold text-slate-900">
               {product.name}
             </h1>
@@ -860,26 +876,36 @@ const ProductDetail: React.FC = () => {
               </div>
             )}
 
-            <div className="mt-3 inline-flex items-baseline gap-3 rounded-2xl bg-slate-50/80 px-4 py-2.5 border border-slate-200">
-              <PriceText valuePaise={price} currency={currency} strong />
+            {/* PRICE BLOCK — compact, clean */}
+            <div className="mt-3 flex items-baseline gap-2">
+              <PriceText
+                valuePaise={price}
+                currency={currency}
+                strong
+                className="text-xl font-bold"
+              />
               {mrp > price && (
                 <>
-                  <PriceText valuePaise={mrp} currency={currency} strike />
+                  <PriceText
+                    valuePaise={mrp}
+                    currency={currency}
+                    strike
+                    className="text-sm"
+                  />
                   {pct !== null && (
                     <span className="text-xs font-semibold text-amber-600">
-                      ({pct}% Off)
+                      {pct}% Off
                     </span>
                   )}
                 </>
               )}
             </div>
 
+            {/* STOCK — quiet, inline */}
             <div
               className={cn(
-                "mt-2 inline-flex items-center gap-2 text-xs rounded-full px-3 py-1 border",
-                inStock
-                  ? "text-emerald-700 border-emerald-200 bg-emerald-50"
-                  : "text-rose-700 border-rose-200 bg-rose-50"
+                "mt-1.5 flex items-center gap-2 text-sm",
+                inStock ? "text-emerald-700" : "text-rose-700"
               )}
             >
               <span
@@ -926,7 +952,6 @@ const ProductDetail: React.FC = () => {
                 </button>
               </div>
 
-              {/* Redirect after adding */}
               <button
                 disabled={!inStock}
                 onClick={() => addToCart(product, qty)}
@@ -935,17 +960,8 @@ const ProductDetail: React.FC = () => {
               >
                 Add to Cart
               </button>
-              <button
-                disabled={!inStock}
-                onClick={() => buyNow(product, qty)}
-                className="flex-1 px-4 rounded-xl border border-slate-300 font-medium hover:bg-slate-50 disabled:opacity-60 disabled:cursor-not-allowed"
-                aria-label="Buy now"
-              >
-                Buy Now
-              </button>
             </div>
 
-            {/* Coupon carousel (mobile) */}
             <CouponsCarousel
               coupons={coupons}
               onOpen={(c) => {
@@ -953,14 +969,12 @@ const ProductDetail: React.FC = () => {
                 setCouponOpen(true);
               }}
             />
-            {/* subtle liner after coupons */}
             <div className="mt-6 border-t border-slate-200/70" />
           </div>
         </div>
-        {/* subtle liner after mobile block */}
         <div className="lg:hidden mt-6 border-t border-slate-200/70" />
 
-        {/* DESKTOP: gallery + info */}
+        {/* DESKTOP */}
         <div className="hidden lg:grid lg:grid-cols-2 lg:gap-12 pt-6">
           <div>
             <div className="aspect-square w-full rounded-3xl overflow-hidden border border-slate-200 shadow bg-gradient-to-b from-slate-50 to-white">
@@ -983,9 +997,9 @@ const ProductDetail: React.FC = () => {
           </div>
 
           <div className="pt-1">
-            <div className="text-sky-600 font-semibold">
-              Godavari spicy pickles
-            </div>
+            {categoryLabel && (
+              <div className="text-sky-600 font-semibold">{categoryLabel}</div>
+            )}
             <h1 className="mt-1 text-3xl lg:text-4xl font-semibold tracking-tight text-slate-900">
               {product.name}
             </h1>
@@ -995,26 +1009,36 @@ const ProductDetail: React.FC = () => {
               </div>
             )}
 
-            <div className="mt-5 inline-flex items-baseline gap-3 rounded-2xl bg-slate-50/80 px-4 py-3 border border-slate-200">
-              <PriceText valuePaise={price} currency={currency} strong />
+            {/* PRICE BLOCK — compact, clean */}
+            <div className="mt-4 flex items-baseline gap-3">
+              <PriceText
+                valuePaise={price}
+                currency={currency}
+                strong
+                className="text-2xl font-bold"
+              />
               {mrp > price && (
                 <>
-                  <PriceText valuePaise={mrp} currency={currency} strike />
+                  <PriceText
+                    valuePaise={mrp}
+                    currency={currency}
+                    strike
+                    className="text-base"
+                  />
                   {pct !== null && (
-                    <span className="text-xs font-semibold text-amber-600">
-                      ({pct}% Off)
+                    <span className="text-sm font-semibold text-amber-600">
+                      {pct}% Off
                     </span>
                   )}
                 </>
               )}
             </div>
 
+            {/* STOCK — quiet, inline */}
             <div
               className={cn(
-                "mt-3 inline-flex items-center gap-2 text-sm rounded-full px-3 py-1 border",
-                inStock
-                  ? "text-emerald-700 border-emerald-200 bg-emerald-50"
-                  : "text-rose-700 border-rose-200 bg-rose-50"
+                "mt-2 flex items-center gap-2 text-sm",
+                inStock ? "text-emerald-700" : "text-rose-700"
               )}
             >
               <span
@@ -1061,7 +1085,6 @@ const ProductDetail: React.FC = () => {
                 </button>
               </div>
 
-              {/* Redirect after adding */}
               <button
                 disabled={!inStock}
                 onClick={() => addToCart(product, qty)}
@@ -1070,17 +1093,8 @@ const ProductDetail: React.FC = () => {
               >
                 Add to Cart
               </button>
-              <button
-                disabled={!inStock}
-                onClick={() => buyNow(product, qty)}
-                className="flex-1 px-4 rounded-xl border border-slate-300 font-medium hover:bg-slate-50 disabled:opacity-60 disabled:cursor-not-allowed"
-                aria-label="Buy now"
-              >
-                Buy now
-              </button>
             </div>
 
-            {/* Coupons (desktop) */}
             <CouponsCarousel
               coupons={coupons}
               onOpen={(c) => {
@@ -1088,16 +1102,13 @@ const ProductDetail: React.FC = () => {
                 setCouponOpen(true);
               }}
             />
-            {/* subtle liner after coupons */}
             <div className="mt-6 border-t border-slate-200/70" />
 
-            {/* Only Product Details above fold */}
             <div className="mt-8 hidden lg:block">
               <ProductDetailsCard product={product} />
             </div>
           </div>
         </div>
-        {/* subtle liner after desktop grid */}
         <div className="hidden lg:block mt-8 border-t border-slate-200/70" />
 
         {/* BELOW-THE-FOLD SECTIONS ON DESKTOP */}
@@ -1125,7 +1136,6 @@ const ProductDetail: React.FC = () => {
 
         {/* ---------- RECOMMENDATIONS ---------- */}
         {(() => {
-          // collect parent category ids (or category ids if parent not present)
           const ids = new Set<string>();
           const links =
             (product as unknown as { categoryLinks?: any[] })?.categoryLinks ||
@@ -1137,7 +1147,6 @@ const ProductDetail: React.FC = () => {
             if (pid) ids.add(pid);
           }
 
-          // pick related products: same parent category, not the current product
           const related = all
             .filter((p) => {
               if (
@@ -1156,7 +1165,6 @@ const ProductDetail: React.FC = () => {
                 return pid && ids.has(pid);
               });
             })
-            // keep unique by id
             .filter(
               (p, i, arr) =>
                 arr.findIndex(
@@ -1187,7 +1195,6 @@ const ProductDetail: React.FC = () => {
                   </div>
                 </div>
 
-                {/* grid on desktop, horizontal scroll on mobile */}
                 <div className="mt-4">
                   <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
                     {related.map((rp) => {
@@ -1262,6 +1269,9 @@ const ProductDetail: React.FC = () => {
         onClose={() => setCouponOpen(false)}
         coupon={selectedCoupon}
       />
+
+      {/* Bottom “Your cart (N)” dock */}
+      <CartDock checkoutPath={`/${storeSlug}/checkout`} />
     </StorefrontLayout>
   );
 };

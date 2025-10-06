@@ -15,44 +15,50 @@ export const IMAGE_URL = isDev
   ? import.meta.env.VITE_PUBLIC_IMAGE_URL_LOCAL
   : import.meta.env.VITE_PUBLIC_IMAGE_URL_LIVE;
 
-// ➊ “Auth” base (prefixes `/auth`, adds headers)
+// ───────────────── bases ─────────────────
+const withAuthHeaders = (headers: Headers, getState: () => unknown) => {
+  const token = (getState() as RootState).auth.token;
+  if (token) headers.set("Authorization", `Bearer ${token}`);
+  return headers;
+};
+
 const authBase = fetchBaseQuery({
   baseUrl: `${API_ROOT}/auth`,
   credentials: "include",
-  prepareHeaders: (headers, { getState }) => {
-    const token = (getState() as RootState).auth.token;
-    if (token) headers.set("Authorization", `Bearer ${token}`);
-    return headers;
-  },
+  prepareHeaders: (h, api) => withAuthHeaders(h, api.getState),
 });
 
-// ➋ “Root” base (no `/auth` prefix, still adds headers)
 const rootBase = fetchBaseQuery({
   baseUrl: API_ROOT,
   credentials: "include",
-  prepareHeaders: (headers, { getState }) => {
-    const token = (getState() as RootState).auth.token;
-    if (token) headers.set("Authorization", `Bearer ${token}`);
-    return headers;
-  },
+  prepareHeaders: (h, api) => withAuthHeaders(h, api.getState),
 });
 
-// ➌ Use rootBase for these paths (no `/auth` prefix)
+// ───────────────── routing ─────────────────
+// Everything under /customer/** should go to ROOT,
+// except the explicit CUSTOMER AUTH endpoints.
+const isCustomerAuth = (url: string) => url.startsWith("/customer/auth");
+
+const isCustomerNonAuth = (url: string) =>
+  url.startsWith("/customer/") && !isCustomerAuth(url);
+
+// Other modules that must NOT be prefixed with /auth.
 const isRootEndpoint = (url: string) =>
+  isCustomerNonAuth(url) ||
   url.startsWith("/super-admin/") ||
   url.startsWith("/seller/business") ||
   url.startsWith("/seller/product") ||
-  url.startsWith("/files") ||
-  url.startsWith("/customer/auth"); // ✅ match your Nest controller @Controller("customer/auth")
+  url.startsWith("/files");
 
-// Helper: endpoints to skip refresh attempts (bootstrap flows)
+// endpoints to skip refresh attempts
 const shouldSkipRefresh = (url: string) => {
   const path = url.split("?")[0];
-  const skipList = new Set<string>([
-    // seller
+  const skip = new Set<string>([
+    // SELLER auth
     "/login",
     "/register",
-    // customer OTP-first
+
+    // CUSTOMER auth (OTP flow)
     "/customer/auth/login-init",
     "/customer/auth/register",
     "/customer/auth/confirm-mobile-otp",
@@ -62,10 +68,10 @@ const shouldSkipRefresh = (url: string) => {
     // refresh itself
     "/refresh-auth-token",
   ]);
-  return skipList.has(path);
+  return skip.has(path);
 };
 
-// ➍ Wrapper with refresh
+// ───────────────── wrapper with refresh ─────────────────
 export const baseQueryWithReauth: typeof authBase = async (
   args,
   api,
@@ -73,29 +79,27 @@ export const baseQueryWithReauth: typeof authBase = async (
 ) => {
   const url = typeof args === "string" ? args : args.url;
 
-  // 1) Routes under API root (no `/auth` prefix)
+  // Route to ROOT (no /auth prefix) when appropriate
   if (isRootEndpoint(url)) {
     return rootBase(args as FetchArgs, api, extraOptions);
   }
 
-  // 2) `/auth` prefixed routes + refresh logic
+  // Otherwise use /auth-prefixed base
   let result = await authBase(args, api, extraOptions);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const err = result.error as any;
-  const statusCode: number | undefined = err?.data?.statusCode;
 
+  // If unauthorized, try refresh unless excluded
+  const err: any = result.error;
+  const statusCode: number | undefined = err?.data?.statusCode;
   const requestUrl = typeof args === "string" ? args : args.url;
   const skipRefresh = shouldSkipRefresh(requestUrl);
 
   if (result.error && statusCode === 401 && !skipRefresh) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const alreadyRetried = (extraOptions as any)?.__isRetryAttempt;
     if (alreadyRetried) {
       api.dispatch(logout());
       return result;
     }
 
-    // try refresh
     const refreshRes = await authBase(
       { url: "/refresh-auth-token", method: "POST" },
       api,

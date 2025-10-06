@@ -10,6 +10,7 @@ import {
   ProductCategoryListResponse,
   ProductListItem,
 } from "../../modules/auth/services/productApi";
+import CartDock from "./CartDock";
 
 /* ------------------------- utils ------------------------- */
 const cn = (...v: (string | false | null | undefined)[]) =>
@@ -57,11 +58,9 @@ function getPrimaryMediaDiskName(product: any): string | undefined {
 /** Robust primary image URL resolver (handles media OR images) */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function getPrimaryImageUrl(product: any): string {
-  // 1) media (diskName)
   const disk = getPrimaryMediaDiskName(product);
   if (disk) return toProductImageUrl(disk);
 
-  // 2) images (already url or diskName)
   const imgs: unknown = product?.images;
   if (Array.isArray(imgs) && imgs.length > 0) {
     const first = imgs[0];
@@ -69,7 +68,6 @@ function getPrimaryImageUrl(product: any): string {
       return looksLikeUrl(first) ? first : toProductImageUrl(first);
     }
   }
-
   return "";
 }
 
@@ -199,7 +197,6 @@ const ProductCard = ({
 
   return (
     <div className="bg-white border border-slate-200 rounded-2xl sm:rounded-3xl overflow-hidden flex flex-col shadow-[0_6px_24px_-12px_rgba(0,0,0,0.2)] transition-all hover:shadow-[0_16px_40px_-18px_rgba(0,0,0,0.25)]">
-      {/* 👇 This path matches <Route path="p/:productSlug" .../> inside PublicStorefrontPage */}
       <Link to={`p/${p.slug || p.id}`} className="block">
         <div className="relative aspect-square bg-slate-50">
           <img
@@ -360,7 +357,6 @@ export default function StorefrontWithApiImages({ settings = {} }: Props) {
     ];
     const normed = all.map((p) => ({
       ...p,
-      // ensure images field used by resolver
       images: Array.isArray(p.images) ? p.images : p.images ? [p.images] : [],
     }));
     const map: Record<string, any[]> = {};
@@ -621,7 +617,6 @@ export default function StorefrontWithApiImages({ settings = {} }: Props) {
       `}</style>
 
       <div className="w-full px-3 sm:px-5 lg:px-8 xl:px-10 2xl:px-14 py-6 lg:py-8 mx-auto">
-        {/* header + mobile trigger */}
         <div className="flex items-center justify-between mb-3">
           <div>
             <div className="text-xl lg:text-2xl font-semibold text-slate-900">
@@ -642,9 +637,7 @@ export default function StorefrontWithApiImages({ settings = {} }: Props) {
           )}
         </div>
 
-        {/* Desktop layout */}
         <div className="flex flex-nowrap gap-6 xl:gap-8 2xl:gap-10">
-          {/* LEFT RAIL */}
           <aside className="hidden lg:block w-[260px] xl:w-[300px] 2xl:w-[340px] shrink-0">
             {cats.length > 0 && (
               <div className="sticky top-2">
@@ -686,13 +679,11 @@ export default function StorefrontWithApiImages({ settings = {} }: Props) {
             )}
           </aside>
 
-          {/* Separator */}
           <div
             className="hidden lg:block w-px self-stretch bg-slate-900/10 rounded-full"
             aria-hidden="true"
           />
 
-          {/* RIGHT CONTENT */}
           <main className="min-w-0 flex-1">
             <div className="mb-3 flex gap-2 justify-end">
               {cats.length > 0 && (
@@ -728,8 +719,10 @@ export default function StorefrontWithApiImages({ settings = {} }: Props) {
         </div>
       </div>
 
-      {/* Mobile sheet */}
       {MobileCatSheet}
+
+      {/* Reusable cart dock */}
+      <CartDock />
     </section>
   );
 }

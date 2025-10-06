@@ -1,23 +1,55 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import BottomNav from "./BottomNav";
 
 /* ============================================================================
-   Responsive AddToCart
-   - Mobile (< md): fixed Address/Payment card above BottomNav with smart spacer
-   - Desktop (md+): in-flow Address/Payment section (no stickiness)
+   AddToCart with strict ±1 stepper + remove + CLEAR CART + REQUIRED ADDRESS
+   - Address picker popup (radio list) — must choose before payment
+   - Selection persisted in localStorage (selected_address_id)
+   - Enhanced UX for address requirement (clear state, helper text, pills)
    ============================================================================ */
 
-type CartItem = {
+type UiCartItem = {
   id: string;
   title: string;
   variant?: string;
   price: number; // rupees each
   qty: number;
   image: string;
+  currency?: string;
+  stock?: number;
 };
 
-const APP_BAR_H = 56; // header height
+type StoredCartItem = {
+  id?: string | number;
+  name?: string;
+  title?: string;
+  variant?: string;
+  price?: number;
+  image?: string;
+  qty?: number;
+  currency?: string;
+  stock?: number;
+};
+
+/* ---------------- Address types used by the picker ---------------- */
+type AddressKind = "home" | "work" | "other";
+type Address = {
+  id: string;
+  label: string;
+  kind: AddressKind;
+  line1: string;
+  line2?: string | null;
+  city: string;
+  state: string;
+  postalCode: string;
+  country?: string;
+  isDefault?: boolean;
+  createdAt?: number;
+};
+
+const APP_BAR_H = 56;
 
 const currencyINR = (v: number) =>
   "₹" + new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 }).format(v);
@@ -35,168 +67,645 @@ const Divider: React.FC<{ dashed?: boolean; className?: string }> = ({
   />
 );
 
-const IconBtn: React.FC<
-  React.ButtonHTMLAttributes<HTMLButtonElement> & { ariaLabel?: string }
-> = ({ className, ariaLabel, children, ...props }) => (
-  <button
-    aria-label={ariaLabel}
-    {...props}
-    className={[
-      "h-9 w-9 inline-flex items-center justify-center rounded-full",
-      "border border-slate-200/80 bg-white shadow-sm",
-      "hover:bg-slate-50 active:scale-[0.96] transition",
-      "focus:outline-none focus:ring-2 focus:ring-sky-300/60",
-      "motion-reduce:transition-none motion-reduce:active:scale-100",
-      className || "",
-    ].join(" ")}
-  >
-    {children}
-  </button>
-);
-
-const StarSellerPill: React.FC = () => (
-  <span
-    className={[
-      "inline-flex items-center gap-1.5 rounded-full",
-      "px-2.5 py-[3px] text-[11px] font-medium",
-      "border border-emerald-200 text-emerald-700",
-      "bg-[rgb(232,247,238)] shadow-[0_0_0_1px_rgba(16,185,129,0.04),0_1px_2px_0_rgba(16,185,129,0.10)]",
-    ].join(" ")}
-  >
-    <svg
-      viewBox="0 0 24 24"
-      className="h-3.5 w-3.5"
-      fill="currentColor"
-      aria-hidden="true"
+/* Tiny pills */
+const Pill = ({
+  tone = "slate",
+  children,
+}: {
+  tone?: "slate" | "emerald" | "amber";
+  children: React.ReactNode;
+}) => {
+  const t =
+    tone === "emerald"
+      ? "bg-emerald-50 text-emerald-700 ring-emerald-200"
+      : tone === "amber"
+      ? "bg-amber-50 text-amber-700 ring-amber-200"
+      : "bg-slate-50 text-slate-700 ring-slate-200";
+  return (
+    <span
+      className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold ring-1 ${t}`}
     >
-      <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" />
-    </svg>
-    <span>Star Seller on</span>
-    <span className="font-semibold">minis</span>
-  </span>
-);
+      {children}
+    </span>
+  );
+};
 
-/* ---- TS-safe media query hook ---- */
+/* ---------- IconBtn forwards ref so you can pass `ref` ---------- */
+type IconBtnProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
+  ariaLabel?: string;
+};
+const IconBtn = React.forwardRef<HTMLButtonElement, IconBtnProps>(
+  ({ className, ariaLabel, children, ...props }, ref) => (
+    <button
+      aria-label={ariaLabel}
+      ref={ref}
+      {...props}
+      className={[
+        "h-9 w-9 inline-flex items-center justify-center rounded-full",
+        "border border-slate-200/80 bg-white shadow-sm",
+        "hover:bg-slate-50 active:scale-[0.96] transition",
+        "focus:outline-none focus:ring-2 focus:ring-sky-300/60",
+        "motion-reduce:transition-none motion-reduce:active:scale-100",
+        className || "",
+      ].join(" ")}
+    >
+      {children}
+    </button>
+  )
+);
+IconBtn.displayName = "IconBtn";
+
+/* --------------------------- media query hook --------------------------- */
 function useMediaQuery(query: string) {
   const [matches, setMatches] = useState<boolean>(() =>
     typeof window !== "undefined" ? window.matchMedia(query).matches : false
   );
-
   useEffect(() => {
     if (typeof window === "undefined") return;
-
     const mql = window.matchMedia(query);
     const handler = (e: MediaQueryListEvent) => setMatches(e.matches);
-
     setMatches(mql.matches);
-
-    // Modern browsers
     mql.addEventListener?.("change", handler);
-    // Legacy Safari fallback (deprecated API)
     (mql as any).addListener?.(handler);
-
     return () => {
       mql.removeEventListener?.("change", handler);
       (mql as any).removeListener?.(handler);
     };
   }, [query]);
-
   return matches;
 }
 
-type CartItemT = CartItem;
+/* ----------------------------- cart helpers ---------------------------- */
+const FALLBACK_IMG =
+  `data:image/svg+xml;utf8,` +
+  encodeURIComponent(
+    `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 160 120'><rect width='100%' height='100%' fill='#f3f4f6'/><g fill='#9ca3af' font-family='system-ui,Segoe UI,Roboto,sans-serif' font-size='12' text-anchor='middle'><text x='80' y='64'>Image</text></g></svg>`
+  );
 
+function clampQty(q: number, max: number) {
+  if (!Number.isFinite(q)) return 1;
+  return Math.max(1, Math.min(max, Math.round(q)));
+}
+
+/** Unlimited in UI. To respect stock, return Math.max(1, Number(item?.stock) || Number.MAX_SAFE_INTEGER). */
+function getMaxQtyFor(_item?: { stock?: number }) {
+  return Number.MAX_SAFE_INTEGER;
+}
+
+function parseStoredArray(raw: string | null): StoredCartItem[] {
+  try {
+    const arr = raw ? (JSON.parse(raw) as StoredCartItem[]) : [];
+    return Array.isArray(arr) ? arr : [];
+  } catch {
+    return [];
+  }
+}
+
+/** Migrate legacy key once. */
+function migrateLegacyOnce() {
+  try {
+    const current = localStorage.getItem("cart");
+    const legacy = localStorage.getItem("shopping_cart");
+    if (!current && legacy) localStorage.setItem("cart", legacy);
+    if (legacy) localStorage.removeItem("shopping_cart");
+  } catch {
+    /* ignore */
+  }
+}
+
+function readCart(): UiCartItem[] {
+  const a = parseStoredArray(localStorage.getItem("cart"));
+  const map = new Map<string, UiCartItem>();
+  for (const it of a) {
+    const id = String(it?.id ?? "");
+    if (!id) continue;
+    const base: UiCartItem = {
+      id,
+      title: (it.title || it.name || "Product").trim(),
+      variant: it.variant || undefined,
+      price: Number(it.price ?? 0) || 0,
+      qty: Math.max(1, Number(it.qty ?? 1) || 1),
+      image: it.image || FALLBACK_IMG,
+      currency: it.currency || "INR",
+      stock: Number.isFinite(it.stock as number) ? Number(it.stock) : undefined,
+    };
+    base.qty = clampQty(base.qty, getMaxQtyFor(base));
+    map.set(id, base);
+  }
+  return Array.from(map.values());
+}
+
+function writeCart(items: UiCartItem[]) {
+  try {
+    const out = items.map((i) => ({
+      id: i.id,
+      name: i.title,
+      price: i.price,
+      image: i.image,
+      qty: i.qty,
+      currency: i.currency || "INR",
+      stock: i.stock,
+    }));
+    localStorage.setItem("cart", JSON.stringify(out));
+    window.dispatchEvent(
+      new CustomEvent("cart:update", { detail: { size: out.length } })
+    );
+  } catch {
+    /* ignore */
+  }
+}
+
+/* --------------------- Rock-solid stepper (CLICK ONLY) --------------------- */
+const QtyStepper: React.FC<{
+  value: number;
+  max: number;
+  onBump: (delta: 1 | -1) => void;
+}> = ({ value, max, onBump }) => {
+  const MIN = 1;
+  const atMin = value <= MIN;
+  const atMax = value >= max;
+
+  const handleClick =
+    (dir: -1 | 1) => (e: React.MouseEvent<HTMLButtonElement>) => {
+      if (e.detail !== 1) return;
+      if ((dir === -1 && !atMin) || (dir === 1 && !atMax))
+        onBump(dir as 1 | -1);
+    };
+
+  const handleKeyDown =
+    (dir: -1 | 1) => (e: React.KeyboardEvent<HTMLButtonElement>) => {
+      if ((e.key === "Enter" || e.key === " ") && !e.repeat) {
+        e.preventDefault();
+        if ((dir === -1 && !atMin) || (dir === 1 && !atMax))
+          onBump(dir as 1 | -1);
+      }
+    };
+
+  return (
+    <div className="inline-flex items-center rounded-xl border border-slate-300 overflow-hidden bg-white">
+      <button
+        type="button"
+        onClick={handleClick(-1)}
+        onKeyDown={handleKeyDown(-1)}
+        disabled={atMin}
+        className={[
+          "px-3 py-1.5 hover:bg-slate-50",
+          atMin ? "opacity-40 cursor-not-allowed" : "",
+        ].join(" ")}
+        aria-label="Decrease"
+        title={atMin ? "Minimum quantity is 1" : "Decrease quantity"}
+      >
+        –
+      </button>
+
+      <input
+        readOnly
+        value={String(value)}
+        aria-label="Quantity"
+        className="w-14 text-center text-[14px] font-mono tabular-nums outline-none select-none"
+        onWheel={(e) => e.currentTarget.blur()}
+      />
+
+      <button
+        type="button"
+        onClick={handleClick(1)}
+        onKeyDown={handleKeyDown(1)}
+        disabled={atMax}
+        className={[
+          "px-3 py-1.5 hover:bg-slate-50",
+          atMax ? "opacity-40 cursor-not-allowed" : "",
+        ].join(" ")}
+        aria-label="Increase"
+        title={atMax ? `Maximum ${max} per item` : "Increase quantity"}
+      >
+        +
+      </button>
+    </div>
+  );
+};
+
+/* --------------------------- Confirm Modal --------------------------- */
+type ConfirmModalProps = {
+  open: boolean;
+  title?: string;
+  message: string;
+  confirmText?: string;
+  cancelText?: string;
+  onConfirm: () => void;
+  onCancel: () => void;
+};
+const ConfirmModal: React.FC<ConfirmModalProps> = ({
+  open,
+  title = "Are you sure?",
+  message,
+  confirmText = "Yes",
+  cancelText = "Cancel",
+  onConfirm,
+  onCancel,
+}) => {
+  const confirmRef = useRef<HTMLButtonElement | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onCancel();
+      if (e.key === "Enter") onConfirm();
+    };
+    document.addEventListener("keydown", onKey);
+    setTimeout(() => confirmRef.current?.focus(), 0);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [open, onCancel, onConfirm]);
+
+  if (!open) return null;
+
+  return (
+    <div
+      className="fixed inset-0 z-[6000] flex items-center justify-center"
+      aria-modal="true"
+      role="dialog"
+    >
+      <div className="absolute inset-0 bg-black/40" onClick={onCancel} />
+      <div className="relative mx-3 w-full max-w-sm rounded-2xl bg-white shadow-xl border border-slate-200">
+        <div className="px-4 pt-4 pb-2">
+          <div className="text-[15px] font-semibold">{title}</div>
+          <div className="mt-2 text-[13px] text-slate-600">{message}</div>
+        </div>
+        <div className="flex items-center justify-end gap-2 px-4 py-3 border-t border-slate-200">
+          <button
+            onClick={onCancel}
+            className="h-9 px-3 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-[13px] font-medium"
+            type="button"
+          >
+            {cancelText}
+          </button>
+          <button
+            ref={confirmRef}
+            onClick={onConfirm}
+            className="h-9 px-3 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-[13px] font-semibold shadow-sm"
+            type="button"
+          >
+            {confirmText}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+/* ----------------------- Address picker (modal) ----------------------- */
+function KindGlyph({ kind }: { kind: AddressKind }) {
+  if (kind === "home")
+    return (
+      <svg
+        viewBox="0 0 24 24"
+        className="h-4 w-4 text-violet-600"
+        fill="currentColor"
+      >
+        <path d="M3 10.5 12 4l9 6.5V20a2 2 0 01-2 2h-5v-6h-4v6H5a2 2 0 01-2-2v-9.5Z" />
+      </svg>
+    );
+  if (kind === "work")
+    return (
+      <svg
+        viewBox="0 0 24 24"
+        className="h-4 w-4 text-violet-600"
+        fill="currentColor"
+      >
+        <path d="M9 4h6a2 2 0 012 2v2h3a2 2 0 012 2v7a3 3 0 01-3 3H5a3 3 0 01-3-3v-7a2 2 0 012-2h3V6a2 2 0 012-2Zm0 4h6V6H9v2Z" />
+      </svg>
+    );
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className="h-4 w-4 text-violet-600"
+      fill="currentColor"
+    >
+      <path d="M12 2a7 7 0 00-7 7c0 5.25 7 13 7 13s7-7.75 7-13a7 7 0 00-7-7zm0 9.5A2.5 2.5 0 1112 6a2.5 2.5 0 010 5.5z" />
+    </svg>
+  );
+}
+
+function addressToLine(a: Address) {
+  const parts = [a.line1, a.line2, a.city, a.state, a.postalCode].filter(
+    Boolean
+  );
+  return parts.join(", ");
+}
+
+type AddressPickerProps = {
+  open: boolean;
+  addresses: Address[];
+  selectedId?: string | null;
+  onClose: () => void;
+  onSelect: (id: string) => void;
+};
+const AddressPicker: React.FC<AddressPickerProps> = ({
+  open,
+  addresses,
+  selectedId,
+  onClose,
+  onSelect,
+}) => {
+  const [active, setActive] = useState<string | null>(selectedId ?? null);
+
+  useEffect(() => {
+    setActive(selectedId ?? null);
+  }, [selectedId, open]);
+
+  if (!open) return null;
+
+  const hasAddrs = addresses.length > 0;
+
+  return (
+    <div className="fixed inset-0 z-[6500]">
+      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
+      <div className="absolute inset-x-0 bottom-0 sm:inset-y-0 sm:right-0 sm:left-auto sm:w-[480px]">
+        <div className="h-auto sm:h-full rounded-t-2xl sm:rounded-none sm:rounded-l-2xl bg-white shadow-2xl ring-1 ring-black/10 p-4 sm:p-5">
+          <div className="flex items-center justify-between">
+            <div className="text-[15px] font-semibold">
+              Choose delivery address
+            </div>
+            <button
+              onClick={onClose}
+              className="text-slate-600 hover:text-slate-900"
+            >
+              Close
+            </button>
+          </div>
+
+          <div className="mt-3 max-h-[60vh] sm:max-h-[70vh] overflow-auto space-y-2">
+            {!hasAddrs ? (
+              <div className="text-sm text-slate-600 p-3 rounded-xl bg-slate-50 border border-slate-200">
+                You don’t have any saved addresses yet.
+              </div>
+            ) : (
+              addresses.map((a) => (
+                <label
+                  key={a.id}
+                  className={[
+                    "flex items-start gap-3 rounded-2xl border p-3 cursor-pointer",
+                    active === a.id
+                      ? "border-violet-300 bg-violet-50/40"
+                      : "border-slate-200 hover:bg-slate-50",
+                  ].join(" ")}
+                >
+                  <input
+                    type="radio"
+                    name="addr"
+                    value={a.id}
+                    checked={active === a.id}
+                    onChange={() => setActive(a.id)}
+                    className="mt-1 h-4 w-4 text-violet-600 border-slate-300"
+                  />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <KindGlyph kind={a.kind} />
+                      <div className="text-[14px] font-medium text-slate-900">
+                        {a.label}
+                      </div>
+                      {a.isDefault && <Pill tone="emerald">Default</Pill>}
+                      <Pill>
+                        {a.kind === "home"
+                          ? "Home"
+                          : a.kind === "work"
+                          ? "Work"
+                          : "Other"}
+                      </Pill>
+                    </div>
+                    <div className="text-[12px] text-slate-600 mt-1 truncate">
+                      {addressToLine(a)}
+                    </div>
+                  </div>
+                </label>
+              ))
+            )}
+          </div>
+
+          <div className="mt-4 flex items-center justify-between">
+            <Link
+              to="/profile/addresses"
+              className="text-[13px] font-semibold text-violet-700 hover:text-violet-800"
+              onClick={onClose}
+            >
+              Manage addresses
+            </Link>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={onClose}
+                className="h-10 px-3 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-[13px] font-medium"
+              >
+                Cancel
+              </button>
+              <button
+                disabled={!active}
+                onClick={() => {
+                  if (active) onSelect(active);
+                }}
+                className={[
+                  "h-10 px-4 rounded-xl text-white text-[13px] font-semibold",
+                  active
+                    ? "bg-violet-600 hover:bg-violet-700"
+                    : "bg-slate-400 cursor-not-allowed",
+                ].join(" ")}
+              >
+                Deliver here
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+/* ----------------------- Address helpers (local) ----------------------- */
+function loadAddresses(): Address[] {
+  try {
+    const raw = localStorage.getItem("customer_addresses");
+    if (raw) {
+      const arr = JSON.parse(raw) as Address[];
+      if (Array.isArray(arr) && arr.length) return arr;
+    }
+  } catch {
+    /* ignore */
+  }
+  // fallback demo
+  return [
+    {
+      id: "addr-1",
+      label: "Home Raj Nagar",
+      kind: "home",
+      line1: "a-1301, Raj Nagar Extension",
+      city: "Ghaziabad",
+      state: "Uttar Pradesh",
+      postalCode: "201017",
+      country: "India",
+      isDefault: true,
+      createdAt: Date.now() - 1000 * 60 * 60 * 24 * 3,
+    },
+    {
+      id: "addr-2",
+      label: "Work Office",
+      kind: "work",
+      line1: "9th Floor, Cyber Park",
+      line2: "Sector 62",
+      city: "Noida",
+      state: "Uttar Pradesh",
+      postalCode: "201301",
+      country: "India",
+      createdAt: Date.now() - 1000 * 60 * 60 * 24 * 30,
+    },
+  ];
+}
+const SELECTED_ADDR_KEY = "selected_address_id";
+
+/* --------------------------------- PAGE --------------------------------- */
 const AddToCart: React.FC = () => {
   const navigate = useNavigate();
-  const isMobile = useMediaQuery("(max-width: 767.98px)"); // Tailwind md breakpoint
+  const isMobile = useMediaQuery("(max-width: 767.98px)");
 
   const STORE = {
     name: "Stanlee India",
     logo: "https://dummyimage.com/80x80/0b0b0b/ffffff&text=S",
   };
 
-  const [items, setItems] = useState<CartItemT[]>([
-    {
-      id: "stb-stand",
-      title: "Stanlee India Set top Box Stand D-ST333",
-      variant: "Grey · Standard",
-      price: 599,
-      qty: 1,
-      image:
-        "https://images.unsplash.com/photo-1614680376739-414d95ff43df?q=80&w=600&auto=format&fit=crop",
-    },
-    {
-      id: "wall-shelf",
-      title: "Minimal Floating Wall Shelf",
-      variant: "Matte Black · 24 inch",
-      price: 1299,
-      qty: 1,
-      image:
-        "https://images.unsplash.com/photo-1503602642458-232111445657?q=80&w=600&auto=format&fit=crop",
-    },
-    {
-      id: "table-lamp",
-      title: "Nordic Bedside Table Lamp",
-      variant: "Warm White · Fabric Shade",
-      price: 1899,
-      qty: 1,
-      image:
-        "https://images.unsplash.com/photo-1507473885765-e6ed057f782c?q=80&w=600&auto=format&fit=crop",
-    },
-    {
-      id: "frame-set",
-      title: "Photo Frame Set (Pack of 3)",
-      variant: "Walnut · A4",
-      price: 899,
-      qty: 1,
-      image:
-        "https://images.unsplash.com/photo-1501004318641-b39e6451bec6?q=80&w=600&auto=format&fit=crop",
-    },
-    {
-      id: "planter",
-      title: "Ceramic Desk Planter",
-      variant: "Off-white · 12cm",
-      price: 499,
-      qty: 1,
-      image:
-        "https://images.unsplash.com/photo-1501004318641-b39e6451bec6?q=80&w=600&auto=format&fit=crop",
-    },
-    {
-      id: "clock",
-      title: "Modern Wall Clock",
-      variant: "Brushed Gold · 12 inch",
-      price: 1599,
-      qty: 1,
-      image:
-        "https://images.unsplash.com/photo-1503602642458-232111445657?q=80&w=600&auto=format&fit=crop",
-    },
-  ]);
-
+  const [items, setItems] = useState<UiCartItem[]>([]);
   const [note, setNote] = useState("");
+
+  // "More" menu UI state
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuBtnRef = useRef<HTMLButtonElement | null>(null);
+
+  // Confirm modal state
+  const [confirmOpen, setConfirmOpen] = useState(false);
+
+  // Address picker state
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [addresses, setAddresses] = useState<Address[]>([]);
+  const [selectedAddressId, setSelectedAddressId] = useState<string | null>(
+    null
+  );
+
+  // Flash attention when trying to proceed without address
+  const [addrFlash, setAddrFlash] = useState(false);
+
+  useEffect(() => {
+    migrateLegacyOnce();
+    const refresh = () => setItems(readCart());
+    refresh();
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === "cart") refresh();
+      if (e.key === "customer_addresses") {
+        setAddresses(loadAddresses());
+      }
+      if (e.key === SELECTED_ADDR_KEY) {
+        setSelectedAddressId(localStorage.getItem(SELECTED_ADDR_KEY));
+      }
+    };
+    const onCustom = () => refresh();
+    window.addEventListener("storage", onStorage);
+    window.addEventListener("cart:update", onCustom as EventListener);
+    return () => {
+      window.removeEventListener("storage", onStorage);
+      window.removeEventListener("cart:update", onCustom as EventListener);
+    };
+  }, []);
+
+  // load addresses / selected id once
+  useEffect(() => {
+    setAddresses(loadAddresses());
+    setSelectedAddressId(localStorage.getItem(SELECTED_ADDR_KEY));
+  }, []);
+
+  // Close menu on outside click
+  useEffect(() => {
+    const onDocClick = (e: MouseEvent) => {
+      if (!menuBtnRef.current) return;
+      const target = e.target as Node;
+      const pop = document.getElementById("cart-more-popover");
+      if (
+        target &&
+        !menuBtnRef.current.contains(target) &&
+        !(pop && pop.contains(target))
+      ) {
+        setMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", onDocClick);
+    return () => document.removeEventListener("mousedown", onDocClick);
+  }, []);
+
+  const selectedAddress = useMemo(
+    () => addresses.find((a) => a.id === selectedAddressId) || null,
+    [addresses, selectedAddressId]
+  );
 
   const count = useMemo(() => items.reduce((n, it) => n + it.qty, 0), [items]);
   const subtotal = useMemo(
     () => items.reduce((sum, it) => sum + it.price * it.qty, 0),
     [items]
   );
-
   const deliveryFee = 0;
   const toPay = subtotal + deliveryFee;
 
-  const dec = (id: string) =>
-    setItems((p) =>
-      p.map((i) => (i.id === id ? { ...i, qty: Math.max(1, i.qty - 1) } : i))
-    );
-  const inc = (id: string) =>
-    setItems((p) => p.map((i) => (i.id === id ? { ...i, qty: i.qty + 1 } : i)));
+  /* -------- Guards to prevent double bumps -------- */
+  const BUMP_LOCK_MS = 180;
+  const lastBumpAtRef = useRef<Map<string, number>>(new Map());
+  const lockRef = useRef<Map<string, boolean>>(new Map());
+
+  const bumpQty = (id: string, delta: 1 | -1) =>
+    setItems((prev) => {
+      if (lockRef.current.get(id)) return prev;
+      const now = Date.now();
+      const last = lastBumpAtRef.current.get(id) ?? 0;
+      if (now - last < BUMP_LOCK_MS) return prev;
+      lastBumpAtRef.current.set(id, now);
+      lockRef.current.set(id, true);
+      setTimeout(() => lockRef.current.set(id, false), BUMP_LOCK_MS);
+
+      const next = prev.map((i) => {
+        if (i.id !== id) return i;
+        const max = getMaxQtyFor(i);
+        const desired = i.qty + (delta < 0 ? -1 : 1);
+        const forced = clampQty(desired, max);
+        const diff = forced - i.qty;
+        const corrected = diff > 1 ? i.qty + 1 : diff < -1 ? i.qty - 1 : forced;
+        return { ...i, qty: corrected };
+      });
+      writeCart(next);
+      return next;
+    });
+
+  const removeItem = (id: string) =>
+    setItems((prev) => {
+      const next = prev.filter((i) => i.id !== id);
+      writeCart(next);
+      return next;
+    });
+
+  const doClearCart = () => {
+    setItems([]);
+    writeCart([]);
+    setConfirmOpen(false);
+  };
 
   const goBack = () => navigate(-1);
   const applyCoupon = () => alert("Coupon flow (demo)");
-  const goCheckout = () => navigate("/checkout");
+
+  const goCheckout = () => {
+    if (!selectedAddress) {
+      setPickerOpen(true);
+      setAddrFlash(true);
+      setTimeout(() => setAddrFlash(false), 1200);
+      return;
+    }
+    navigate("/checkout");
+  };
 
   const isEmpty = items.length === 0;
+  const needsAddress = items.length > 0 && !selectedAddress;
 
-  /* ------------------- MOBILE ONLY: measure fixed bar + bottom nav ------------------- */
+  /* ---- Mobile spacer for fixed card ---- */
   const barRef = useRef<HTMLDivElement | null>(null);
   const navWrapRef = useRef<HTMLDivElement | null>(null);
   const [barH, setBarH] = useState(0);
@@ -204,7 +713,7 @@ const AddToCart: React.FC = () => {
   const [pageScrollable, setPageScrollable] = useState(true);
 
   useEffect(() => {
-    if (!isMobile) return; // only measure on mobile
+    if (!isMobile) return;
     const measure = () => {
       if (barRef.current)
         setBarH(barRef.current.getBoundingClientRect().height);
@@ -214,13 +723,11 @@ const AddToCart: React.FC = () => {
       setPageScrollable(doc.scrollHeight > window.innerHeight + 1);
     };
     measure();
-
     const roBar = new ResizeObserver(measure);
     const roNav = new ResizeObserver(measure);
     if (barRef.current) roBar.observe(barRef.current);
     if (navWrapRef.current) roNav.observe(navWrapRef.current);
     window.addEventListener("resize", measure);
-
     return () => {
       roBar.disconnect();
       roNav.disconnect();
@@ -235,11 +742,156 @@ const AddToCart: React.FC = () => {
         : 12 + navH
       : 0
     : 0;
-
   const bottomOffset = isMobile
     ? `calc(env(safe-area-inset-bottom, 0px) + ${4 + navH}px)`
     : undefined;
 
+  const openPicker = () => setPickerOpen(true);
+  const saveSelection = (id: string) => {
+    localStorage.setItem(SELECTED_ADDR_KEY, id);
+    setSelectedAddressId(id);
+    setPickerOpen(false);
+    window.dispatchEvent(
+      new CustomEvent("address:selected", { detail: { id } })
+    );
+  };
+
+  /* ===== Reusable address card (selected vs required) ===== */
+  const AddressSection = ({ compact = false }: { compact?: boolean }) => {
+    const baseCard =
+      "rounded-2xl bg-white shadow-sm border overflow-hidden transition";
+    const borderTone = needsAddress ? "border-amber-300" : "border-slate-200";
+    const bgTone = needsAddress ? "bg-amber-50/40" : "bg-white";
+    const flashRing = addrFlash ? "ring-2 ring-amber-300" : "";
+
+    return (
+      <div className={`${baseCard} ${borderTone} ${bgTone} ${flashRing}`}>
+        <div className="px-4 pt-4 pb-3">
+          <button
+            onClick={openPicker}
+            className="w-full text-left"
+            type="button"
+            aria-label="Choose address"
+          >
+            <div className="flex items-start gap-3">
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <div className="text-[16px] font-semibold">
+                    {selectedAddress
+                      ? selectedAddress.label
+                      : "Select delivery address"}
+                  </div>
+                  {needsAddress ? (
+                    <Pill tone="amber">Required</Pill>
+                  ) : (
+                    <Pill tone="emerald">Selected</Pill>
+                  )}
+                  {!needsAddress && selectedAddress && (
+                    <Pill>
+                      {selectedAddress.kind === "home"
+                        ? "Home"
+                        : selectedAddress.kind === "work"
+                        ? "Work"
+                        : "Other"}
+                    </Pill>
+                  )}
+                </div>
+                <div className="text-[12px] text-slate-500 mt-1 leading-5">
+                  {selectedAddress
+                    ? addressToLine(selectedAddress)
+                    : "Choose an address for delivery"}
+                </div>
+                {!needsAddress && selectedAddress && (
+                  <div className="mt-1">
+                    <span className="text-[12px] text-violet-700 font-medium">
+                      Change
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              <span
+                className={[
+                  "h-10 w-10 shrink-0 rounded-xl grid place-items-center border shadow-sm",
+                  needsAddress
+                    ? "bg-white border-slate-200 text-slate-500"
+                    : "bg-emerald-50 border-emerald-200 text-emerald-600",
+                ].join(" ")}
+              >
+                {needsAddress ? (
+                  /* chevron */
+                  <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none">
+                    <path
+                      d="M8 10l4 4 4-4"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                ) : (
+                  /* check */
+                  <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none">
+                    <path
+                      d="M6 12l4 4 8-8"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                )}
+              </span>
+            </div>
+          </button>
+
+          <div className="mt-3 border-t border-slate-200 pt-3 text-[13px] text-slate-600 leading-6">
+            The order delivery is managed by{" "}
+            <span className="font-semibold text-slate-800">Stanlee India</span>.
+            Orders are usually dispatched in{" "}
+            <span className="font-semibold text-slate-800">1 day(s)</span>
+          </div>
+
+          {/* Inline warning hint when address missing */}
+          {needsAddress && (
+            <div
+              className="mt-3 rounded-xl bg-amber-50 border border-amber-200 px-3 py-2 text-[12px] text-amber-800"
+              aria-live="polite"
+            >
+              Select a delivery address to continue.
+            </div>
+          )}
+        </div>
+
+        {!compact && <Divider className="mx-4" />}
+
+        <div className="px-4 py-3">
+          <div className="flex items-center gap-3">
+            <div className="flex-1">
+              <div className="text-[12px] text-slate-500">Total</div>
+              <div className="text-[22px] font-extrabold leading-6">
+                {currencyINR(toPay)}
+              </div>
+            </div>
+            <button
+              onClick={goCheckout}
+              className={[
+                "h-12 rounded-xl px-4 sm:px-5 text-white font-semibold shadow-sm active:scale-[0.98] transition",
+                needsAddress
+                  ? "bg-[#1677ff] hover:bg-[#1668e3]"
+                  : "bg-[#1677ff] hover:bg-[#1668e3]",
+              ].join(" ")}
+              type="button"
+            >
+              Proceed to payment
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  /* ----------------------------- RENDER ----------------------------- */
   return (
     <div className="min-h-[100dvh] bg-[#f6f7f9] isolate">
       {/* APP BAR */}
@@ -247,11 +899,12 @@ const AddToCart: React.FC = () => {
         className="sticky top-0 z-[2000] bg-white/90 backdrop-blur border-b border-slate-200"
         style={{ height: APP_BAR_H }}
       >
-        <div className="mx-auto max-w-md px-3 py-2.5">
+        <div className="mx-auto max-w-md px-3 py-2.5 relative">
           <div className="flex items-center gap-2">
             <IconBtn ariaLabel="Back" onClick={goBack}>
               <span className="text-xl leading-none">←</span>
             </IconBtn>
+
             <div className="min-w-0 flex-1">
               <div className="text-[15px] font-semibold">Your cart</div>
               <div className="text-[12px] text-slate-500">
@@ -259,6 +912,7 @@ const AddToCart: React.FC = () => {
                 {currencyINR(subtotal)}
               </div>
             </div>
+
             <IconBtn ariaLabel="Chat">
               <svg
                 viewBox="0 0 24 24"
@@ -274,7 +928,13 @@ const AddToCart: React.FC = () => {
                 />
               </svg>
             </IconBtn>
-            <IconBtn ariaLabel="More options">
+
+            {/* More (⋮) */}
+            <IconBtn
+              ariaLabel="More options"
+              onClick={() => setMenuOpen((v) => !v)}
+              ref={menuBtnRef}
+            >
               <svg
                 viewBox="0 0 24 24"
                 className="h-[18px] w-[18px]"
@@ -286,12 +946,32 @@ const AddToCart: React.FC = () => {
               </svg>
             </IconBtn>
           </div>
+
+          {/* Popover menu */}
+          {menuOpen && (
+            <div
+              id="cart-more-popover"
+              className="absolute right-3 top-12 w-44 rounded-xl border border-slate-200 bg-white shadow-lg z-[2100] overflow-hidden"
+              role="menu"
+            >
+              <button
+                type="button"
+                onClick={() => {
+                  setMenuOpen(false);
+                  setConfirmOpen(true);
+                }}
+                className="w-full text-left px-3 py-2.5 text-[13px] font-medium text-rose-600 hover:bg-rose-50"
+                role="menuitem"
+              >
+                Clear cart
+              </button>
+            </div>
+          )}
         </div>
       </header>
 
       {/* BODY */}
       <main className="mx-auto w-full max-w-md p-2 pb-0">
-        {/* Store card */}
         <section className="rounded-2xl bg-white shadow-sm border border-slate-200">
           <div className="p-4 flex items-center gap-3">
             <div className="h-12 w-12 rounded-full overflow-hidden bg-slate-900">
@@ -303,71 +983,91 @@ const AddToCart: React.FC = () => {
             </div>
             <div className="min-w-0 flex-1">
               <div className="text-[15px] font-semibold">{STORE.name}</div>
-              <div className="mt-1">
-                <StarSellerPill />
-              </div>
+              <div className="mt-1">{/* optional pill here */}</div>
             </div>
           </div>
           <Divider />
-          {isEmpty ? (
+          {items.length === 0 ? (
             <div className="p-6 text-center text-slate-500 text-sm">
               Your cart is empty.
             </div>
           ) : (
-            items.map((item) => (
-              <div
-                key={item.id}
-                className="p-4 flex gap-3 border-t border-slate-100 first:border-t-0"
-              >
-                <div className="h-[84px] w-[84px] rounded-xl overflow-hidden bg-slate-100 border border-slate-200">
-                  <img
-                    src={item.image}
-                    alt={item.title}
-                    className="w-full h-full object-cover"
-                    loading="lazy"
-                  />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="text-[14px] font-semibold truncate">
-                    {item.title}
+            items.map((item) => {
+              const max = getMaxQtyFor(item);
+              return (
+                <div
+                  key={item.id}
+                  className="p-4 flex gap-3 border-t border-slate-100 first:border-t-0"
+                >
+                  <div className="h-[84px] w-[84px] rounded-xl overflow-hidden bg-slate-100 border border-slate-200">
+                    <img
+                      src={item.image || FALLBACK_IMG}
+                      alt={item.title}
+                      className="w-full h-full object-cover"
+                      loading="lazy"
+                    />
                   </div>
-                  {item.variant && (
-                    <div className="text-[12px] text-slate-500 mt-0.5 truncate">
-                      {item.variant}
+
+                  <div className="flex-1 min-w-0">
+                    <div className="text-[14px] font-semibold truncate">
+                      {item.title}
                     </div>
-                  )}
-                  <div className="mt-2 flex items-center justify-between">
-                    <div className="text-[15px] font-semibold">
-                      {currencyINR(item.price)}
-                    </div>
-                    <div className="inline-flex items-center rounded-xl border border-slate-300 overflow-hidden bg-white">
-                      <button
-                        onClick={() => dec(item.id)}
-                        className="px-3 py-1.5 hover:bg-slate-50"
-                        aria-label="Decrease"
-                      >
-                        –
-                      </button>
-                      <div className="w-8 text-center text-[14px] select-none">
-                        {item.qty}
+                    {item.variant && (
+                      <div className="text-[12px] text-slate-500 mt-0.5 truncate">
+                        {item.variant}
                       </div>
-                      <button
-                        onClick={() => inc(item.id)}
-                        className="px-3 py-1.5 hover:bg-slate-50"
-                        aria-label="Increase"
-                      >
-                        +
-                      </button>
+                    )}
+
+                    <div className="mt-2 flex items-center justify-between gap-3">
+                      <div className="text-[15px] font-semibold">
+                        {currencyINR(item.price)}
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <QtyStepper
+                          value={item.qty}
+                          max={max}
+                          onBump={(d) => bumpQty(item.id, d)}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => removeItem(item.id)}
+                          className="h-9 w-9 inline-flex items-center justify-center rounded-full border border-rose-200/70 bg-white hover:bg-rose-50 text-rose-600 shadow-sm focus:outline-none focus:ring-2 focus:ring-rose-300/60"
+                          title="Remove from cart"
+                          aria-label={`Remove ${item.title}`}
+                        >
+                          <svg
+                            viewBox="0 0 24 24"
+                            className="h-[18px] w-[18px]"
+                            fill="none"
+                          >
+                            <path
+                              d="M19 7l-1 12a2 2 0 01-2 2H8a2 2 0 01-2-2L5 7"
+                              stroke="currentColor"
+                              strokeWidth="1.8"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            />
+                            <path
+                              d="M4 7h16M9 7V5a2 2 0 012-2h2a2 2 0 012 2v2"
+                              stroke="currentColor"
+                              strokeWidth="1.8"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            />
+                          </svg>
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            ))
+              );
+            })
           )}
         </section>
 
         {/* Note */}
-        {!isEmpty && (
+        {items.length > 0 && (
           <section className="mt-3 rounded-2xl bg-white shadow-sm border border-slate-200">
             <textarea
               value={note}
@@ -379,7 +1079,7 @@ const AddToCart: React.FC = () => {
         )}
 
         {/* Coupon */}
-        {!isEmpty && (
+        {items.length > 0 && (
           <section className="mt-3 rounded-2xl bg-white shadow-sm border border-slate-200 p-4">
             <div className="flex items-center gap-3">
               <div className="h-10 w-10 rounded-xl bg-orange-500 text-white font-black text-[11px] tracking-wider flex items-center justify-center shadow-sm">
@@ -406,7 +1106,7 @@ const AddToCart: React.FC = () => {
         )}
 
         {/* Bill details */}
-        {!isEmpty && (
+        {items.length > 0 && (
           <section className="mt-3 rounded-2xl bg-white shadow-sm border border-slate-200 p-4">
             <div className="text-[16px] font-semibold">Bill Details</div>
             <div className="mt-4 space-y-3">
@@ -428,172 +1128,58 @@ const AddToCart: React.FC = () => {
           </section>
         )}
 
-        {/* Cancellation Policy */}
-        {!isEmpty && (
-          <section className="mt-3 rounded-2xl bg-white shadow-sm border border-slate-200 p-4">
-            <div className="text-[16px] font-semibold text-slate-900">
-              Cancellation Policy
-            </div>
-            <ul className="mt-3 space-y-2 text-[13px] leading-6 text-slate-700">
-              <li className="flex items-start gap-2">
-                <span className="mt-2 h-2 w-2 rounded-full bg-rose-500 shrink-0" />
-                <span>
-                  Full refund if you cancel it before the order is accepted by
-                  us. For any queries on cancellations reach out to us via chat.
-                </span>
-              </li>
-            </ul>
-          </section>
-        )}
-
         {/* DESKTOP (md+) in-flow Address + Payment section */}
-        {!isEmpty && (
+        {items.length > 0 && (
           <section className="hidden md:block mt-6">
-            <div className="rounded-2xl bg-white shadow-sm border border-slate-200 overflow-hidden max-w-md mx-auto">
-              {/* Address */}
-              <div className="px-4 pt-4 pb-3">
-                <div className="flex items-start gap-3">
-                  <div className="flex-1 min-w-0">
-                    <div className="text-[16px] font-semibold">
-                      Home Raj Nagar
-                    </div>
-                    <div className="text-[12px] text-slate-500 mt-1 leading-5">
-                      a-1301, Raj Nagar Extension, Ghaziabad, Uttar Pradesh
-                      201017
-                    </div>
-                  </div>
-                  <button
-                    className="h-10 w-10 shrink-0 rounded-xl border border-slate-200 bg-white shadow-sm hover:bg-slate-50 flex items-center justify-center"
-                    aria-label="Select address"
-                  >
-                    <svg
-                      viewBox="0 0 24 24"
-                      className="h-5 w-5 text-sky-600"
-                      fill="none"
-                    >
-                      <path
-                        d="M6 12l4 4 8-8"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                    </svg>
-                  </button>
-                </div>
-
-                <div className="mt-3 border-t border-slate-200 pt-3 text-[13px] text-slate-600 leading-6">
-                  The order delivery is managed by{" "}
-                  <span className="font-semibold text-slate-800">
-                    Stanlee India
-                  </span>
-                  . Orders are usually dispatched in{" "}
-                  <span className="font-semibold text-slate-800">1 day(s)</span>
-                </div>
-              </div>
-
-              <Divider className="mx-4" />
-
-              {/* Payment */}
-              <div className="px-4 py-3">
-                <div className="flex items-center gap-3">
-                  <div className="flex-1">
-                    <div className="text-[12px] text-slate-500">Total</div>
-                    <div className="text-[22px] font-extrabold leading-6">
-                      {currencyINR(toPay)}
-                    </div>
-                  </div>
-                  <button
-                    onClick={goCheckout}
-                    className="h-12 rounded-xl px-4 sm:px-5 text-white font-semibold bg-[#1677ff] hover:bg-[#1668e3] shadow-sm active:scale-[0.98] transition"
-                  >
-                    Proceed to payment
-                  </button>
-                </div>
-              </div>
+            <div className="max-w-md mx-auto">
+              <AddressSection />
             </div>
           </section>
         )}
 
         {/* MOBILE spacer (only needed when fixed) */}
-        {!isEmpty && isMobile && <div style={{ height: spacerH }} />}
+        {items.length > 0 && isMobile && <div style={{ height: spacerH }} />}
       </main>
 
-      {/* MOBILE (<md) fixed Address + Payment card above BottomNav */}
-      {!isEmpty && isMobile && (
+      {/* MOBILE fixed Address + Payment card above BottomNav */}
+      {items.length > 0 && isMobile && (
         <div
           ref={barRef}
           className={[
             "fixed left-1/2 -translate-x-1/2 md:hidden",
             "w-[calc(100%-24px)] max-w-md",
-            "rounded-2xl bg-white shadow-sm border border-slate-200 overflow-hidden",
             "z-[5000]",
           ].join(" ")}
           style={{ bottom: bottomOffset }}
         >
-          <div className="px-4 pt-4 pb-3">
-            <div className="flex items-start gap-3">
-              <div className="flex-1 min-w-0">
-                <div className="text-[16px] font-semibold">Home Raj Nagar</div>
-                <div className="text-[12px] text-slate-500 mt-1 leading-5">
-                  a-1301, Raj Nagar Extension, Ghaziabad, Uttar Pradesh 201017
-                </div>
-              </div>
-              <button
-                className="h-10 w-10 shrink-0 rounded-xl border border-slate-200 bg-white shadow-sm hover:bg-slate-50 flex items-center justify-center"
-                aria-label="Select address"
-              >
-                <svg
-                  viewBox="0 0 24 24"
-                  className="h-5 w-5 text-sky-600"
-                  fill="none"
-                >
-                  <path
-                    d="M6 12l4 4 8-8"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-              </button>
-            </div>
-
-            <div className="mt-3 border-t border-slate-200 pt-3 text-[13px] text-slate-600 leading-6">
-              The order delivery is managed by{" "}
-              <span className="font-semibold text-slate-800">
-                Stanlee India
-              </span>
-              . Orders are usually dispatched in{" "}
-              <span className="font-semibold text-slate-800">1 day(s)</span>
-            </div>
-          </div>
-
-          <Divider className="mx-4" />
-
-          <div className="px-4 py-3">
-            <div className="flex items-center gap-3">
-              <div className="flex-1">
-                <div className="text-[12px] text-slate-500">Total</div>
-                <div className="text-[22px] font-extrabold leading-6">
-                  {currencyINR(toPay)}
-                </div>
-              </div>
-              <button
-                onClick={goCheckout}
-                className="h-12 rounded-xl px-4 sm:px-5 text-white font-semibold bg-[#1677ff] hover:bg-[#1668e3] shadow-sm active:scale-[0.98] transition"
-              >
-                Proceed to payment
-              </button>
-            </div>
-          </div>
+          <AddressSection compact />
         </div>
       )}
 
-      {/* Bottom Navigation (wrapped so we can measure height on mobile) */}
+      {/* Bottom Navigation (measured for spacer) */}
       <div ref={navWrapRef}>
         <BottomNav />
       </div>
+
+      {/* Clear cart confirmation modal */}
+      <ConfirmModal
+        open={confirmOpen}
+        title="Clear cart?"
+        message="This will remove all items from your cart."
+        confirmText="Yes, clear"
+        cancelText="Cancel"
+        onConfirm={doClearCart}
+        onCancel={() => setConfirmOpen(false)}
+      />
+
+      {/* Address picker modal */}
+      <AddressPicker
+        open={pickerOpen}
+        addresses={addresses}
+        selectedId={selectedAddressId}
+        onClose={() => setPickerOpen(false)}
+        onSelect={saveSelection}
+      />
     </div>
   );
 };

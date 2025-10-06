@@ -1,23 +1,13 @@
-// src/modules/customer/pages/CustomerAddressesPage.tsx
 import React, { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-
-/* =================== Types =================== */
-type AddressKind = "home" | "work" | "other";
-
-type CustomerAddress = {
-  id: string;
-  label: string;
-  line1: string;
-  line2?: string;
-  city: string;
-  state: string;
-  postalCode: string;
-  country: string;
-  kind: AddressKind;
-  isDefault?: boolean;
-  createdAt: number;
-};
+import {
+  useGetCustomerAddressesQuery,
+  useCreateCustomerAddressMutation,
+  useUpdateCustomerAddressMutation,
+  useDeleteCustomerAddressMutation,
+  type CustomerAddress as ApiAddress,
+  type AddressKind,
+} from "../services/customerApi";
 
 /* =================== Tiny inline icons =================== */
 const Icon = {
@@ -92,46 +82,25 @@ const Icon = {
   ),
 };
 
-/* =================== Demo data =================== */
-const now = Date.now();
-const demo: CustomerAddress[] = [
-  {
-    id: "a1",
-    label: "Home",
-    line1: "TuretwsT, Old City, Tajpur Panch Pipli, Khamasa",
-    city: "Ahmedabad",
-    state: "Gujarat",
-    postalCode: "380001",
-    country: "India",
-    kind: "home",
-    isDefault: true,
-    createdAt: now - 300000,
-  },
-  {
-    id: "a2",
-    label: "Vi",
-    line1: "H, Vijay Para, Visnagar",
-    city: "Visnagar",
-    state: "Gujarat",
-    postalCode: "384315",
-    country: "India",
-    kind: "other",
-    isDefault: false,
-    createdAt: now - 200000,
-  },
-  {
-    id: "a3",
-    label: "Tettt",
-    line1: "Wheh, Kirby Place, Delhi Cantonment",
-    city: "New Delhi",
-    state: "Delhi",
-    postalCode: "110010",
-    country: "India",
-    kind: "other",
-    isDefault: false,
-    createdAt: now - 100000,
-  },
-];
+/* =================== Local view model =================== */
+type ViewAddress = {
+  id: string;
+  label: string;
+  line1: string;
+  line2?: string | null;
+  city: string;
+  state: string;
+  postalCode: string;
+  country: string;
+  kind: AddressKind;
+  isDefault?: boolean;
+  createdAt: number; // ms for sorting in UI
+};
+
+const toVM = (a: ApiAddress): ViewAddress => ({
+  ...a,
+  createdAt: new Date(a.createdAt ?? Date.now()).getTime() || Date.now(),
+});
 
 /* =================== Helpers =================== */
 const kindIcon = (k: AddressKind) =>
@@ -160,17 +129,38 @@ function pill(text: string, tone: "emerald" | "slate" = "slate", extra = "") {
   return `inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-semibold ring-1 ${tones} ${extra}`;
 }
 
-function randomId() {
-  if ("randomUUID" in crypto) return (crypto as any).randomUUID();
-  return Math.random().toString(36).slice(2);
+const cap = (s: string) => (s ? s[0].toUpperCase() + s.slice(1) : s);
+
+/** normalize, auto-fill label from kind, trim values */
+function normalizeDraft(d: ViewAddress) {
+  const label = (d.label ?? "").trim() || cap(d.kind);
+  return {
+    ...d,
+    label,
+    line1: (d.line1 ?? "").trim(),
+    line2: d.line2 ? d.line2.trim() : null,
+    city: (d.city ?? "").trim(),
+    state: (d.state ?? "").trim(),
+    postalCode: (d.postalCode ?? "").trim(),
+    country: (d.country ?? "").trim(),
+  };
 }
 
-function emptyDraft(): CustomerAddress {
+function validateDraft(d: ReturnType<typeof normalizeDraft>) {
+  if (!d.label || !d.line1 || !d.city || !d.state || !d.postalCode) {
+    return "Please fill label, line1, city, state and PIN code.";
+  }
+  if (!/^\d{6}$/.test(d.postalCode)) return "PIN code must be 6 digits.";
+  if (d.state.length < 2) return "State looks too short.";
+  return null;
+}
+
+function emptyDraft(): ViewAddress {
   return {
-    id: `tmp-${randomId()}`,
+    id: "tmp",
     label: "",
     line1: "",
-    line2: "",
+    line2: null, // keep parity with DTO (string | null)
     city: "",
     state: "",
     postalCode: "",
@@ -187,17 +177,20 @@ function AddressCard({
   onSetDefault,
   onEdit,
   onDelete,
+  isBusy,
 }: {
-  a: CustomerAddress;
+  a: ViewAddress;
   onSetDefault: () => void;
   onEdit: () => void;
   onDelete: () => void;
+  isBusy?: boolean;
 }) {
   return (
     <div
       className={[
         "rounded-3xl bg-white/90 backdrop-blur ring-1 ring-black/10 shadow-sm hover:shadow transition",
         a.isDefault ? "outline outline-1 outline-emerald-200" : "",
+        isBusy ? "opacity-60 pointer-events-none" : "",
       ].join(" ")}
     >
       <div className="p-4 sm:p-5">
@@ -251,20 +244,14 @@ function AddressCard({
   );
 }
 
-/* =================== Slide-over (Add/Edit) =================== */
-type SheetState =
-  | { open: false }
-  | { open: true; mode: "create" | "edit"; draft: CustomerAddress };
-
+/* =================== Field =================== */
 function Field({
   label,
   value,
   onChange,
   className = "",
   ...rest
-}: React.InputHTMLAttributes<HTMLInputElement> & {
-  label: string;
-}) {
+}: React.InputHTMLAttributes<HTMLInputElement> & { label: string }) {
   return (
     <label className="space-y-1">
       <span className="text-xs font-medium text-slate-600">{label}</span>
@@ -287,12 +274,27 @@ function Field({
 export default function CustomerAddressesPage() {
   const navigate = useNavigate();
 
-  // Demo state
-  const [items, setItems] = useState<CustomerAddress[]>(demo);
-  const [kindFilter, setKindFilter] = useState<"all" | AddressKind>("all");
-  const [sheet, setSheet] = useState<SheetState>({ open: false });
+  const { data, isLoading, isFetching, error } = useGetCustomerAddressesQuery();
+  const [createAddress, { isLoading: creating }] =
+    useCreateCustomerAddressMutation();
+  const [updateAddress, { isLoading: updating }] =
+    useUpdateCustomerAddressMutation();
+  const [deleteAddress, { isLoading: deleting }] =
+    useDeleteCustomerAddressMutation();
 
-  // Default first, then recency
+  const [kindFilter, setKindFilter] = useState<"all" | AddressKind>("all");
+  const [sheet, setSheet] = useState<
+    | { open: false }
+    | { open: true; mode: "create" | "edit"; draft: ViewAddress }
+  >({ open: false });
+
+  // map to local VM
+  const items: ViewAddress[] = useMemo(
+    () => (data ? data.map(toVM) : []),
+    [data]
+  );
+
+  // sort default first, then recency
   const sorted = useMemo(() => {
     const list = [...items];
     list.sort((a, b) => {
@@ -308,41 +310,72 @@ export default function CustomerAddressesPage() {
     return sorted.filter((x) => x.kind === kindFilter);
   }, [sorted, kindFilter]);
 
-  const setDefault = (id: string) => {
-    setItems((prev) => prev.map((x) => ({ ...x, isDefault: x.id === id })));
-  };
+  const busy = isLoading || isFetching || creating || updating || deleting;
 
   const startCreate = () =>
     setSheet({ open: true, mode: "create", draft: emptyDraft() });
-
-  const startEdit = (a: CustomerAddress) =>
+  const startEdit = (a: ViewAddress) =>
     setSheet({ open: true, mode: "edit", draft: { ...a } });
 
-  const remove = (id: string) =>
-    setItems((prev) => prev.filter((x) => x.id !== id));
-
-  const saveDraft = () => {
-    if (!sheet.open) return;
-    const d = sheet.draft;
-    if (!d.label || !d.line1 || !d.city || !d.state || !d.postalCode) return;
-
-    if (sheet.mode === "create") {
-      const newOne = { ...d, id: randomId(), createdAt: Date.now() };
-      setItems((prev) => {
-        const next = [...prev, newOne];
-        return newOne.isDefault
-          ? next.map((x) => ({ ...x, isDefault: x.id === newOne.id }))
-          : next;
-      });
-    } else {
-      setItems((prev) => prev.map((x) => (x.id === d.id ? { ...x, ...d } : x)));
-      if (d.isDefault) {
-        setItems((prev) =>
-          prev.map((x) => ({ ...x, isDefault: x.id === d.id }))
-        );
-      }
+  const onDelete = async (id: string) => {
+    if (!confirm("Remove this address?")) return;
+    try {
+      await deleteAddress(id).unwrap();
+    } catch (e: any) {
+      alert(e?.data?.message || "Failed to delete address.");
     }
-    setSheet({ open: false });
+  };
+
+  // Use update() with isDefault: true (BE already clears others)
+  const onSetDefault = async (id: string) => {
+    try {
+      await updateAddress({ id, isDefault: true }).unwrap();
+    } catch (e: any) {
+      alert(e?.data?.message || "Failed to set default address.");
+    }
+  };
+
+  const saveDraft = async () => {
+    if (!sheet.open) return;
+
+    const n = normalizeDraft(sheet.draft);
+    const msg = validateDraft(n);
+    if (msg) {
+      alert(msg);
+      return;
+    }
+
+    try {
+      if (sheet.mode === "create") {
+        await createAddress({
+          label: n.label,
+          line1: n.line1,
+          line2: n.line2,
+          city: n.city,
+          state: n.state,
+          postalCode: n.postalCode,
+          country: n.country,
+          kind: n.kind,
+          isDefault: !!n.isDefault,
+        }).unwrap();
+      } else {
+        await updateAddress({
+          id: n.id,
+          label: n.label,
+          line1: n.line1,
+          line2: n.line2,
+          city: n.city,
+          state: n.state,
+          postalCode: n.postalCode,
+          country: n.country,
+          kind: n.kind,
+          isDefault: !!n.isDefault,
+        }).unwrap();
+      }
+      setSheet({ open: false });
+    } catch (e: any) {
+      alert(e?.data?.message || "Failed to save address.");
+    }
   };
 
   return (
@@ -363,7 +396,8 @@ export default function CustomerAddressesPage() {
 
               <button
                 onClick={startCreate}
-                className="inline-flex items-center gap-2 rounded-full bg-white/15 px-4 py-2 text-white font-semibold backdrop-blur hover:bg-white/25 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+                className="inline-flex items-center gap-2 rounded-full bg-white/15 px-4 py-2 text-white font-semibold backdrop-blur hover:bg-white/25 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 disabled:opacity-60"
+                disabled={busy}
               >
                 <Icon.Plus className="h-4 w-4" />
                 Add New Address
@@ -417,21 +451,31 @@ export default function CustomerAddressesPage() {
 
       {/* ===== List ===== */}
       <div className="max-w-3xl mx-auto px-4 pb-24 pt-4 space-y-4">
-        {filtered.map((a) => (
-          <AddressCard
-            key={a.id}
-            a={a}
-            onSetDefault={() => setDefault(a.id)}
-            onEdit={() => startEdit(a)}
-            onDelete={() => remove(a.id)}
-          />
-        ))}
+        {isLoading ? (
+          <div className="text-sm text-slate-600">Loading addresses…</div>
+        ) : error ? (
+          <div className="text-sm text-rose-600">Failed to load addresses.</div>
+        ) : filtered.length === 0 ? (
+          <div className="text-sm text-slate-600">No addresses yet.</div>
+        ) : (
+          filtered.map((a) => (
+            <AddressCard
+              key={a.id}
+              a={a}
+              isBusy={busy}
+              onSetDefault={() => onSetDefault(a.id)}
+              onEdit={() => startEdit(a)}
+              onDelete={() => onDelete(a.id)}
+            />
+          ))
+        )}
 
         {/* Secondary add button at bottom */}
         <div className="pt-2">
           <button
             onClick={startCreate}
-            className="inline-flex items-center gap-2 rounded-2xl border border-violet-200 bg-white px-4 py-2 text-sm font-semibold text-violet-700 hover:bg-violet-50"
+            className="inline-flex items-center gap-2 rounded-2xl border border-violet-200 bg-white px-4 py-2 text-sm font-semibold text-violet-700 hover:bg-violet-50 disabled:opacity-60"
+            disabled={busy}
           >
             <span className="h-5 w-5 grid place-items-center rounded-xl bg-violet-50 ring-1 ring-violet-200">
               <Icon.Plus className="h-4 w-4 text-violet-700" />
@@ -584,10 +628,7 @@ export default function CustomerAddressesPage() {
                       s.open
                         ? {
                             ...s,
-                            draft: {
-                              ...s.draft,
-                              postalCode: e.target.value,
-                            },
+                            draft: { ...s.draft, postalCode: e.target.value },
                           }
                         : s
                     )
@@ -614,7 +655,8 @@ export default function CustomerAddressesPage() {
               <div className="mt-5 flex items-center gap-3">
                 <button
                   onClick={saveDraft}
-                  className="rounded-xl bg-violet-600 px-4 py-2 text-sm font-semibold text-white hover:bg-violet-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-violet-200"
+                  disabled={busy}
+                  className="rounded-xl bg-violet-600 px-4 py-2 text-sm font-semibold text-white hover:bg-violet-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-violet-200 disabled:opacity-60"
                 >
                   Save address
                 </button>

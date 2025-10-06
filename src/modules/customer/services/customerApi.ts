@@ -1,5 +1,7 @@
-// src/modules/customer/services/customerApi.ts
 import { apiClient } from "../../auth/services/authApi";
+
+/* =================== Types aligned with BE =================== */
+export type AddressKind = "home" | "work" | "other";
 
 export type CustomerAddress = {
   id: string;
@@ -10,16 +12,24 @@ export type CustomerAddress = {
   state: string;
   postalCode: string;
   country: string;
+  kind: AddressKind; // 👈 FE expects this, BE provides via mapOut
+  isDefault?: boolean;
+  createdAt: string; // ISO string from BE
+  updatedAt?: string; // ISO string from BE
 };
 
-export type CreateAddressDto = Omit<CustomerAddress, "id">;
+export type CreateAddressDto = Omit<
+  CustomerAddress,
+  "id" | "createdAt" | "updatedAt"
+>;
 export type UpdateAddressDto = Partial<CreateAddressDto> & { id: string };
 
+/* =================== RTK Query =================== */
 export const customerApi = apiClient.injectEndpoints({
   endpoints: (builder) => ({
     getCustomerAddresses: builder.query<CustomerAddress[], void>({
       query: () => ({
-        url: "/customer/addresses/list",
+        url: "/customer/addresses/list", // ✅ no /auth prefix
         method: "GET",
       }),
       transformResponse: (raw: {
@@ -42,7 +52,7 @@ export const customerApi = apiClient.injectEndpoints({
 
     createCustomerAddress: builder.mutation<CustomerAddress, CreateAddressDto>({
       query: (body) => ({
-        url: "/customer/addresses",
+        url: "/customer/addresses", // ✅ no /auth prefix
         method: "POST",
         body,
       }),
@@ -51,7 +61,7 @@ export const customerApi = apiClient.injectEndpoints({
 
     updateCustomerAddress: builder.mutation<CustomerAddress, UpdateAddressDto>({
       query: ({ id, ...body }) => ({
-        url: `/customer/addresses/${id}`,
+        url: `/customer/addresses/${id}`, // ✅ no /auth prefix
         method: "PUT",
         body,
       }),
@@ -63,7 +73,7 @@ export const customerApi = apiClient.injectEndpoints({
 
     deleteCustomerAddress: builder.mutation<{ success: true }, string>({
       query: (id) => ({
-        url: `/customer/addresses/${id}`,
+        url: `/customer/addresses/${id}`, // ✅ no /auth prefix
         method: "DELETE",
       }),
       invalidatesTags: (_r, _e, id) => [
