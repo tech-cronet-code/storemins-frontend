@@ -15,50 +15,49 @@ export const IMAGE_URL = isDev
   ? import.meta.env.VITE_PUBLIC_IMAGE_URL_LOCAL
   : import.meta.env.VITE_PUBLIC_IMAGE_URL_LIVE;
 
-// ───────────────── bases ─────────────────
+/* ───────────────── helpers ───────────────── */
 const withAuthHeaders = (headers: Headers, getState: () => unknown) => {
   const token = (getState() as RootState).auth.token;
   if (token) headers.set("Authorization", `Bearer ${token}`);
   return headers;
 };
 
+/** Base that hits `${API_ROOT}/auth` (seller/admin auth endpoints live here) */
 const authBase = fetchBaseQuery({
   baseUrl: `${API_ROOT}/auth`,
   credentials: "include",
   prepareHeaders: (h, api) => withAuthHeaders(h, api.getState),
 });
 
+/** Base that hits `${API_ROOT}` without the `/auth` prefix */
 const rootBase = fetchBaseQuery({
   baseUrl: API_ROOT,
   credentials: "include",
   prepareHeaders: (h, api) => withAuthHeaders(h, api.getState),
 });
 
-// ───────────────── routing ─────────────────
-// Everything under /customer/** should go to ROOT,
-// except the explicit CUSTOMER AUTH endpoints.
-const isCustomerAuth = (url: string) => url.startsWith("/customer/auth");
-
-const isCustomerNonAuth = (url: string) =>
-  url.startsWith("/customer/") && !isCustomerAuth(url);
-
-// Other modules that must NOT be prefixed with /auth.
-const isRootEndpoint = (url: string) =>
-  isCustomerNonAuth(url) ||
+/* ───────────────── routing rules ─────────────────
+   RULES:
+   - Everything under /customer/** (including /customer/auth/**) → ROOT (NO /auth).
+   - Seller/business/product, super-admin, and files also go to ROOT.
+   - Only seller/admin auth like /login, /register, /refresh-auth-token stay on /auth.
+*/
+const routeViaRoot = (url: string) =>
+  url.startsWith("/customer/") || // NOTE: covers /customer/auth/** as well
   url.startsWith("/super-admin/") ||
   url.startsWith("/seller/business") ||
   url.startsWith("/seller/product") ||
   url.startsWith("/files");
 
-// endpoints to skip refresh attempts
+/** Endpoints where we should NOT attempt a refresh */
 const shouldSkipRefresh = (url: string) => {
   const path = url.split("?")[0];
   const skip = new Set<string>([
-    // SELLER auth
+    // SELLER/ADMIN auth (lives under /auth)
     "/login",
     "/register",
 
-    // CUSTOMER auth (OTP flow)
+    // CUSTOMER auth (lives under ROOT, but we still don't want to refresh)
     "/customer/auth/login-init",
     "/customer/auth/register",
     "/customer/auth/confirm-mobile-otp",
@@ -71,7 +70,7 @@ const shouldSkipRefresh = (url: string) => {
   return skip.has(path);
 };
 
-// ───────────────── wrapper with refresh ─────────────────
+/* ───────────────── main wrapper with refresh ───────────────── */
 export const baseQueryWithReauth: typeof authBase = async (
   args,
   api,
@@ -79,15 +78,16 @@ export const baseQueryWithReauth: typeof authBase = async (
 ) => {
   const url = typeof args === "string" ? args : args.url;
 
-  // Route to ROOT (no /auth prefix) when appropriate
-  if (isRootEndpoint(url)) {
+  // 1) Decide which base to use
+  if (routeViaRoot(url)) {
+    // -> Goes to ROOT (no /auth prefix). This fixes /customer/auth/** endpoints.
     return rootBase(args as FetchArgs, api, extraOptions);
   }
 
-  // Otherwise use /auth-prefixed base
+  // 2) Default: use /auth-prefixed base
   let result = await authBase(args, api, extraOptions);
 
-  // If unauthorized, try refresh unless excluded
+  // 3) On 401, try refresh (unless excluded)
   const err: any = result.error;
   const statusCode: number | undefined = err?.data?.statusCode;
   const requestUrl = typeof args === "string" ? args : args.url;

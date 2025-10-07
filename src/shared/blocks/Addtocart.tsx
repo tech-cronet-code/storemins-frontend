@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import BottomNav from "./BottomNav";
 
 /* ============================================================================
@@ -561,12 +561,14 @@ const SELECTED_ADDR_KEY = "selected_address_id";
 
 /* --------------------------------- PAGE --------------------------------- */
 const AddToCart: React.FC = () => {
+  const { storeSlug = "" } = useParams<{ storeSlug: string }>();
+  const location = useLocation();
   const navigate = useNavigate();
   const isMobile = useMediaQuery("(max-width: 767.98px)");
 
   const STORE = {
-    name: "Stanlee India",
-    logo: "https://dummyimage.com/80x80/0b0b0b/ffffff&text=S",
+    name: "Tech Cronet",
+    logo: "https://dummyimage.com/80x80/0b0b0b/ffffff&text=TC",
   };
 
   const [items, setItems] = useState<UiCartItem[]>([]);
@@ -699,7 +701,9 @@ const AddToCart: React.FC = () => {
       setTimeout(() => setAddrFlash(false), 1200);
       return;
     }
-    navigate("/checkout");
+    navigate(`/${storeSlug}/payment`, {
+      state: { from: location.pathname }, // exact return target
+    });
   };
 
   const isEmpty = items.length === 0;

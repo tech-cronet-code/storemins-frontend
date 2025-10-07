@@ -1,3 +1,4 @@
+// src/modules/customer/pages/CustomerAddressesPage.tsx
 import React, { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
@@ -8,6 +9,7 @@ import {
   type CustomerAddress as ApiAddress,
   type AddressKind,
 } from "../services/customerApi";
+import BottomNav from "../../../shared/blocks/BottomNav";
 
 /* =================== Tiny inline icons =================== */
 const Icon = {
@@ -160,7 +162,7 @@ function emptyDraft(): ViewAddress {
     id: "tmp",
     label: "",
     line1: "",
-    line2: null, // keep parity with DTO (string | null)
+    line2: null,
     city: "",
     state: "",
     postalCode: "",
@@ -380,15 +382,20 @@ export default function CustomerAddressesPage() {
 
   return (
     <div className="min-h-dvh bg-[color:rgb(247,248,250)]">
-      {/* ===== Header with glass effect ===== */}
-      <div className="relative">
-        <div className="h-40 bg-[linear-gradient(115deg,#7C3AED,55%,#C026D3_90%)]" />
-        <div className="absolute inset-x-0 top-0">
-          <div className="max-w-3xl mx-auto px-4 pt-3">
+      {/* ===== Edge-to-edge header (no gutters) ===== */}
+      <div className="-mx-4 -mt-4">
+        <header
+          className="
+            relative rounded-b-[28px]
+            bg-[linear-gradient(115deg,#7C3AED,55%,#C026D3_90%)]
+            text-white
+          "
+        >
+          <div className="max-w-3xl mx-auto px-4 pt-3 pb-5">
             <div className="flex items-center justify-between">
               <button
                 onClick={() => navigate(-1)}
-                className="h-10 w-10 rounded-full bg-white/15 text-white grid place-items-center backdrop-blur hover:bg-white/25 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+                className="h-10 w-10 rounded-full bg-white/15 grid place-items-center backdrop-blur hover:bg-white/25 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
                 aria-label="Back"
               >
                 <Icon.Back className="h-5 w-5" />
@@ -396,7 +403,7 @@ export default function CustomerAddressesPage() {
 
               <button
                 onClick={startCreate}
-                className="inline-flex items-center gap-2 rounded-full bg-white/15 px-4 py-2 text-white font-semibold backdrop-blur hover:bg-white/25 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 disabled:opacity-60"
+                className="inline-flex items-center gap-2 rounded-full bg-white/15 px-4 py-2 font-semibold backdrop-blur hover:bg-white/25 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 disabled:opacity-60"
                 disabled={busy}
               >
                 <Icon.Plus className="h-4 w-4" />
@@ -404,7 +411,7 @@ export default function CustomerAddressesPage() {
               </button>
             </div>
 
-            <div className="mt-6 text-white">
+            <div className="mt-6">
               <div className="text-[20px] font-semibold tracking-tight">
                 Saved addresses
               </div>
@@ -446,7 +453,7 @@ export default function CustomerAddressesPage() {
               </div>
             </div>
           </div>
-        </div>
+        </header>
       </div>
 
       {/* ===== List ===== */}
@@ -671,6 +678,9 @@ export default function CustomerAddressesPage() {
           </div>
         </div>
       )}
+
+      {/* Bottom navigation */}
+      <BottomNav />
     </div>
   );
 }

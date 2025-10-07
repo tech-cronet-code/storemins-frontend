@@ -1271,7 +1271,11 @@ const ProductDetail: React.FC = () => {
       />
 
       {/* Bottom “Your cart (N)” dock */}
-      <CartDock checkoutPath={`/${storeSlug}/checkout`} />
+      <CartDock
+        checkoutPath={`/${storeSlug}/checkout`}
+        bottomOffsetPx={72} // adjust to your footer/nav height
+        zIndex={6000}
+      />
     </StorefrontLayout>
   );
 };

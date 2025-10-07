@@ -722,7 +722,7 @@ export default function StorefrontWithApiImages({ settings = {} }: Props) {
       {MobileCatSheet}
 
       {/* Reusable cart dock */}
-      <CartDock />
+      <CartDock bottomOffsetPx={0} zIndex={6000} />
     </section>
   );
 }

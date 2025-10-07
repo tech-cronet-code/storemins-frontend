@@ -37,8 +37,6 @@ import AddStoreDisplaySettingPage from "./modules/seller/pages/store-appearance/
 import AddStoreSettingPage from "./modules/seller/pages/store-appearance/AddStoreSettingPage";
 import UserSettingsPage from "./modules/seller/pages/UserSettingsPage";
 import PublicStorefrontPage from "./modules/storefront/pages/PublicStorefrontPage";
-import CustomerAddressesPage from "./modules/customer/pages/CustomerAddressesPage";
-import CustomerProfilePage from "./modules/customer/pages/CustomerProfilePage";
 
 const App = () => {
   return (
@@ -67,11 +65,11 @@ const App = () => {
             />
           }
         >
-          <Route path="/profile" element={<CustomerProfilePage />} />
+          {/* <Route path="/profile" element={<CustomerProfilePage />} />
           <Route
             path="/profile/addresses"
             element={<CustomerAddressesPage />}
-          />
+          /> */}
           {/* Your existing grouped customer section */}
           <Route path="/customer/*" element={<CustomerRoute />} />
         </Route>

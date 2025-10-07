@@ -6,6 +6,9 @@ import React, {
   useRef,
   useState,
 } from "react";
+import { useNavigate, useParams } from "react-router-dom";
+import CustomerLoginModal from "./CustomerLoginModal";
+import { useAuth } from "../../modules/auth/contexts/AuthContext";
 
 /* ---------------- helpers ---------------- */
 
@@ -53,10 +56,26 @@ function useCartCount() {
   return count;
 }
 
-const fire = (name: string, detail?: any) =>
-  window.dispatchEvent(new CustomEvent(name, { detail }));
+function useLockBodyScroll(active: boolean) {
+  useEffect(() => {
+    if (!active) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [active]);
+}
 
-/* ---------------- Inline SVG icons (no external font) ---------------- */
+/** Prefix a path with a slug if present */
+const withSlug = (path: string, slug?: string) =>
+  slug
+    ? `/${slug}${path.startsWith("/") ? path : `/${path}`}`
+    : path.startsWith("/")
+    ? path
+    : `/${path}`;
+
+/* ---------------- icons ---------------- */
 
 function SvgIcon({
   id,
@@ -72,8 +91,7 @@ function SvgIcon({
     strokeLinecap: "round" as const,
     strokeLinejoin: "round" as const,
   };
-
-  if (id === "home") {
+  if (id === "home")
     return (
       <svg viewBox="0 0 24 24" className={className} aria-hidden="true">
         <path {...stroke} d="M3 10.5 12 3l9 7.5" />
@@ -81,16 +99,14 @@ function SvgIcon({
         <path {...stroke} d="M9 21v-6h6v6" />
       </svg>
     );
-  }
-  if (id === "search") {
+  if (id === "search")
     return (
       <svg viewBox="0 0 24 24" className={className} aria-hidden="true">
         <circle {...stroke} cx="11" cy="11" r="7" />
         <path {...stroke} d="M20 20l-3.5-3.5" />
       </svg>
     );
-  }
-  if (id === "cart") {
+  if (id === "cart")
     return (
       <svg viewBox="0 0 24 24" className={className} aria-hidden="true">
         <path
@@ -101,8 +117,6 @@ function SvgIcon({
         <circle cx="16.5" cy="20" r="1.6" fill="currentColor" />
       </svg>
     );
-  }
-  // account
   return (
     <svg viewBox="0 0 24 24" className={className} aria-hidden="true">
       <path {...stroke} d="M12 12a5 5 0 1 0-5-5 5 5 0 0 0 5 5Z" />
@@ -111,7 +125,7 @@ function SvgIcon({
   );
 }
 
-/* ---------------- Desktop links panel ---------------- */
+/* ---------------- desktop links panel ---------------- */
 
 function LinksFooter({ s }: { s: any }) {
   const links = Array.isArray(s.desktop_footer_links)
@@ -179,7 +193,68 @@ function LinksFooter({ s }: { s: any }) {
   );
 }
 
-/* ---------------- Main component ---------------- */
+/* ---------------- search dialog ---------------- */
+
+const SearchDialog: React.FC<{
+  open: boolean;
+  onClose: () => void;
+  placeholder?: string;
+}> = ({ open, onClose, placeholder }) => {
+  useLockBodyScroll(open);
+  const inputRef = useRef<HTMLInputElement | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    document.addEventListener("keydown", onKey);
+    setTimeout(() => inputRef.current?.focus(), 0);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [open, onClose]);
+
+  if (!open) return null;
+
+  return (
+    <div
+      className="fixed inset-0 bg-black/60 flex items-start justify-center p-3 sm:p-4 md:p-8"
+      onMouseDown={onClose}
+      onTouchStart={onClose}
+      aria-modal="true"
+      role="dialog"
+      // ⬇️ MUST be higher than the checkout fixed bar (z-5000)
+      style={{ zIndex: 8000 }}
+    >
+      <div
+        className="relative w-full max-w-4xl bg-white rounded-xl shadow-2xl"
+        onMouseDown={(e) => e.stopPropagation()}
+        onTouchStart={(e) => e.stopPropagation()}
+      >
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Close"
+          className="absolute -top-5 right-0 sm:-top-6 sm:-right-6 h-9 w-9 md:h-10 md:w-10 rounded-full bg-slate-800/80 text-white flex items-center justify-center"
+        >
+          ✕
+        </button>
+        <div className="p-3 sm:p-4 md:p-6">
+          <div className="flex items-center gap-2 rounded-lg border border-slate-200 px-2.5 md:px-3 py-2">
+            <input
+              ref={inputRef}
+              className="flex-1 bg-transparent outline-none text-slate-800 placeholder:text-slate-400 text-sm md:text-base"
+              placeholder={placeholder || "Search for categories or products"}
+            />
+            <span className="text-slate-600 opacity-80">
+              <SvgIcon id="search" className="w-5 h-5" />
+            </span>
+          </div>
+          <div className="min-h-[55vh]" />
+        </div>
+      </div>
+    </div>
+  );
+};
+
+/* ---------------- main component ---------------- */
 
 export default function BottomNav({
   settings = {} as any,
@@ -187,17 +262,14 @@ export default function BottomNav({
   settings?: any;
 }) {
   const s = settings || {};
+  const navigate = useNavigate();
+  const { storeSlug } = useParams<{ storeSlug?: string }>();
 
-  // read settings with sane fallbacks
   const {
     visibility = "all",
-
-    // mobile bar
     footer_background_color = "#ffffff",
     footer_text_color = "#4b5563",
     footer_text_active_color = "#030712",
-
-    // desktop footer panel
     show_desktop_footer = true,
     show_desktop_footer_in_mobile_too = false,
     desktop_footer_background_color = "#f3f4f6",
@@ -208,59 +280,83 @@ export default function BottomNav({
     desktop_footer_about_us_content = "",
     desktop_footer_links_title = "Links",
     desktop_footer_links = [],
-
     custom_css = null,
+    desktop_search_bar_placeholder_text = "Search products",
   } = s;
 
   const isMobile = useIsMobile();
   const cartCount = useCartCount();
   const navRef = useRef<HTMLDivElement | null>(null);
 
+  // auth
+  const auth = useAuth();
+  const tokenLS =
+    (typeof window !== "undefined" &&
+      (localStorage.getItem("access_token") ||
+        localStorage.getItem("token"))) ||
+    "";
+  const isLoggedIn = !!(auth.user || auth.userDetails || tokenLS);
+  const [authOpen, setAuthOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+
+  // after login → go straight to slug-aware profile
+  useEffect(() => {
+    if (authOpen && isLoggedIn) {
+      setAuthOpen(false);
+      navigate(withSlug("/profile", storeSlug));
+    }
+  }, [authOpen, isLoggedIn, navigate, storeSlug]);
+
   const items = useMemo(
     () => [
       {
         key: "home" as const,
-        onClick: () => {
-          fire("nav:home");
-          try {
-            if (window?.location) window.location.href = "/";
-          } catch {
-            /* noop */
-          }
+        onClick: (): void => {
+          window.location.href = storeSlug ? `/${storeSlug}` : "/";
         },
-        isActive: () =>
-          window?.location?.pathname === "/" ||
-          window?.location?.pathname === "/home",
+        isActive: (): boolean => {
+          const p = window?.location?.pathname || "/";
+          return storeSlug ? p === `/${storeSlug}` : p === "/" || p === "/home";
+        },
       },
       {
         key: "search" as const,
-        onClick: () => fire("search:open"),
-        isActive: () => false,
+        onClick: (): void => setSearchOpen(true),
+        isActive: (): boolean => false,
       },
       {
         key: "cart" as const,
-        onClick: () => fire("cart:open"),
-        isActive: () => false,
+        onClick: (): void => {
+          navigate(withSlug("/checkout", storeSlug));
+        },
+        isActive: (): boolean => false,
       },
       {
         key: "account" as const,
-        onClick: () => fire("account:open"),
-        isActive: () => false,
+        onClick: (): void => {
+          if (isLoggedIn) {
+            navigate(withSlug("/profile", storeSlug));
+          } else {
+            setAuthOpen(true);
+          }
+        },
+        isActive: (): boolean => {
+          const p = window?.location?.pathname || "/";
+          return p.endsWith("/profile") || p === "/profile";
+        },
       },
     ],
-    []
+    [navigate, storeSlug, isLoggedIn]
   );
 
-  // Reserve space under the fixed mobile bar
   useLayoutEffect(() => {
     const restore = () => {
-      if (typeof document === "undefined") return;
       const scrollEl =
         (document.querySelector("[data-scroll-container]") as HTMLElement) ||
         (document.scrollingElement as HTMLElement) ||
         document.body;
       document.documentElement.style.removeProperty("--bottom-nav-height");
-      if (scrollEl) scrollEl.style.paddingBottom = "";
+      scrollEl.style.paddingBottom = "";
     };
 
     if (!isMobile) {
@@ -269,7 +365,7 @@ export default function BottomNav({
     }
 
     const el = navRef.current;
-    if (!el || typeof document === "undefined") return;
+    if (!el) return;
 
     const setPad = () => {
       const h = el.getBoundingClientRect().height || 0;
@@ -281,66 +377,55 @@ export default function BottomNav({
         (document.querySelector("[data-scroll-container]") as HTMLElement) ||
         (document.scrollingElement as HTMLElement) ||
         document.body;
-      if (scrollEl) {
-        scrollEl.style.paddingBottom =
-          "calc(var(--bottom-nav-height) + env(safe-area-inset-bottom) + 8px)";
-      }
+      scrollEl.style.paddingBottom =
+        "calc(var(--bottom-nav-height) + env(safe-area-inset-bottom) + 8px)";
     };
 
     setPad();
     window.addEventListener("resize", setPad);
     const RO = (window as any).ResizeObserver;
     const ro = RO ? new RO(setPad) : null;
-    try {
-      ro?.observe(el);
-    } catch {
-      /* noop */
-    }
+    ro?.observe(el);
 
     return () => {
       window.removeEventListener("resize", setPad);
-      try {
-        ro?.disconnect();
-      } catch {
-        /* noop */
-      }
+      ro?.disconnect();
       restore();
     };
   }, [isMobile, cartCount]);
 
-  // visibility rules
   const hiddenByVisibility =
     (visibility === "desktop" && isMobile) ||
     (visibility === "mobile" && !isMobile);
   if (hiddenByVisibility) return null;
 
-  /* ---------- Mobile bottom bar ---------- */
   const MobileBar = (
     <nav
       ref={navRef}
       aria-label="Bottom navigation"
+      // prevent accidental click-through to underlying page (e.g. checkout)
+      onMouseDown={(e) => e.stopPropagation()}
+      onClick={(e) => e.stopPropagation()}
+      onTouchStart={(e) => e.stopPropagation()}
       style={{
         position: "fixed",
-        zIndex: 1000,
+        zIndex: 2500, // below SearchDialog (8000), above page
         left: 0,
         right: 0,
         bottom: 0,
         width: "100%",
-        maxWidth: "100%",
         borderTop: "1px solid rgba(100,116,139,0.15)",
         background: footer_background_color,
         WebkitTapHighlightColor: "transparent",
-        boxSizing: "border-box",
+        pointerEvents: "auto",
       }}
     >
       <div
         className="flex items-center justify-between"
         style={{
-          padding: "10px 14px",
-          paddingBottom: "calc(10px + env(safe-area-inset-bottom))",
+          padding: "12px 18px",
+          paddingBottom: "calc(12px + env(safe-area-inset-bottom))",
           color: footer_text_color,
-          margin: 0,
-          maxWidth: "100%",
         }}
       >
         {items.map((it) => {
@@ -349,15 +434,25 @@ export default function BottomNav({
           return (
             <button
               key={it.key}
-              onClick={it.onClick}
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                it.onClick();
+              }}
+              onTouchStart={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+              }}
               aria-label={it.key}
               className="relative flex items-center justify-center"
               style={{
                 color,
-                height: 44,
-                width: 44,
-                borderRadius: 10,
+                height: 48,
+                width: 48,
+                borderRadius: 12,
                 outline: "none",
+                touchAction: "manipulation",
               }}
             >
               <SvgIcon id={it.key} className="w-[22px] h-[22px]" />
@@ -403,7 +498,6 @@ export default function BottomNav({
         />
       )}
 
-      {/* Spacer so the last content never hides behind the fixed bar */}
       {isMobile && (
         <div
           className="md:hidden"
@@ -412,6 +506,14 @@ export default function BottomNav({
       )}
 
       {isMobile ? MobileBar : null}
+
+      {/* overlays */}
+      <SearchDialog
+        open={searchOpen}
+        onClose={() => setSearchOpen(false)}
+        placeholder={desktop_search_bar_placeholder_text}
+      />
+      <CustomerLoginModal open={authOpen} onClose={() => setAuthOpen(false)} />
 
       {custom_css ? <style>{custom_css}</style> : null}
     </>

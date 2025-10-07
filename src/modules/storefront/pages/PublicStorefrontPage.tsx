@@ -1,10 +1,12 @@
-// modules/storefront/pages/PublicStorefrontPage.tsx
-import { Route, Routes, useParams } from "react-router-dom";
+import { Navigate, Route, Routes, useParams } from "react-router-dom";
 import { RenderLayout, type Block } from "../../../shared/blocks/registry";
 import { useAuth } from "../../auth/contexts/AuthContext";
 import { useGetStorefrontBootstrapQuery } from "../../auth/services/storefrontPublicApi";
 import ProductDetail from "../../../shared/blocks/ProductDetail";
 import AddToCart from "../../../shared/blocks/Addtocart";
+import Payment from "../../../shared/blocks/Payment";
+import CustomerAddressesPage from "../../customer/pages/CustomerAddressesPage";
+import CustomerProfilePage from "../../customer/pages/CustomerProfilePage";
 
 /** Public API bootstrap response (minimal shape used here) */
 type StorefrontBootstrap = {
@@ -27,10 +29,15 @@ type StorefrontBootstrap = {
 
 export default function PublicStorefrontPage() {
   const { storeSlug = "" } = useParams<{ storeSlug?: string }>();
-  const { userDetails } = useAuth();
+  const { user, userDetails } = useAuth();
 
-  const businessIdFromAuth: string =
-    userDetails?.storeLinks?.[0]?.businessId ?? "";
+  const isLoggedIn =
+    !!user ||
+    !!userDetails ||
+    !!(
+      typeof window !== "undefined" &&
+      (localStorage.getItem("access_token") || localStorage.getItem("token"))
+    );
 
   const { data, isLoading, isError } = useGetStorefrontBootstrapQuery(
     { slug: storeSlug },
@@ -59,6 +66,9 @@ export default function PublicStorefrontPage() {
       1,
   }));
 
+  const businessIdFromAuth: string =
+    userDetails?.storeLinks?.[0]?.businessId ?? "";
+
   const businessId: string =
     businessIdFromAuth ||
     String(
@@ -78,11 +88,32 @@ export default function PublicStorefrontPage() {
           {/* product details: /{storeSlug}/p/:productSlug */}
           <Route path="p/:productSlug" element={<ProductDetail />} />
 
-          {/* NEW: add-to-cart style page routes */}
-          {/* /{storeSlug}/cart */}
+          {/* Cart/Checkout/Payment within the slug */}
           <Route path="cart" element={<AddToCart />} />
-          {/* /{storeSlug}/checkout */}
           <Route path="checkout" element={<AddToCart />} />
+          <Route path="payment" element={<Payment />} />
+
+          {/* Profile within the slug (auth-guarded here) */}
+          <Route
+            path="profile"
+            element={
+              isLoggedIn ? (
+                <CustomerProfilePage />
+              ) : (
+                <Navigate to="/home" replace />
+              )
+            }
+          />
+          <Route
+            path="profile/addresses"
+            element={
+              isLoggedIn ? (
+                <CustomerAddressesPage />
+              ) : (
+                <Navigate to="/home" replace />
+              )
+            }
+          />
         </Routes>
       </main>
     </div>

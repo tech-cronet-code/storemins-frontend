@@ -1,7 +1,16 @@
 // src/modules/customer/pages/CustomerProfilePage.tsx
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "../../auth/contexts/AuthContext";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import BottomNav from "../../../shared/blocks/BottomNav";
+
+/* ------------------------ helpers ------------------------ */
+const withSlug = (path: string, slug?: string | null) =>
+  slug
+    ? `/${slug}${path.startsWith("/") ? path : `/${path}`}`
+    : path.startsWith("/")
+    ? path
+    : `/${path}`;
 
 /* ------------------------ tiny SVG icon set ------------------------ */
 const Icon = {
@@ -24,6 +33,13 @@ const Icon = {
         strokeWidth="2"
         strokeLinejoin="round"
       />
+    </svg>
+  ),
+  DotsVertical: (p: React.SVGProps<SVGSVGElement>) => (
+    <svg viewBox="0 0 24 24" fill="currentColor" {...p}>
+      <circle cx="12" cy="5" r="1.8" />
+      <circle cx="12" cy="12" r="1.8" />
+      <circle cx="12" cy="19" r="1.8" />
     </svg>
   ),
   Chevron: (p: React.SVGProps<SVGSVGElement>) => (
@@ -88,6 +104,17 @@ const Icon = {
   XCircle: (p: React.SVGProps<SVGSVGElement>) => (
     <svg viewBox="0 0 24 24" fill="currentColor" {...p}>
       <path d="M12 2a10 10 0 1010 10A10.012 10.012 0 0012 2Zm4.3 13.9l-1.4 1.4L12 13.4l-2.9 2.9-1.4-1.4 2.9-2.9-2.9-2.9 1.4-1.4 2.9 2.9 2.9-2.9 1.4 1.4-2.9 2.9Z" />
+    </svg>
+  ),
+  Logout: (p: React.SVGProps<SVGSVGElement>) => (
+    <svg viewBox="0 0 24 24" fill="none" {...p}>
+      <path
+        d="M15 12H3m12 0-3-3m3 3-3 3M9 7V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-8a2 2 0 0 1-2-2v-2"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </svg>
   ),
 };
@@ -170,18 +197,13 @@ function StatCard({
 
 /* ------------------------------ order types ------------------------------ */
 type OrderStatus = "ongoing" | "completed" | "cancelled";
-type OrderItem = {
-  title: string;
-  qty: number;
-  price: number;
-  image?: string;
-};
+type OrderItem = { title: string; qty: number; price: number; image?: string };
 type Order = {
   id: string;
-  placedAt: string; // ISO or friendly
+  placedAt: string;
   status: OrderStatus;
   total: number;
-  originalTotal?: number; // 👈 Added: crossed MRP/Original total
+  originalTotal?: number;
   items: OrderItem[];
 };
 
@@ -219,19 +241,232 @@ function StatusBadge({ status }: { status: OrderStatus }) {
   );
 }
 
+/* ------------------------------ Kebab menu ------------------------------ */
+function useOutsideClose<T extends HTMLElement>(
+  open: boolean,
+  onClose: () => void
+) {
+  const ref = useRef<T | null>(null);
+  useEffect(() => {
+    if (!open) return;
+    const onDoc = (e: MouseEvent) => {
+      const t = e.target as Node;
+      if (ref.current && !ref.current.contains(t)) onClose();
+    };
+    const onEsc = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    document.addEventListener("mousedown", onDoc);
+    document.addEventListener("keydown", onEsc);
+    return () => {
+      document.removeEventListener("mousedown", onDoc);
+      document.removeEventListener("keydown", onEsc);
+    };
+  }, [open, onClose]);
+  return ref;
+}
+
+function KebabMenu({ onLogout }: { onLogout: () => void }) {
+  const [open, setOpen] = useState(false);
+  const wrapRef = useOutsideClose<HTMLDivElement>(open, () => setOpen(false));
+  return (
+    <div ref={wrapRef} className="relative">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        className="h-10 w-10 rounded-full bg-white/15 text-white grid place-items-center backdrop-blur hover:bg-white/20 transition"
+        title="Menu"
+      >
+        <Icon.DotsVertical className="h-5 w-5" />
+      </button>
+
+      {open && (
+        <div
+          role="menu"
+          className="absolute right-0 mt-2 w-44 rounded-xl bg-white shadow-lg ring-1 ring-black/10 overflow-hidden"
+        >
+          <button
+            role="menuitem"
+            onClick={() => {
+              setOpen(false);
+              onLogout();
+            }}
+            className="w-full flex items-center gap-2 px-3 py-2.5 text-[13px] font-medium text-rose-600 hover:bg-rose-50"
+          >
+            <Icon.Logout className="h-4 w-4" />
+            Log out
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ---------------------------- Edit Profile Modal ---------------------------- */
+function EditProfileModal({
+  open,
+  name: nameProp,
+  mobile: mobileProp,
+  onClose,
+  onSave,
+}: {
+  open: boolean;
+  name?: string | null;
+  mobile?: string | null;
+  onClose: () => void;
+  onSave: (data: { name: string; mobile: string }) => void;
+}) {
+  const [name, setName] = useState(nameProp || "");
+  const nameRef = useRef<HTMLInputElement | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    setName(nameProp || "");
+    setTimeout(() => nameRef.current?.focus(), 0);
+  }, [open, nameProp]);
+
+  if (!open) return null;
+
+  const submit = () => {
+    const trimmed = name.trim();
+    if (!trimmed) {
+      alert("Please enter your name.");
+      return;
+    }
+    onSave({ name: trimmed, mobile: mobileProp || "" }); // mobile read-only
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-[4000] bg-black/40 flex items-center justify-center p-3 sm:p-6"
+      role="dialog"
+      aria-modal="true"
+      onMouseDown={onClose}
+    >
+      <div
+        className="w-full max-w-md rounded-2xl bg-white shadow-2xl ring-1 ring-black/10"
+        onMouseDown={(e) => e.stopPropagation()}
+      >
+        <div className="px-5 pt-5 pb-3">
+          <div className="text-[16px] font-semibold">Edit profile</div>
+          <div className="mt-3 space-y-3">
+            <label className="block">
+              <div className="text-xs text-slate-600 mb-1">Full name</div>
+              <input
+                ref={nameRef}
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className="w-full h-10 rounded-xl border border-slate-300 px-3 outline-none focus:ring-2 focus:ring-violet-300"
+                placeholder="Your name"
+              />
+            </label>
+
+            {/* Read-only mobile field */}
+            <label className="block">
+              <div className="text-xs text-slate-600 mb-1">Mobile</div>
+              <input
+                value={mobileProp || ""}
+                readOnly
+                title="Mobile number is locked. Contact support to change."
+                className="w-full h-10 rounded-xl border border-slate-200 px-3 bg-slate-100 text-slate-500 cursor-not-allowed"
+                placeholder="Phone number"
+                inputMode="tel"
+              />
+              <div className="mt-1 text-[11px] text-slate-500">
+                To change your mobile number, please contact support.
+              </div>
+            </label>
+          </div>
+        </div>
+        <div className="px-5 py-4 border-t border-slate-200 flex items-center justify-end gap-2">
+          <button
+            onClick={onClose}
+            className="h-10 px-4 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-[13px] font-medium"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={submit}
+            className="h-10 px-4 rounded-xl bg-violet-600 text-white font-semibold hover:bg-violet-700"
+          >
+            Save changes
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ================================= PAGE ================================== */
 export default function CustomerProfilePage() {
-  const { user } = useAuth();
+  const { storeSlug } = useParams<{ storeSlug?: string }>();
+  const auth = useAuth();
+  const { logout } = auth;
   const navigate = useNavigate();
 
-  // ------- DEMO ORDERS (replace with API later) -------
+  // derive profile
+  const [profile, setProfile] = useState<{
+    name?: string | null;
+    mobile?: string | null;
+  }>(() => {
+    const ctx = {
+      name: (auth as any)?.user?.name,
+      mobile: (auth as any)?.user?.mobile,
+    };
+    try {
+      const ls = JSON.parse(localStorage.getItem("customer_profile") || "null");
+      return {
+        name: ctx.name ?? ls?.name ?? null,
+        mobile: ctx.mobile ?? ls?.mobile ?? null,
+      };
+    } catch {
+      return ctx;
+    }
+  });
+
+  useEffect(() => {
+    setProfile({
+      name: (auth as any)?.user?.name ?? profile.name ?? null,
+      mobile: (auth as any)?.user?.mobile ?? profile.mobile ?? null,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [(auth as any)?.user?.name, (auth as any)?.user?.mobile]);
+
+  const [editOpen, setEditOpen] = useState(false);
+
+  const handleSaveProfile = async (data: { name: string; mobile: string }) => {
+    const updater =
+      (auth as any)?.updateProfile ||
+      (auth as any)?.setUser ||
+      (auth as any)?.setUserDetails;
+    try {
+      if (typeof updater === "function") {
+        const payload =
+          updater === (auth as any).setUser ||
+          updater === (auth as any).setUserDetails
+            ? { ...(auth as any).user, ...data }
+            : data;
+        await Promise.resolve(updater(payload));
+      } else {
+        localStorage.setItem("customer_profile", JSON.stringify(data));
+        window.dispatchEvent(
+          new CustomEvent("auth:profile:update", { detail: data })
+        );
+      }
+      setProfile(data);
+      setEditOpen(false);
+    } catch {
+      alert("Failed to save profile. Please try again.");
+    }
+  };
+
+  // demo orders
   const demoOrders: Order[] = [
     {
       id: "ODR-982341",
       placedAt: "2025-05-22",
       status: "ongoing",
       total: 58990,
-      originalTotal: 61990, // 👈 crossed price
+      originalTotal: 61990,
       items: [
         {
           title: "MacBook Air 13” (M2) · Midnight",
@@ -252,7 +487,7 @@ export default function CustomerProfilePage() {
       placedAt: "2025-05-05",
       status: "completed",
       total: 2999,
-      originalTotal: 3499, // 👈 crossed price
+      originalTotal: 3499,
       items: [
         {
           title: "Wireless Mouse · Graphite",
@@ -273,7 +508,7 @@ export default function CustomerProfilePage() {
       placedAt: "2025-04-18",
       status: "completed",
       total: 39990,
-      originalTotal: 41990, // 👈 crossed price
+      originalTotal: 41990,
       items: [
         {
           title: "OnePlus 12R · 8/128 · Iron Gray",
@@ -285,79 +520,84 @@ export default function CustomerProfilePage() {
     },
   ];
 
-  // Stats
   const rewards = "—";
   const coupons = "—";
   const wallet = "—";
   const ordersCount = demoOrders.length;
 
-  // Orders filter
   const [tab, setTab] = useState<"all" | "ongoing" | "completed">("all");
-
-  const filtered = useMemo(() => {
-    if (tab === "all") return demoOrders;
-    return demoOrders.filter((o) => o.status === tab);
-  }, [tab]);
+  const filtered = useMemo(
+    () =>
+      tab === "all" ? demoOrders : demoOrders.filter((o) => o.status === tab),
+    [tab]
+  );
 
   return (
     <div className="min-h-dvh bg-gradient-to-b from-slate-50 to-slate-100">
-      {/* ===== Header bar with name in the gradient (no glass card) ===== */}
-      <header
-        className="
-          relative isolate rounded-b-[28px]
-          bg-[radial-gradient(100%_120%_at_0%_0%,rgba(255,255,255,0.14),transparent_40%),linear-gradient(135deg,#7c3aed_0%,#c026d3_50%,#7c3aed_100%)]
-          shadow-[inset_0_-24px_64px_-40px_rgba(255,255,255,0.35)]
-        "
-      >
-        {/* toolbar */}
-        <div className="max-w-3xl mx-auto px-4 pt-4">
-          <div className="flex items-center justify-between">
-            <button
-              onClick={() => navigate(-1)}
-              className="h-10 w-10 rounded-full bg-white/15 text-white grid place-items-center backdrop-blur hover:bg-white/20 transition"
-              aria-label="Back"
-            >
-              <Icon.Back className="h-5 w-5" />
-            </button>
-            <button
-              className="inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1.5 text-white backdrop-blur hover:bg-white/20 transition"
-              title="Edit profile"
-            >
-              <Icon.Edit className="h-4 w-4" />
-              <span className="text-xs font-medium">Edit</span>
-            </button>
-          </div>
-        </div>
+      {/* ===== Edge-to-edge header: cancel parent p-4 with -mx-4 and pull to top with -mt-4 ===== */}
+      <div className="-mx-4 -mt-4">
+        <header
+          className="
+            relative isolate rounded-b-[28px]
+            bg-[radial-gradient(100%_120%_at_0%_0%,rgba(255,255,255,0.14),transparent_40%),linear-gradient(135deg,#7c3aed_0%,#c026d3_50%,#7c3aed_100%)]
+            shadow-[inset_0_-24px_64px_-40px_rgba(255,255,255,0.35)]
+          "
+        >
+          {/* toolbar */}
+          <div className="max-w-3xl mx-auto px-4 pt-4">
+            <div className="flex items-center justify-between">
+              <button
+                onClick={() => navigate(-1)}
+                className="h-10 w-10 rounded-full bg-white/15 text-white grid place-items-center backdrop-blur hover:bg-white/20 transition"
+                aria-label="Back"
+              >
+                <Icon.Back className="h-5 w-5" />
+              </button>
 
-        {/* name & phone inside bar */}
-        <div className="max-w-3xl mx-auto px-4 pb-6 pt-8">
-          <div className="flex items-center gap-3 text-white">
-            <InitialAvatar name={user?.name} />
-            <div>
-              <div className="text-[22px] sm:text-2xl font-bold tracking-wide drop-shadow-sm">
-                {user?.name || "—"}
-              </div>
-              <div className="text-[13px] sm:text-sm/5 opacity-95">
-                {user?.mobile}
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setEditOpen(true)}
+                  className="inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1.5 text-white backdrop-blur hover:bg-white/20 transition"
+                  title="Edit profile"
+                >
+                  <Icon.Edit className="h-4 w-4" />
+                  <span className="text-xs font-medium">Edit</span>
+                </button>
+                <KebabMenu onLogout={logout} />
               </div>
             </div>
           </div>
-        </div>
-      </header>
+
+          {/* name & phone inside bar */}
+          <div className="max-w-3xl mx-auto px-4 pb-6 pt-8">
+            <div className="flex items-center gap-3 text-white">
+              <InitialAvatar name={profile.name || undefined} />
+              <div>
+                <div className="text-[22px] sm:text-2xl font-bold tracking-wide drop-shadow-sm">
+                  {profile.name || "—"}
+                </div>
+                <div className="text-[13px] sm:text-sm/5 opacity-95">
+                  {profile.mobile || "—"}
+                </div>
+              </div>
+            </div>
+          </div>
+        </header>
+      </div>
 
       {/* ===== Content ===== */}
       <main className="max-w-3xl mx-auto px-4 pb-24 pt-6">
         {/* Actions */}
         <section className="rounded-3xl bg-white shadow-sm ring-1 ring-black/5 overflow-hidden">
           <ListRow
-            to="/profile/addresses"
+            to={withSlug("/profile/addresses", storeSlug)}
             icon={<Icon.MapPin className="h-5 w-5" />}
             title="Your saved addresses"
             subtitle="Manage delivery locations"
           />
           <div className="mx-5 border-t border-slate-100" />
           <ListRow
-            to="/profile/help"
+            to={withSlug("/profile/help", storeSlug)}
             icon={<Icon.Info className="h-5 w-5" />}
             title="Help & support"
             subtitle="FAQs and contact options"
@@ -373,7 +613,7 @@ export default function CustomerProfilePage() {
             label="Orders"
             value={ordersCount}
             icon={<Icon.Receipt className="h-3.5 w-3.5" />}
-            to="/profile/orders"
+            to={withSlug("/profile/orders", storeSlug)}
           />
         </section>
 
@@ -416,7 +656,7 @@ export default function CustomerProfilePage() {
                 All your orders will be available here
               </div>
               <Link
-                to="/"
+                to={withSlug("/", storeSlug)}
                 className="mt-5 inline-flex items-center justify-center rounded-xl bg-violet-600 px-4 py-2 text-sm font-semibold text-white hover:bg-violet-700 active:bg-violet-800 transition"
               >
                 Explore products
@@ -429,11 +669,7 @@ export default function CustomerProfilePage() {
                 const rest = o.items.length - 1;
                 const date = new Date(o.placedAt).toLocaleDateString(
                   undefined,
-                  {
-                    year: "numeric",
-                    month: "short",
-                    day: "2-digit",
-                  }
+                  { year: "numeric", month: "short", day: "2-digit" }
                 );
                 const currencyINR = (v: number) =>
                   "₹" +
@@ -514,14 +750,17 @@ export default function CustomerProfilePage() {
                     {/* Footer actions */}
                     <div className="mt-4 flex items-center justify-end gap-2">
                       <Link
-                        to={`/profile/orders/${o.id}`}
+                        to={withSlug(`/profile/orders/${o.id}`, storeSlug)}
                         className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
                       >
                         View details
                       </Link>
                       {o.status === "ongoing" && (
                         <Link
-                          to={`/profile/orders/${o.id}/track`}
+                          to={withSlug(
+                            `/profile/orders/${o.id}/track`,
+                            storeSlug
+                          )}
                           className="rounded-lg bg-violet-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-violet-700"
                         >
                           Track
@@ -535,6 +774,18 @@ export default function CustomerProfilePage() {
           )}
         </section>
       </main>
+
+      {/* Edit Profile Modal */}
+      <EditProfileModal
+        open={editOpen}
+        name={profile.name || ""}
+        mobile={profile.mobile || ""}
+        onClose={() => setEditOpen(false)}
+        onSave={handleSaveProfile}
+      />
+
+      {/* Bottom navigation */}
+      <BottomNav />
     </div>
   );
 }

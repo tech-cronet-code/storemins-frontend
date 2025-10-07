@@ -1,16 +1,21 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import ReactDOM from "react-dom";
 import { useLocation, useNavigate } from "react-router-dom";
 
-/** Bottom “Your cart (N)” dock — ephemerally shows after add, hides after a delay. */
+/** Bottom “Your cart (N)” dock — mobile-safe */
 type Props = {
   checkoutPath?: string;
   /** How long to keep the dock visible after an add (ms). Default: 10s */
   showMs?: number;
-  /** If true, the dock sticks around whenever the cart is non-empty (not desired for toast UX). */
+  /** If true, the dock sticks around whenever the cart is non-empty. */
   stickWhileNotEmpty?: boolean;
   /** Count mode: 'unique' = distinct products (default), 'qty' = sum of quantities */
   countMode?: "unique" | "qty";
+  /** Extra pixels to lift above another fixed bar (e.g. bottom nav). */
+  bottomOffsetPx?: number; // ← new, defaults to 0
+  /** z-index override (in case you have other fixed layers). */
+  zIndex?: number; // ← new, defaults to 5000
 };
 
 type CartItem = { id?: string | number; qty?: number };
@@ -35,16 +40,19 @@ function computeCount(items: CartItem[], mode: Props["countMode"] = "unique") {
 
 const CartDock: React.FC<Props> = ({
   checkoutPath,
-  showMs = 10000, // 10s default
-  stickWhileNotEmpty = false, // toast-style by default
+  showMs = 10000,
+  stickWhileNotEmpty = false,
   countMode = "unique",
+  bottomOffsetPx = 0,
+  zIndex = 5000,
 }) => {
   const nav = useNavigate();
   const loc = useLocation();
 
   const initialCount = computeCount(safeParseCart(), countMode);
   const [count, setCount] = useState<number>(initialCount);
-  // For a toast UX, start hidden; we only show on "add" or count increase.
+
+  // Toast UX: start hidden; only flash on add or count increase.
   const [visible, setVisible] = useState<boolean>(false);
 
   const timer = useRef<number | null>(null);
@@ -83,16 +91,10 @@ const CartDock: React.FC<Props> = ({
     setCount(c);
 
     if (stickWhileNotEmpty) {
-      // Classic sticky dock: always visible if non-empty
       setVisible(c > 0);
       if (!c) hide();
     } else {
-      // Toast logic: pop only on add (or explicit flash)
-      if (forceFlash || c > prev) {
-        // If count increased or user dispatched `cart:add`, show and reset timer
-        showFor();
-      }
-      // If cart emptied, hide immediately
+      if (forceFlash || c > prev) showFor();
       if (c === 0) hide();
     }
 
@@ -103,8 +105,8 @@ const CartDock: React.FC<Props> = ({
     // Initial read (no flash)
     refresh(false);
 
-    const onAdd = () => refresh(true); // explicit add signal -> flash
-    const onUpdate = () => refresh(false); // generic updates -> auto flash on increase
+    const onAdd = () => refresh(true);
+    const onUpdate = () => refresh(false);
     const onStorage = (e: StorageEvent) => {
       if (e.key === "cart") refresh(false);
     };
@@ -122,37 +124,57 @@ const CartDock: React.FC<Props> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [countMode, showMs, stickWhileNotEmpty]);
 
-  // Don’t render if cart is empty and we’re not in sticky mode
+  // Don’t render at all if cart is empty and we’re not sticky
   if (!count && !stickWhileNotEmpty) return null;
 
-  return (
+  // Render in a portal so it’s never clipped by parents
+  const node = (
     <div
       className={[
-        "fixed left-1/2 -translate-x-1/2 z-[80]",
-        "bottom-3 sm:bottom-5",
-        "transition-all duration-250",
-        visible
-          ? "opacity-100 translate-y-0"
-          : "opacity-0 translate-y-2 pointer-events-none",
+        // Full-width lane with centered content (better for tiny phones)
+        "fixed inset-x-0",
+        "flex justify-center",
+        "pointer-events-none", // container doesn't capture taps; inner wrapper does
+        "transition-transform transition-opacity duration-300",
       ].join(" ")}
-      style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
+      style={{
+        zIndex,
+        bottom: `calc(${bottomOffsetPx}px + env(safe-area-inset-bottom))`,
+        opacity: visible ? 1 : 0,
+        transform: visible ? "translateY(0)" : "translateY(8px)",
+      }}
       aria-live="polite"
     >
-      <button
-        onClick={() => nav(derivedCheckout)}
+      {/* Inner wrapper: responsive sizing */}
+      <div
         className={[
-          "px-5 sm:px-6 py-2.5 sm:py-3 rounded-full",
-          "bg-fuchsia-600 hover:bg-fuchsia-700 text-white",
-          "font-semibold shadow-lg shadow-fuchsia-600/30",
-          "focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70",
+          // Mobile: stretch nicely with side gutters
+          "w-[92%] max-w-[520px] sm:w-auto sm:max-w-none",
+          "pointer-events-auto", // allow clicks
         ].join(" ")}
-        aria-label={`Open your cart with ${count} item${count > 1 ? "s" : ""}`}
-        type="button"
       >
-        Your cart ({count})
-      </button>
+        <button
+          onClick={() => nav(derivedCheckout)}
+          className={[
+            "w-full sm:w-auto",
+            "px-4 sm:px-6 py-3 rounded-full",
+            "bg-fuchsia-600 hover:bg-fuchsia-700 text-white",
+            "font-semibold shadow-lg shadow-fuchsia-600/30",
+            "focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70",
+          ].join(" ")}
+          aria-label={`Open your cart with ${count} item${
+            count > 1 ? "s" : ""
+          }`}
+          type="button"
+        >
+          Your cart ({count})
+        </button>
+      </div>
     </div>
   );
+
+  const portalTarget = typeof document !== "undefined" ? document.body : null;
+  return portalTarget ? ReactDOM.createPortal(node, portalTarget) : node;
 };
 
 export default CartDock;

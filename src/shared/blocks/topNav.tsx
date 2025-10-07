@@ -6,13 +6,13 @@ import React, {
   useRef,
   useState,
 } from "react";
+import { useNavigate } from "react-router-dom";
 import cn from "classnames";
 import CustomerLoginModal from "./CustomerLoginModal";
+import { useAuth } from "../../modules/auth/contexts/AuthContext";
 
 /* ============================== Types ============================== */
-
 export type TopNavSettings = {
-  // base look
   background_color?: string;
   text_color?: string;
   border?: boolean;
@@ -20,33 +20,22 @@ export type TopNavSettings = {
   logo_type?: "default" | "white" | "none" | "custom";
   logo_url?: string;
   brand_subtitle?: string;
-
-  // quick icon toggles
   show_search?: boolean;
   show_cart?: boolean;
   show_wishlist?: boolean;
   show_whatsapp?: boolean;
   show_profile?: boolean;
   whatsapp_number?: string;
-
-  // legacy buttons
   left_button?: "NONE" | "BRANCH" | "SEARCH" | "ACCOUNT" | "CART" | "MENU";
   right_button?: "NONE" | "BRANCH" | "SEARCH" | "ACCOUNT" | "CART" | "MENU";
-
-  // menu / categories
   menu_items?: Array<{ label?: string; href?: string }>;
   display_categories_on_menu?: boolean;
-
-  // behaviour
   sticky_header?: boolean;
   visibility?: "all" | "desktop" | "mobile";
-
-  // search pill
   desktop_search_bar_background_color?: string;
   desktop_search_bar_placeholder_text?: string;
   desktop_search_bar_placeholder_text_color?: string;
   desktop_search_bar_display_search_icon?: boolean;
-  desktop_search_bar_search_icon_color?: string;
   desktop_search_bar_border?: boolean;
   desktop_search_bar_border_size?:
     | "0px"
@@ -57,24 +46,17 @@ export type TopNavSettings = {
     | "6px";
   desktop_search_bar_border_color?: string;
   desktop_search_bar_radius?: "none" | "sm" | "md" | "lg" | "xl" | "full";
-
-  // misc
   custom_css?: string | null;
-
-  // optional icon sizing (editor convenience)
   icon_size_sm?: number | string;
   icon_size_md?: number | string;
   icon_size_lg?: number | string;
-
-  // ---------- NEW (for PDP) ----------
-  /** Force show the Menu (hamburger) regardless of left_button config */
+  /** Force show Menu regardless of left_button */
   forceMenu?: boolean;
-  /** If true, hides menu on /p/:productSlug routes (ignored when forceMenu=true) */
+  /** Hide Menu on /p/:productSlug routes (ignored when forceMenu=true) */
   hideMenuOnDetail?: boolean;
 };
 
 /* ============================== Utils / hooks ============================== */
-
 const radiusClass: Record<
   NonNullable<TopNavSettings["desktop_search_bar_radius"]>,
   string
@@ -100,29 +82,20 @@ function visibilityClass(v?: TopNavSettings["visibility"]) {
 
 function useIsMdUp() {
   const [mdUp, setMdUp] = useState(false);
-
   useEffect(() => {
     if (typeof window === "undefined" || !window.matchMedia) return;
-
     const mq = window.matchMedia("(min-width: 768px)");
     const onChange = (e: MediaQueryListEvent) => setMdUp(e.matches);
-
     setMdUp(mq.matches);
-
     if (typeof mq.addEventListener === "function") {
       mq.addEventListener("change", onChange);
-      return () => {
-        mq.removeEventListener("change", onChange);
-      };
+      return () => mq.removeEventListener("change", onChange);
     }
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (mq as any).addListener?.(onChange);
+    mq.addListener?.(onChange);
     return () => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (mq as any).removeListener?.(onChange);
+      mq.removeListener?.(onChange);
     };
   }, []);
-
   return mdUp;
 }
 
@@ -154,8 +127,25 @@ function useLockBodyScroll(active: boolean) {
   }, [active]);
 }
 
-/* ============================== Icons ============================== */
+/** Get current store slug from the URL: first non-empty path segment */
+function getCurrentStoreSlug(): string | null {
+  try {
+    const parts = (window.location.pathname || "/").split("/").filter(Boolean);
+    return parts.length ? parts[0] : null;
+  } catch {
+    return null;
+  }
+}
 
+/** Prefix a path with the current slug when present */
+function withSlug(path: string): string {
+  const slug = getCurrentStoreSlug();
+  if (!slug) return path.startsWith("/") ? path : `/${path}`;
+  const clean = path.startsWith("/") ? path : `/${path}`;
+  return `/${slug}${clean}`;
+}
+
+/* ============================== Icons ============================== */
 const Svg: React.FC<
   React.PropsWithChildren<{ size?: number; className?: string }>
 > = ({ size = 22, className, children, ...rest }) => (
@@ -266,7 +256,6 @@ const Icon = {
 };
 
 /* ============================== Small UI bits ============================== */
-
 const IconTap: React.FC<{
   label: string;
   onClick?: () => void;
@@ -323,7 +312,6 @@ const PillSearchButton: React.FC<{ s: TopNavSettings; onOpen: () => void }> = ({
 };
 
 /* ============================== Overlays (Search / Drawer) ============================== */
-
 const SearchDialog: React.FC<{
   open: boolean;
   onClose: () => void;
@@ -432,6 +420,25 @@ export const TopNavBlock: React.FC<{ settings?: Partial<TopNavSettings> }> = ({
   const s: TopNavSettings = settings || {};
   const mdUp = useIsMdUp();
   const isEditor = useIsEditorPage();
+  const navigate = useNavigate();
+
+  // ---- AUTH
+  const auth = useAuth();
+  const tokenLS =
+    (typeof window !== "undefined" &&
+      (localStorage.getItem("access_token") ||
+        localStorage.getItem("token"))) ||
+    "";
+  const isLoggedIn = !!(auth.user || auth.userDetails || tokenLS);
+
+  // If modal is open and auth flips to logged-in, close & go to /{slug}/profile
+  const [authOpen, setAuthOpen] = useState(false);
+  useEffect(() => {
+    if (authOpen && isLoggedIn) {
+      setAuthOpen(false);
+      navigate(withSlug("/profile"));
+    }
+  }, [authOpen, isLoggedIn, navigate]);
 
   const sizes = useMemo(() => {
     const sm = Number(s.icon_size_sm ?? 18) || 18;
@@ -446,9 +453,6 @@ export const TopNavBlock: React.FC<{ settings?: Partial<TopNavSettings> }> = ({
   const [menuOpen, setMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
 
-  // NEW: external auth modal state
-  const [authOpen, setAuthOpen] = useState(false);
-
   const showOnMobile = s.visibility !== "desktop";
   const showOnDesktop = s.visibility !== "mobile";
 
@@ -462,7 +466,6 @@ export const TopNavBlock: React.FC<{ settings?: Partial<TopNavSettings> }> = ({
     const el = headerRef.current;
     const measure = () => setHeaderH(el.getBoundingClientRect().height || 0);
     measure();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const ro = new (window as any).ResizeObserver(measure);
     ro.observe(el);
     window.addEventListener("resize", measure);
@@ -487,16 +490,15 @@ export const TopNavBlock: React.FC<{ settings?: Partial<TopNavSettings> }> = ({
   const showWhatsApp = s.show_whatsapp !== false;
   const showProfile = s.show_profile !== false;
 
-  // ---------- NEW: effective button logic ----------
+  // ---------- effective button logic ----------
   const pathname =
     typeof window !== "undefined" ? window.location.pathname : "";
-  const onProductDetail = /(^|\/)p(\/|$)/.test(pathname); // matches /p or /.../p/...
+  const onProductDetail = /(^|\/)p(\/|$)/.test(pathname);
 
   const effectiveLeft: NonNullable<TopNavSettings["left_button"]> =
     useMemo(() => {
-      if (s.forceMenu) return "MENU"; // hard force
+      if (s.forceMenu) return "MENU";
       if (s.hideMenuOnDetail && onProductDetail) return "NONE";
-      // default to MENU if nothing specified
       return s.left_button ?? "MENU";
     }, [s.forceMenu, s.hideMenuOnDetail, s.left_button, onProductDetail]);
 
@@ -508,8 +510,7 @@ export const TopNavBlock: React.FC<{ settings?: Partial<TopNavSettings> }> = ({
     visibilityClass(s.visibility),
     "fixed top-0 left-0 right-0 z-[100] md:static md:top-auto md:left-auto md:right-auto md:z-auto",
     desktopStickyOn && !desktopFixedOn && "md:sticky md:top-0 md:z-[100]",
-    desktopFixedOn && "md:fixed md:top-0 md:left-0 md:right-0 md:z-[100]",
-    s.border ? "" : "" // small tidy
+    desktopFixedOn && "md:fixed md:top-0 md:left-0 md:right-0 md:z-[100]"
   );
 
   const rowClass = isEditor
@@ -529,7 +530,7 @@ export const TopNavBlock: React.FC<{ settings?: Partial<TopNavSettings> }> = ({
         }}
       >
         <div className={rowClass}>
-          {/* Left button (effective) */}
+          {/* Left button */}
           <div className="w-12 sm:w-16 md:w-24">
             {effectiveLeft !== "NONE" && (
               <button
@@ -554,13 +555,13 @@ export const TopNavBlock: React.FC<{ settings?: Partial<TopNavSettings> }> = ({
             )}
           </div>
 
-          {/* Spacer (keeps layout balanced when logo block is omitted) */}
+          {/* Spacer */}
           <div className="flex-1 min-w-0" />
 
-          {/* Desktop pill search */}
+          {/* Desktop search pill */}
           {showSearch && <PillSearchButton s={s} onOpen={openSearch} />}
 
-          {/* Right icon row */}
+          {/* Right icons */}
           <div className="flex items-center gap-1.5 md:gap-3">
             {showSearch && !mdUp && (
               <IconTap color={textColor} label="Search" onClick={openSearch}>
@@ -572,7 +573,10 @@ export const TopNavBlock: React.FC<{ settings?: Partial<TopNavSettings> }> = ({
               <IconTap
                 color={textColor}
                 label="Cart/Wishlist"
-                onClick={() => (window.location.href = "/cart")}
+                onClick={() => {
+                  // Go to slug-aware checkout page
+                  window.location.href = withSlug("/checkout");
+                }}
               >
                 <Icon.bagHeart size={bigIconSize} />
               </IconTap>
@@ -596,7 +600,11 @@ export const TopNavBlock: React.FC<{ settings?: Partial<TopNavSettings> }> = ({
                 color={textColor}
                 label="Profile"
                 onClick={() => {
-                  setAuthOpen(true);
+                  if (isLoggedIn) {
+                    navigate(withSlug("/profile"));
+                  } else {
+                    setAuthOpen(true);
+                  }
                 }}
               >
                 <Icon.user size={iconSize} />
@@ -673,7 +681,7 @@ export const TopNavBlock: React.FC<{ settings?: Partial<TopNavSettings> }> = ({
         placeholder={s.desktop_search_bar_placeholder_text || "Search products"}
       />
 
-      {/* Auth modal (external) */}
+      {/* Auth modal */}
       <CustomerLoginModal open={authOpen} onClose={() => setAuthOpen(false)} />
 
       {s.custom_css ? <style>{s.custom_css}</style> : null}
@@ -682,8 +690,6 @@ export const TopNavBlock: React.FC<{ settings?: Partial<TopNavSettings> }> = ({
 };
 
 /* ============================== Mapping helpers ============================== */
-
-/** Server -> Editor UI defaults (lightweight; tweak as you like in seller UI) */
 export function mapTopNavToUI(s?: Partial<TopNavSettings>) {
   const v = s || {};
   return {
@@ -718,13 +724,11 @@ export function mapTopNavToUI(s?: Partial<TopNavSettings>) {
       TopNavSettings["desktop_search_bar_border_size"]
     >,
     borderColor: v.desktop_search_bar_border_color ?? "#111827",
-    // pass through new flags for editor awareness
     forceMenu: !!v.forceMenu,
     hideMenuOnDetail: !!v.hideMenuOnDetail,
   };
 }
 
-/** Editor UI -> Server settings (merge, preserving unknown keys) */
 export function mergeTopNavFromUI(
   existing: Partial<TopNavSettings> | undefined,
   ui: ReturnType<typeof mapTopNavToUI>
@@ -752,7 +756,6 @@ export function mergeTopNavFromUI(
     desktop_search_bar_border_size: ui.borderSize,
     desktop_search_bar_border_color: ui.borderColor,
     menu_items: Array.isArray(ui.menuItems) ? ui.menuItems : [],
-    // pass through new flags
     forceMenu: !!ui.forceMenu,
     hideMenuOnDetail: !!ui.hideMenuOnDetail,
   };
