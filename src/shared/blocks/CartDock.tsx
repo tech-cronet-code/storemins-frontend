@@ -3,40 +3,18 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import ReactDOM from "react-dom";
 import { useLocation, useNavigate } from "react-router-dom";
 
-/** Bottom “Your cart (N)” dock — mobile-safe */
+/* ==== NEW ==== */
+import { useAuth } from "../../modules/auth/contexts/AuthContext";
+import { useGetActiveCartQuery } from "../../modules/customer/services/customerCartApi";
+
 type Props = {
   checkoutPath?: string;
-  /** How long to keep the dock visible after an add (ms). Default: 10s */
   showMs?: number;
-  /** If true, the dock sticks around whenever the cart is non-empty. */
   stickWhileNotEmpty?: boolean;
-  /** Count mode: 'unique' = distinct products (default), 'qty' = sum of quantities */
   countMode?: "unique" | "qty";
-  /** Extra pixels to lift above another fixed bar (e.g. bottom nav). */
-  bottomOffsetPx?: number; // ← new, defaults to 0
-  /** z-index override (in case you have other fixed layers). */
-  zIndex?: number; // ← new, defaults to 5000
+  bottomOffsetPx?: number;
+  zIndex?: number;
 };
-
-type CartItem = { id?: string | number; qty?: number };
-
-function safeParseCart(): CartItem[] {
-  try {
-    const raw = localStorage.getItem("cart");
-    const arr = raw ? (JSON.parse(raw) as CartItem[]) : [];
-    return Array.isArray(arr) ? arr : [];
-  } catch {
-    return [];
-  }
-}
-
-function computeCount(items: CartItem[], mode: Props["countMode"] = "unique") {
-  if (mode === "qty") {
-    return items.reduce((sum, it) => sum + (Number(it?.qty) || 1), 0);
-  }
-  const ids = new Set(items.map((it) => String(it?.id ?? ""))).size;
-  return ids || items.length;
-}
 
 const CartDock: React.FC<Props> = ({
   checkoutPath,
@@ -49,14 +27,37 @@ const CartDock: React.FC<Props> = ({
   const nav = useNavigate();
   const loc = useLocation();
 
-  const initialCount = computeCount(safeParseCart(), countMode);
-  const [count, setCount] = useState<number>(initialCount);
+  const { userDetails } = (useAuth() as any) ?? {};
+  const businessId: string =
+    userDetails?.storeLinks?.[0]?.businessId?.trim?.() ?? "";
 
-  // Toast UX: start hidden; only flash on add or count increase.
+  // Pull live cart
+  const { data: cart, refetch } = useGetActiveCartQuery(
+    { businessId },
+    { skip: !businessId }
+  );
+
+  const apiCount = useMemo(() => {
+    if (!cart) return 0;
+    if (countMode === "qty")
+      return cart.items.reduce((n, i) => n + (Number(i.quantity) || 0), 0);
+    // unique
+    return new Set(
+      cart.items.map((i) => i.productId + ":" + (i.variantId ?? ""))
+    ).size;
+  }, [cart, countMode]);
+
+  const [count, setCount] = useState<number>(apiCount);
   const [visible, setVisible] = useState<boolean>(false);
 
   const timer = useRef<number | null>(null);
-  const lastCountRef = useRef<number>(initialCount);
+  const lastCountRef = useRef<number>(apiCount);
+
+  useEffect(() => {
+    setCount(apiCount);
+    lastCountRef.current = apiCount;
+    if (stickWhileNotEmpty) setVisible(apiCount > 0);
+  }, [apiCount, stickWhileNotEmpty]);
 
   const derivedCheckout = useMemo(() => {
     if (checkoutPath) return checkoutPath;
@@ -82,59 +83,32 @@ const CartDock: React.FC<Props> = ({
     }, ms);
   };
 
-  /** Recompute count from storage; show if needed. */
-  const refresh = (forceFlash = false) => {
-    const items = safeParseCart();
-    const c = computeCount(items, countMode);
-    const prev = lastCountRef.current;
-
-    setCount(c);
-
-    if (stickWhileNotEmpty) {
-      setVisible(c > 0);
-      if (!c) hide();
-    } else {
-      if (forceFlash || c > prev) showFor();
-      if (c === 0) hide();
-    }
-
-    lastCountRef.current = c;
-  };
-
+  // Flash on add events and storage signals, then refetch
   useEffect(() => {
-    // Initial read (no flash)
-    refresh(false);
-
-    const onAdd = () => refresh(true);
-    const onUpdate = () => refresh(false);
-    const onStorage = (e: StorageEvent) => {
-      if (e.key === "cart") refresh(false);
+    const onAdd = () => {
+      refetch();
+      showFor();
     };
-
+    const onUpdate = () => {
+      refetch();
+      if (!stickWhileNotEmpty) showFor();
+    };
     window.addEventListener("cart:add", onAdd as EventListener);
     window.addEventListener("cart:update", onUpdate as EventListener);
-    window.addEventListener("storage", onStorage);
-
     return () => {
       window.removeEventListener("cart:add", onAdd as EventListener);
       window.removeEventListener("cart:update", onUpdate as EventListener);
-      window.removeEventListener("storage", onStorage);
-      if (timer.current) window.clearTimeout(timer.current);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [countMode, showMs, stickWhileNotEmpty]);
+  }, [refetch, stickWhileNotEmpty, showMs]);
 
-  // Don’t render at all if cart is empty and we’re not sticky
   if (!count && !stickWhileNotEmpty) return null;
 
-  // Render in a portal so it’s never clipped by parents
   const node = (
     <div
       className={[
-        // Full-width lane with centered content (better for tiny phones)
         "fixed inset-x-0",
         "flex justify-center",
-        "pointer-events-none", // container doesn't capture taps; inner wrapper does
+        "pointer-events-none",
         "transition-transform transition-opacity duration-300",
       ].join(" ")}
       style={{
@@ -145,12 +119,10 @@ const CartDock: React.FC<Props> = ({
       }}
       aria-live="polite"
     >
-      {/* Inner wrapper: responsive sizing */}
       <div
         className={[
-          // Mobile: stretch nicely with side gutters
           "w-[92%] max-w-[520px] sm:w-auto sm:max-w-none",
-          "pointer-events-auto", // allow clicks
+          "pointer-events-auto",
         ].join(" ")}
       >
         <button

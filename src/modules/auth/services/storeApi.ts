@@ -1,4 +1,3 @@
-// storeApi.ts
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { createApi } from "@reduxjs/toolkit/query/react";
 import { baseQueryWithReauth } from "./baseQueryWithReauth";
@@ -210,6 +209,11 @@ export const storeApi = createApi({
     "Theme",
     "Blocks",
     "DesignCatalog",
+    "CustomerAddress",
+    "CartItem",
+    "Cart",
+    "Order",
+    "Coupon",
   ] as const,
   endpoints: (builder) => ({
     /* -------- Store details -------- */
@@ -312,7 +316,6 @@ export const storeApi = createApi({
         url: `/seller/business/theme/list/${businessId}`,
         method: "GET",
       }),
-      // response = { data: [ { themes: [...] } ] }
       transformResponse: (raw: {
         message: string;
         data: Array<{ themes: ThemeListItem[] }>;
@@ -328,7 +331,6 @@ export const storeApi = createApi({
         url: `/seller/business/design/get-available-design-elements`,
         method: "GET",
       }),
-      // response = { data: [ { items: [...] } ] }
       transformResponse: (raw: {
         message: string;
         data: Array<{ items: AvailableDesignElementDto[] }>;
@@ -398,7 +400,7 @@ export const storeApi = createApi({
       invalidatesTags: ["Theme"],
     }),
 
-    /* -------- NEW: Storefront runtime (published snapshot or draft fallback) -------- */
+    /* -------- NEW: Storefront runtime -------- */
     getStorefrontData: builder.query<
       StorefrontRuntimeResponseDto,
       { businessStoreId: string }
@@ -411,7 +413,6 @@ export const storeApi = createApi({
         message: string;
         data: StorefrontRuntimeResponseDto;
       }) => raw.data,
-      // This is read-only runtime data; no tags needed.
     }),
 
     /* -------- Blocks CRUD -------- */
@@ -437,7 +438,7 @@ export const storeApi = createApi({
     >({
       query: ({ id, body }) => ({
         url: `/seller/business/themes/blocks/${id}`,
-        method: "POST", // matches your controller decorator
+        method: "POST",
         body,
       }),
       transformResponse: (raw: {

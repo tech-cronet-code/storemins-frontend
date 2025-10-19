@@ -10,6 +10,7 @@ import {
 import { convertPath } from "../../modules/auth/utils/useImagePath";
 import { useAuth } from "../../modules/auth/contexts/AuthContext";
 import CartDock from "./CartDock";
+import { useAddItemToCartMutation } from "../../modules/customer/services/customerCartApi";
 
 /* ------------------------------ local types ------------------------------ */
 type MediaItem = { url?: string; order?: number | null | undefined };
@@ -635,6 +636,7 @@ const ProductDetail: React.FC = () => {
     storeSlug?: string;
     productSlug?: string;
   }>();
+  const [addItem] = useAddItemToCartMutation();
 
   // businessId from auth
   type AuthDetails = { storeLinks?: Array<{ businessId?: string | null }> };
@@ -758,69 +760,37 @@ const ProductDetail: React.FC = () => {
     product.isInStock ??
     (typeof product.stock === "number" ? (product.stock ?? 0) > 0 : true);
 
-  /** Persist to both keys + inform listeners */
-  function persistCart(cart: any[]) {
-    try {
-      localStorage.setItem("cart", JSON.stringify(cart));
-      localStorage.setItem("shopping_cart", JSON.stringify(cart)); // legacy support
-      window.dispatchEvent(
-        new CustomEvent("cart:update", { detail: { size: cart.length } })
-      );
-    } catch {
-      /* ignore */
-    }
-  }
-
   function addToCart(p: ProductLike, quantity: number) {
-    try {
-      type CartItem = {
-        id: string;
-        name: string;
-        price: number;
-        mrp?: number;
-        pct?: number | null;
-        image: string;
-        qty: number;
-        currency: string;
-      };
+    // API-first; UI identical
+    (async () => {
+      try {
+        await addItem({
+          businessId,
+          productId: String((p as ProductListItem).id),
+          variantId: null,
+          quantity,
+        }).unwrap();
 
-      const rupeesSell = Math.round(price / 100);
-      const rupeesMrp = Math.round(mrp / 100);
-
-      const raw = localStorage.getItem("cart");
-      const cart: CartItem[] = raw ? (JSON.parse(raw) as CartItem[]) : [];
-
-      const idStr = toStr((p as ProductListItem).id);
-      const idx = cart.findIndex((x) => toStr(x.id) === idStr);
-      const imageUrl = primaryImage;
-
-      if (idx > -1) {
-        cart[idx].qty += quantity;
-        cart[idx].price = rupeesSell;
-        cart[idx].mrp = rupeesMrp || undefined;
-        cart[idx].pct = pct;
-        cart[idx].image = imageUrl || cart[idx].image;
-        cart[idx].currency = p.currency ?? "INR";
-      } else {
-        cart.push({
-          id: idStr,
-          name: p.name ?? "Product",
-          price: rupeesSell,
-          mrp: rupeesMrp || undefined,
-          pct,
-          image: imageUrl,
-          qty: quantity,
-          currency: p.currency ?? "INR",
-        });
+        window.dispatchEvent(
+          new CustomEvent("cart:add", {
+            detail: { id: String((p as ProductListItem).id), qty: quantity },
+          })
+        );
+        window.dispatchEvent(new CustomEvent("cart:update"));
+      } catch (err) {
+        // noop fallback to keep dock feedback working
+        try {
+          window.dispatchEvent(
+            new CustomEvent("cart:add", {
+              detail: { id: String((p as ProductListItem).id), qty: quantity },
+            })
+          );
+        } catch {
+          /* empty */
+        }
+        console.error("Add to cart failed:", err);
       }
-
-      persistCart(cart);
-      window.dispatchEvent(
-        new CustomEvent("cart:add", { detail: { id: idStr, qty: quantity } })
-      );
-    } catch {
-      /* ignore */
-    }
+    })();
   }
 
   /* ------------------------------- RENDER ------------------------------- */

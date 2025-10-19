@@ -7,6 +7,7 @@ const userFromStorage = localStorage.getItem("auth_user");
 const tokenFromStorage = localStorage.getItem("auth_token"); // ✅ Load token
 
 interface AuthState {
+  userDetails: any;
   user: User | null;
   token: string | null; // access_token
   refreshToken: string | null; // stored in redux; cookie used server-side

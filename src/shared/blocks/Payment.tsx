@@ -2,117 +2,40 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 
+/* ===== API hooks ===== */
+import { useAuth } from "../../modules/auth/contexts/AuthContext";
+import {
+  useGetActiveCartQuery,
+  useUpsertDraftFromCartMutation,
+} from "../../modules/customer/services/customerCartApi";
+import { usePlaceOrderMutation } from "../../modules/customer/services/customerOrderApi";
+import { useGetCustomerAddressesQuery } from "../../modules/customer/services/customerApi";
+
 /* =====================================================================================
-   Payment Options (enterprise back + address notice)
+   Payment Options
    - Back: prefer state.from, then history(-1), else /:storeSlug/cart
-   - Shows the same "order delivery is managed by Stanlee India..." notice
-     under the address section, like on the Cart page
+   - Delivery address: respects the addressId passed from Cart; falls back to default
+   - After success: redirect to /:storeSlug/profile
    ===================================================================================== */
 
-type StoredCartItem = {
-  id?: string | number;
-  name?: string;
-  title?: string;
-  variant?: string;
-  price?: number;
-  image?: string;
-  qty?: number;
-  currency?: string;
-  stock?: number;
-};
-type UiCartItem = {
-  id: string;
-  title: string;
-  price: number;
-  qty: number;
-  image: string;
-  currency?: string;
-  stock?: number;
-};
 type AddressKind = "home" | "work" | "other";
-type Address = {
+type CustomerAddress = {
   id: string;
   label: string;
-  kind: AddressKind;
   line1: string;
   line2?: string | null;
   city: string;
   state: string;
   postalCode: string;
-  country?: string;
+  country: string;
+  kind: AddressKind;
   isDefault?: boolean;
-  createdAt?: number;
 };
-
-const SELECTED_ADDR_KEY = "selected_address_id";
 
 const currencyINR = (v: number) =>
   "₹" + new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 }).format(v);
 
-function parseStoredArray(raw: string | null): StoredCartItem[] {
-  try {
-    const arr = raw ? (JSON.parse(raw) as StoredCartItem[]) : [];
-    return Array.isArray(arr) ? arr : [];
-  } catch {
-    return [];
-  }
-}
-function readCart(): UiCartItem[] {
-  const a = parseStoredArray(localStorage.getItem("cart"));
-  const map = new Map<string, UiCartItem>();
-  for (const it of a) {
-    const id = String(it?.id ?? "");
-    if (!id) continue;
-    map.set(id, {
-      id,
-      title: (it.title || it.name || "Product").trim(),
-      price: Number(it.price ?? 0) || 0,
-      qty: Math.max(1, Number(it.qty ?? 1) || 1),
-      image: it.image || "",
-      currency: it.currency || "INR",
-      stock: Number.isFinite(it.stock as number) ? Number(it.stock) : undefined,
-    });
-  }
-  return Array.from(map.values());
-}
-function loadAddresses(): Address[] {
-  try {
-    const raw = localStorage.getItem("customer_addresses");
-    if (raw) {
-      const arr = JSON.parse(raw) as Address[];
-      if (Array.isArray(arr) && arr.length) return arr;
-    }
-  } catch {
-    /* ignore */
-  }
-  return [
-    {
-      id: "addr-1",
-      label: "Home Raj Nagar",
-      kind: "home",
-      line1: "a-1301, Raj Nagar Extension",
-      city: "Ghaziabad",
-      state: "Uttar Pradesh",
-      postalCode: "201017",
-      country: "India",
-      isDefault: true,
-      createdAt: Date.now() - 1000 * 60 * 60 * 24 * 3,
-    },
-    {
-      id: "addr-2",
-      label: "Work Office",
-      kind: "work",
-      line1: "9th Floor, Cyber Park",
-      line2: "Sector 62",
-      city: "Noida",
-      state: "Uttar Pradesh",
-      postalCode: "201301",
-      country: "India",
-      createdAt: Date.now() - 1000 * 60 * 60 * 24 * 30,
-    },
-  ];
-}
-function addressToLine(a: Address) {
+function addressToLine(a: CustomerAddress) {
   const parts = [a.line1, a.line2, a.city, a.state, a.postalCode].filter(
     Boolean
   );
@@ -135,44 +58,63 @@ const Payment: React.FC = () => {
   const location = useLocation();
   const { storeSlug = "" } = useParams<{ storeSlug: string }>();
   const fromPath = (location.state as any)?.from as string | undefined;
+  const passedAddressId = (location.state as any)?.addressId as
+    | string
+    | undefined;
 
-  const [items, setItems] = useState<UiCartItem[]>([]);
-  const [addresses, setAddresses] = useState<Address[]>([]);
+  /* ===== businessId source ===== */
+  const { userDetails } = useAuth() as any;
+  const businessId: string =
+    userDetails?.storeLinks?.[0]?.businessId?.trim?.() || "";
+
+  /* ===== Server cart (authoritative) ===== */
+  const skipCart = !businessId;
+  const { data: activeCart } = useGetActiveCartQuery(
+    { businessId },
+    { skip: skipCart }
+  );
+
+  /* ===== Customer addresses from API ===== */
+  const { data: apiAddresses = [], isFetching: loadingAddresses } =
+    useGetCustomerAddressesQuery(undefined, { skip: !businessId });
+
   const [selectedAddressId, setSelectedAddressId] = useState<string | null>(
-    null
+    passedAddressId ?? null
   );
 
+  // When addresses load, ensure we have a valid selection
   useEffect(() => {
-    setItems(readCart());
-    setAddresses(loadAddresses());
-    setSelectedAddressId(localStorage.getItem(SELECTED_ADDR_KEY));
-    const onStorage = (e: StorageEvent) => {
-      if (e.key === "cart") setItems(readCart());
-      if (e.key === "customer_addresses") setAddresses(loadAddresses());
-      if (e.key === SELECTED_ADDR_KEY)
-        setSelectedAddressId(localStorage.getItem(SELECTED_ADDR_KEY));
-    };
-    window.addEventListener("storage", onStorage);
-    return () => window.removeEventListener("storage", onStorage);
-  }, []);
+    if (!apiAddresses.length) return;
+    const valid =
+      selectedAddressId && apiAddresses.some((a) => a.id === selectedAddressId);
+    if (valid) return;
+    const def = apiAddresses.find((a) => a.isDefault) || apiAddresses[0];
+    setSelectedAddressId(def?.id ?? null);
+  }, [apiAddresses, selectedAddressId]);
 
-  const subtotal = useMemo(
-    () => items.reduce((sum, it) => sum + it.price * it.qty, 0),
-    [items]
-  );
-  const total = subtotal; // delivery fee 0
-  const count = useMemo(() => items.reduce((n, it) => n + it.qty, 0), [items]);
+  /* ===== Totals (prefer API) ===== */
+  const subtotalApi = activeCart?.totals?.grandTotal ?? 0;
+  const countApi =
+    activeCart?.items?.reduce((n, i) => n + (i.quantity || 0), 0) ?? 0;
 
-  const selectedAddress =
-    addresses.find((a) => a.id === selectedAddressId) ||
-    addresses.find((a) => a.isDefault) ||
+  const subtotal = useMemo(() => Number(subtotalApi || 0), [subtotalApi]);
+  const total = subtotal;
+  const count = countApi;
+
+  const selectedAddress: CustomerAddress | null =
+    (selectedAddressId
+      ? apiAddresses.find((a) => a.id === selectedAddressId)
+      : null) ||
+    apiAddresses.find((a) => a.isDefault) ||
     null;
 
   const [method, setMethod] = useState<
     "COD" | "UPI" | "CARD" | "WALLET" | "NET"
   >("COD");
 
-  // enterprise back
+  // unified helper for where to go after actions
+  const profilePath = storeSlug ? `/${storeSlug}/profile` : "/profile";
+
   const goBackSmart = () => {
     if (fromPath) return navigate(fromPath, { replace: true });
     const canGoBack =
@@ -182,11 +124,55 @@ const Payment: React.FC = () => {
     else navigate(storeSlug ? `/${storeSlug}/cart` : "/", { replace: true });
   };
 
-  const payCOD = () => {
-    alert(`Order placed with Cash on Delivery. Amount: ${currencyINR(total)}`);
-    if (fromPath) navigate(fromPath, { replace: true });
-    else if (storeSlug) navigate(`/${storeSlug}`, { replace: true });
-    else navigate("/", { replace: true });
+  /* ===== Order placement (COD) ===== */
+  const [upsertDraft, { isLoading: drafting }] =
+    useUpsertDraftFromCartMutation();
+  const [placeOrder, { isLoading: placing }] = usePlaceOrderMutation();
+  const busy = drafting || placing;
+
+  const payCOD = async () => {
+    if (!businessId) {
+      alert("Something went wrong: Business not selected.");
+      return;
+    }
+    if (!activeCart?.id || !activeCart?.items?.length) {
+      alert("Your cart is empty.");
+      return;
+    }
+    if (!selectedAddress) {
+      alert("Please add/select a delivery address.");
+      return;
+    }
+
+    try {
+      // 1) Ensure draft has the selected address
+      const draft = await upsertDraft({
+        businessId,
+        cartId: activeCart.id,
+        shippingAddressId: selectedAddress.id,
+        billingAddressId: selectedAddress.id,
+      }).unwrap();
+
+      // 2) Place order (COD)
+      const order = await placeOrder({
+        businessId,
+        cartId: activeCart.id,
+        draftId: draft.draft.id,
+        payment: { mode: "COD", provider: "INTERNAL" },
+        notes: null,
+      }).unwrap();
+
+      alert(`Order ${order.orderNumber} placed successfully!`);
+      navigate(profilePath, { replace: true });
+    } catch (e: any) {
+      console.error("Order placement failed", e);
+      const msg =
+        e?.data?.error?.description ||
+        e?.data?.message ||
+        e?.error ||
+        "Failed to place order";
+      alert(msg);
+    }
   };
 
   return (
@@ -214,7 +200,7 @@ const Payment: React.FC = () => {
       </header>
 
       <main className="mx-auto max-w-3xl p-2">
-        {/* Address + NOTICE (matches Cart) */}
+        {/* Address + NOTICE */}
         <section className="rounded-2xl bg-white shadow-sm border border-slate-200">
           <Row>
             <div className="flex items-start gap-2">
@@ -226,15 +212,20 @@ const Payment: React.FC = () => {
                 <path d="M12 2a7 7 0 00-7 7c0 5.25 7 13 7 13s7-7.75 7-13a7 7 0 00-7-7zm0 9.5A2.5 2.5 0 1112 6a2.5 2.5 0 010 5.5z" />
               </svg>
               <div className="text-[13px]">
-                <div className="font-semibold">
-                  {selectedAddress ? selectedAddress.label : "Delivery Address"}
+                <div className="font-semibold flex items-center gap-3">
+                  {loadingAddresses
+                    ? "Loading address…"
+                    : selectedAddress
+                    ? selectedAddress.label
+                    : "Delivery Address"}
                 </div>
                 <div className="text-slate-600 mt-0.5">
-                  {selectedAddress
+                  {loadingAddresses
+                    ? " "
+                    : selectedAddress
                     ? addressToLine(selectedAddress)
                     : "Please add/select an address"}
                 </div>
-                {/* Delivery ETA small line */}
                 <div className="mt-2 text-[12px] text-slate-600">
                   Delivery In: <span className="font-medium">12 mins</span>
                 </div>
@@ -242,7 +233,6 @@ const Payment: React.FC = () => {
             </div>
           </Row>
 
-          {/* ---- THIS is the notice you wanted (same as Cart) ---- */}
           <Divider />
           <div className="px-4 py-3 text-[13px] text-slate-700 leading-6">
             The order delivery is managed by{" "}
@@ -288,9 +278,10 @@ const Payment: React.FC = () => {
 
                 <button
                   onClick={payCOD}
-                  className="h-10 px-4 rounded-lg bg-[#1677ff] hover:bg-[#1668e3] text-white text-[13px] font-semibold shadow-sm"
+                  disabled={busy}
+                  className="h-10 px-4 rounded-lg bg-[#1677ff] hover:bg-[#1668e3] disabled:opacity-60 text-white text-[13px] font-semibold shadow-sm"
                 >
-                  Pay {currencyINR(total)} with Cash
+                  {busy ? "Placing…" : `Pay ${currencyINR(total)} with Cash`}
                 </button>
               </div>
             </label>
@@ -437,7 +428,7 @@ const Payment: React.FC = () => {
       </main>
 
       {/* Bottom sticky pay bar (mobile) */}
-      <div className="md:hidden fixed left-0 right-0 bottom-0 bg-white border-t border-slate-200 px-3 py-2">
+      <div className="fixed left-0 right-0 bottom-0 bg-white border-t border-slate-200 px-3 py-2 md:hidden">
         <div className="max-w-3xl mx-auto flex items-center justify-between gap-3">
           <div>
             <div className="text-[12px] text-slate-600">To Pay</div>
@@ -446,9 +437,10 @@ const Payment: React.FC = () => {
           {method === "COD" ? (
             <button
               onClick={payCOD}
-              className="h-11 px-4 rounded-xl bg-[#1677ff] hover:bg-[#1668e3] text-white text-[13px] font-semibold shadow-sm"
+              disabled={busy}
+              className="h-11 px-4 rounded-xl bg-[#1677ff] hover:bg-[#1668e3] disabled:opacity-60 text-white text-[13px] font-semibold shadow-sm"
             >
-              Pay {currencyINR(total)} with Cash
+              {busy ? "Placing…" : `Pay ${currencyINR(total)} with Cash`}
             </button>
           ) : (
             <button

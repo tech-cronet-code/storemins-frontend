@@ -37,6 +37,7 @@ import AddStoreDisplaySettingPage from "./modules/seller/pages/store-appearance/
 import AddStoreSettingPage from "./modules/seller/pages/store-appearance/AddStoreSettingPage";
 import UserSettingsPage from "./modules/seller/pages/UserSettingsPage";
 import PublicStorefrontPage from "./modules/storefront/pages/PublicStorefrontPage";
+import OrderDetailsPage from "./modules/seller/components/orders/OrderDetailsPage";
 
 const App = () => {
   return (
@@ -173,6 +174,12 @@ const App = () => {
             <Route
               path="/seller/orders"
               element={<SellerProductsOrdersPage />}
+            />
+
+            {/* 👇 New detailed order view */}
+            <Route
+              path="/seller/orders/:orderId"
+              element={<OrderDetailsPage />}
             />
 
             {/* Store Appearance */}

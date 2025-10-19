@@ -3,52 +3,29 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import BottomNav from "./BottomNav";
 
-/* ============================================================================
-   AddToCart with strict ±1 stepper + remove + CLEAR CART + REQUIRED ADDRESS
-   - Address picker popup (radio list) — must choose before payment
-   - Selection persisted in localStorage (selected_address_id)
-   - Enhanced UX for address requirement (clear state, helper text, pills)
-   ============================================================================ */
+/* --- auth (for businessId) --- */
+import { useAuth } from "../../modules/auth/contexts/AuthContext";
 
-type UiCartItem = {
-  id: string;
-  title: string;
-  variant?: string;
-  price: number; // rupees each
-  qty: number;
-  image: string;
-  currency?: string;
-  stock?: number;
-};
+/* --- customer cart API (ALL cart ops) --- */
+import {
+  useGetActiveCartQuery,
+  useUpdateCartItemMutation,
+  useRemoveCartItemMutation,
+  useClearCartMutation,
+  useApplyCouponOnCartMutation,
+  useUpsertDraftFromCartMutation,
+  CartItem,
+} from "../../modules/customer/services/customerCartApi";
 
-type StoredCartItem = {
-  id?: string | number;
-  name?: string;
-  title?: string;
-  variant?: string;
-  price?: number;
-  image?: string;
-  qty?: number;
-  currency?: string;
-  stock?: number;
-};
+/* --- customer address API (list addresses) --- */
+import {
+  useGetCustomerAddressesQuery,
+  CustomerAddress,
+} from "../../modules/customer/services/customerApi";
 
-/* ---------------- Address types used by the picker ---------------- */
+/* -------------------------------- UI helpers -------------------------------- */
+
 type AddressKind = "home" | "work" | "other";
-type Address = {
-  id: string;
-  label: string;
-  kind: AddressKind;
-  line1: string;
-  line2?: string | null;
-  city: string;
-  state: string;
-  postalCode: string;
-  country?: string;
-  isDefault?: boolean;
-  createdAt?: number;
-};
-
 const APP_BAR_H = 56;
 
 const currencyINR = (v: number) =>
@@ -67,7 +44,6 @@ const Divider: React.FC<{ dashed?: boolean; className?: string }> = ({
   />
 );
 
-/* Tiny pills */
 const Pill = ({
   tone = "slate",
   children,
@@ -90,7 +66,6 @@ const Pill = ({
   );
 };
 
-/* ---------- IconBtn forwards ref so you can pass `ref` ---------- */
 type IconBtnProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
   ariaLabel?: string;
 };
@@ -115,7 +90,6 @@ const IconBtn = React.forwardRef<HTMLButtonElement, IconBtnProps>(
 );
 IconBtn.displayName = "IconBtn";
 
-/* --------------------------- media query hook --------------------------- */
 function useMediaQuery(query: string) {
   const [matches, setMatches] = useState<boolean>(() =>
     typeof window !== "undefined" ? window.matchMedia(query).matches : false
@@ -135,109 +109,39 @@ function useMediaQuery(query: string) {
   return matches;
 }
 
-/* ----------------------------- cart helpers ---------------------------- */
+/* ------------------------------- thumbs ------------------------------- */
+
 const FALLBACK_IMG =
   `data:image/svg+xml;utf8,` +
   encodeURIComponent(
     `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 160 120'><rect width='100%' height='100%' fill='#f3f4f6'/><g fill='#9ca3af' font-family='system-ui,Segoe UI,Roboto,sans-serif' font-size='12' text-anchor='middle'><text x='80' y='64'>Image</text></g></svg>`
   );
 
-function clampQty(q: number, max: number) {
-  if (!Number.isFinite(q)) return 1;
-  return Math.max(1, Math.min(max, Math.round(q)));
+function firstMediaUrl(i?: CartItem) {
+  const u = i?.Product?.Media?.[0]?.url;
+  return u && String(u).trim() ? String(u) : FALLBACK_IMG;
 }
 
-/** Unlimited in UI. To respect stock, return Math.max(1, Number(item?.stock) || Number.MAX_SAFE_INTEGER). */
-function getMaxQtyFor(_item?: { stock?: number }) {
-  return Number.MAX_SAFE_INTEGER;
-}
-
-function parseStoredArray(raw: string | null): StoredCartItem[] {
-  try {
-    const arr = raw ? (JSON.parse(raw) as StoredCartItem[]) : [];
-    return Array.isArray(arr) ? arr : [];
-  } catch {
-    return [];
-  }
-}
-
-/** Migrate legacy key once. */
-function migrateLegacyOnce() {
-  try {
-    const current = localStorage.getItem("cart");
-    const legacy = localStorage.getItem("shopping_cart");
-    if (!current && legacy) localStorage.setItem("cart", legacy);
-    if (legacy) localStorage.removeItem("shopping_cart");
-  } catch {
-    /* ignore */
-  }
-}
-
-function readCart(): UiCartItem[] {
-  const a = parseStoredArray(localStorage.getItem("cart"));
-  const map = new Map<string, UiCartItem>();
-  for (const it of a) {
-    const id = String(it?.id ?? "");
-    if (!id) continue;
-    const base: UiCartItem = {
-      id,
-      title: (it.title || it.name || "Product").trim(),
-      variant: it.variant || undefined,
-      price: Number(it.price ?? 0) || 0,
-      qty: Math.max(1, Number(it.qty ?? 1) || 1),
-      image: it.image || FALLBACK_IMG,
-      currency: it.currency || "INR",
-      stock: Number.isFinite(it.stock as number) ? Number(it.stock) : undefined,
-    };
-    base.qty = clampQty(base.qty, getMaxQtyFor(base));
-    map.set(id, base);
-  }
-  return Array.from(map.values());
-}
-
-function writeCart(items: UiCartItem[]) {
-  try {
-    const out = items.map((i) => ({
-      id: i.id,
-      name: i.title,
-      price: i.price,
-      image: i.image,
-      qty: i.qty,
-      currency: i.currency || "INR",
-      stock: i.stock,
-    }));
-    localStorage.setItem("cart", JSON.stringify(out));
-    window.dispatchEvent(
-      new CustomEvent("cart:update", { detail: { size: out.length } })
-    );
-  } catch {
-    /* ignore */
-  }
-}
-
-/* --------------------- Rock-solid stepper (CLICK ONLY) --------------------- */
+/* --------------------------- Qty Stepper (click only) --------------------------- */
 const QtyStepper: React.FC<{
   value: number;
-  max: number;
   onBump: (delta: 1 | -1) => void;
-}> = ({ value, max, onBump }) => {
-  const MIN = 1;
-  const atMin = value <= MIN;
-  const atMax = value >= max;
+}> = ({ value, onBump }) => {
+  const atMin = value <= 1;
 
   const handleClick =
     (dir: -1 | 1) => (e: React.MouseEvent<HTMLButtonElement>) => {
       if (e.detail !== 1) return;
-      if ((dir === -1 && !atMin) || (dir === 1 && !atMax))
-        onBump(dir as 1 | -1);
+      if (dir === -1 && atMin) return;
+      onBump(dir as 1 | -1);
     };
 
   const handleKeyDown =
     (dir: -1 | 1) => (e: React.KeyboardEvent<HTMLButtonElement>) => {
       if ((e.key === "Enter" || e.key === " ") && !e.repeat) {
         e.preventDefault();
-        if ((dir === -1 && !atMin) || (dir === 1 && !atMax))
-          onBump(dir as 1 | -1);
+        if (dir === -1 && atMin) return;
+        onBump(dir as 1 | -1);
       }
     };
 
@@ -270,84 +174,12 @@ const QtyStepper: React.FC<{
         type="button"
         onClick={handleClick(1)}
         onKeyDown={handleKeyDown(1)}
-        disabled={atMax}
-        className={[
-          "px-3 py-1.5 hover:bg-slate-50",
-          atMax ? "opacity-40 cursor-not-allowed" : "",
-        ].join(" ")}
+        className="px-3 py-1.5 hover:bg-slate-50"
         aria-label="Increase"
-        title={atMax ? `Maximum ${max} per item` : "Increase quantity"}
+        title="Increase quantity"
       >
         +
       </button>
-    </div>
-  );
-};
-
-/* --------------------------- Confirm Modal --------------------------- */
-type ConfirmModalProps = {
-  open: boolean;
-  title?: string;
-  message: string;
-  confirmText?: string;
-  cancelText?: string;
-  onConfirm: () => void;
-  onCancel: () => void;
-};
-const ConfirmModal: React.FC<ConfirmModalProps> = ({
-  open,
-  title = "Are you sure?",
-  message,
-  confirmText = "Yes",
-  cancelText = "Cancel",
-  onConfirm,
-  onCancel,
-}) => {
-  const confirmRef = useRef<HTMLButtonElement | null>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onCancel();
-      if (e.key === "Enter") onConfirm();
-    };
-    document.addEventListener("keydown", onKey);
-    setTimeout(() => confirmRef.current?.focus(), 0);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [open, onCancel, onConfirm]);
-
-  if (!open) return null;
-
-  return (
-    <div
-      className="fixed inset-0 z-[6000] flex items-center justify-center"
-      aria-modal="true"
-      role="dialog"
-    >
-      <div className="absolute inset-0 bg-black/40" onClick={onCancel} />
-      <div className="relative mx-3 w-full max-w-sm rounded-2xl bg-white shadow-xl border border-slate-200">
-        <div className="px-4 pt-4 pb-2">
-          <div className="text-[15px] font-semibold">{title}</div>
-          <div className="mt-2 text-[13px] text-slate-600">{message}</div>
-        </div>
-        <div className="flex items-center justify-end gap-2 px-4 py-3 border-t border-slate-200">
-          <button
-            onClick={onCancel}
-            className="h-9 px-3 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-[13px] font-medium"
-            type="button"
-          >
-            {cancelText}
-          </button>
-          <button
-            ref={confirmRef}
-            onClick={onConfirm}
-            className="h-9 px-3 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-[13px] font-semibold shadow-sm"
-            type="button"
-          >
-            {confirmText}
-          </button>
-        </div>
-      </div>
     </div>
   );
 };
@@ -385,19 +217,14 @@ function KindGlyph({ kind }: { kind: AddressKind }) {
   );
 }
 
-function addressToLine(a: Address) {
-  const parts = [a.line1, a.line2, a.city, a.state, a.postalCode].filter(
-    Boolean
-  );
-  return parts.join(", ");
-}
-
 type AddressPickerProps = {
   open: boolean;
-  addresses: Address[];
+  addresses: CustomerAddress[];
   selectedId?: string | null;
   onClose: () => void;
   onSelect: (id: string) => void;
+  saving?: boolean; // NEW: show loading state on persist
+  addressesPath: string; // NEW: slug-aware path to /profile/addresses
 };
 const AddressPicker: React.FC<AddressPickerProps> = ({
   open,
@@ -405,13 +232,11 @@ const AddressPicker: React.FC<AddressPickerProps> = ({
   selectedId,
   onClose,
   onSelect,
+  saving = false,
+  addressesPath,
 }) => {
   const [active, setActive] = useState<string | null>(selectedId ?? null);
-
-  useEffect(() => {
-    setActive(selectedId ?? null);
-  }, [selectedId, open]);
-
+  useEffect(() => setActive(selectedId ?? null), [selectedId, open]);
   if (!open) return null;
 
   const hasAddrs = addresses.length > 0;
@@ -459,7 +284,7 @@ const AddressPicker: React.FC<AddressPickerProps> = ({
                   />
                   <div className="flex-1 min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
-                      <KindGlyph kind={a.kind} />
+                      <KindGlyph kind={a.kind as AddressKind} />
                       <div className="text-[14px] font-medium text-slate-900">
                         {a.label}
                       </div>
@@ -473,7 +298,9 @@ const AddressPicker: React.FC<AddressPickerProps> = ({
                       </Pill>
                     </div>
                     <div className="text-[12px] text-slate-600 mt-1 truncate">
-                      {addressToLine(a)}
+                      {[a.line1, a.line2, a.city, a.state, a.postalCode]
+                        .filter(Boolean)
+                        .join(", ")}
                     </div>
                   </div>
                 </label>
@@ -482,8 +309,9 @@ const AddressPicker: React.FC<AddressPickerProps> = ({
           </div>
 
           <div className="mt-4 flex items-center justify-between">
+            {/* slug-aware Manage addresses link */}
             <Link
-              to="/profile/addresses"
+              to={addressesPath}
               className="text-[13px] font-semibold text-violet-700 hover:text-violet-800"
               onClick={onClose}
             >
@@ -497,18 +325,16 @@ const AddressPicker: React.FC<AddressPickerProps> = ({
                 Cancel
               </button>
               <button
-                disabled={!active}
-                onClick={() => {
-                  if (active) onSelect(active);
-                }}
+                disabled={!active || saving}
+                onClick={() => active && onSelect(active)}
                 className={[
                   "h-10 px-4 rounded-xl text-white text-[13px] font-semibold",
-                  active
+                  active && !saving
                     ? "bg-violet-600 hover:bg-violet-700"
                     : "bg-slate-400 cursor-not-allowed",
                 ].join(" ")}
               >
-                Deliver here
+                {saving ? "Saving…" : "Deliver here"}
               </button>
             </div>
           </div>
@@ -518,108 +344,62 @@ const AddressPicker: React.FC<AddressPickerProps> = ({
   );
 };
 
-/* ----------------------- Address helpers (local) ----------------------- */
-function loadAddresses(): Address[] {
-  try {
-    const raw = localStorage.getItem("customer_addresses");
-    if (raw) {
-      const arr = JSON.parse(raw) as Address[];
-      if (Array.isArray(arr) && arr.length) return arr;
-    }
-  } catch {
-    /* ignore */
-  }
-  // fallback demo
-  return [
-    {
-      id: "addr-1",
-      label: "Home Raj Nagar",
-      kind: "home",
-      line1: "a-1301, Raj Nagar Extension",
-      city: "Ghaziabad",
-      state: "Uttar Pradesh",
-      postalCode: "201017",
-      country: "India",
-      isDefault: true,
-      createdAt: Date.now() - 1000 * 60 * 60 * 24 * 3,
-    },
-    {
-      id: "addr-2",
-      label: "Work Office",
-      kind: "work",
-      line1: "9th Floor, Cyber Park",
-      line2: "Sector 62",
-      city: "Noida",
-      state: "Uttar Pradesh",
-      postalCode: "201301",
-      country: "India",
-      createdAt: Date.now() - 1000 * 60 * 60 * 24 * 30,
-    },
-  ];
-}
-const SELECTED_ADDR_KEY = "selected_address_id";
-
 /* --------------------------------- PAGE --------------------------------- */
 const AddToCart: React.FC = () => {
-  const { storeSlug = "" } = useParams<{ storeSlug: string }>();
+  const { storeSlug = "" } = useParams<{ storeSlug?: string }>();
   const location = useLocation();
   const navigate = useNavigate();
   const isMobile = useMediaQuery("(max-width: 767.98px)");
 
-  const STORE = {
-    name: "Tech Cronet",
-    logo: "https://dummyimage.com/80x80/0b0b0b/ffffff&text=TC",
-  };
+  /* businessId from auth */
+  const { userDetails } = (useAuth() as any) ?? {};
+  const businessId: string =
+    userDetails?.storeLinks?.[0]?.businessId?.trim?.() ?? "";
+  const skip = !businessId;
 
-  const [items, setItems] = useState<UiCartItem[]>([]);
-  const [note, setNote] = useState("");
+  /* live cart */
+  const {
+    data: cart,
+    isFetching,
+    refetch,
+  } = useGetActiveCartQuery({ businessId }, { skip });
 
-  // "More" menu UI state
+  const [updateItem, { isLoading: updating }] = useUpdateCartItemMutation();
+  const [removeItem, { isLoading: removing }] = useRemoveCartItemMutation();
+  const [clearCart, { isLoading: clearing }] = useClearCartMutation();
+  const [applyCoupon, { isLoading: applying }] = useApplyCouponOnCartMutation();
+  const [upsertDraft, { isLoading: drafting }] =
+    useUpsertDraftFromCartMutation();
+
+  /* addresses */
+  const { data: addresses = [], isFetching: addrFetching } =
+    useGetCustomerAddressesQuery(undefined, {
+      skip,
+    });
+
+  /* local UI state (not persisted) */
   const [menuOpen, setMenuOpen] = useState(false);
   const menuBtnRef = useRef<HTMLButtonElement | null>(null);
-
-  // Confirm modal state
   const [confirmOpen, setConfirmOpen] = useState(false);
 
-  // Address picker state
   const [pickerOpen, setPickerOpen] = useState(false);
-  const [addresses, setAddresses] = useState<Address[]>([]);
   const [selectedAddressId, setSelectedAddressId] = useState<string | null>(
     null
   );
 
-  // Flash attention when trying to proceed without address
   const [addrFlash, setAddrFlash] = useState(false);
+  const [note, setNote] = useState("");
+  const [couponCode, setCouponCode] = useState("");
 
+  /* prefer default address initially */
   useEffect(() => {
-    migrateLegacyOnce();
-    const refresh = () => setItems(readCart());
-    refresh();
-    const onStorage = (e: StorageEvent) => {
-      if (e.key === "cart") refresh();
-      if (e.key === "customer_addresses") {
-        setAddresses(loadAddresses());
-      }
-      if (e.key === SELECTED_ADDR_KEY) {
-        setSelectedAddressId(localStorage.getItem(SELECTED_ADDR_KEY));
-      }
-    };
-    const onCustom = () => refresh();
-    window.addEventListener("storage", onStorage);
-    window.addEventListener("cart:update", onCustom as EventListener);
-    return () => {
-      window.removeEventListener("storage", onStorage);
-      window.removeEventListener("cart:update", onCustom as EventListener);
-    };
-  }, []);
+    if (!selectedAddressId && addresses.length) {
+      const def = addresses.find((a) => a.isDefault) ?? addresses[0];
+      if (def) setSelectedAddressId(def.id);
+    }
+  }, [addresses, selectedAddressId]);
 
-  // load addresses / selected id once
-  useEffect(() => {
-    setAddresses(loadAddresses());
-    setSelectedAddressId(localStorage.getItem(SELECTED_ADDR_KEY));
-  }, []);
-
-  // Close menu on outside click
+  /* close “more” on outside click */
   useEffect(() => {
     const onDocClick = (e: MouseEvent) => {
       if (!menuBtnRef.current) return;
@@ -633,83 +413,101 @@ const AddToCart: React.FC = () => {
         setMenuOpen(false);
       }
     };
-    document.addEventListener("mousedown", onDocClick);
-    return () => document.removeEventListener("mousedown", onDocClick);
+    if (typeof document !== "undefined") {
+      document.addEventListener("mousedown", onDocClick);
+      return () => document.removeEventListener("mousedown", onDocClick);
+    }
+    return () => {};
   }, []);
 
-  const selectedAddress = useMemo(
-    () => addresses.find((a) => a.id === selectedAddressId) || null,
-    [addresses, selectedAddressId]
-  );
-
-  const count = useMemo(() => items.reduce((n, it) => n + it.qty, 0), [items]);
-  const subtotal = useMemo(
-    () => items.reduce((sum, it) => sum + it.price * it.qty, 0),
+  /* derived data */
+  const items = cart?.items ?? [];
+  const count = useMemo(
+    () => items.reduce((n, it) => n + (it.quantity || 0), 0),
     [items]
   );
-  const deliveryFee = 0;
-  const toPay = subtotal + deliveryFee;
+  const subtotal = cart?.totals?.subtotal ?? 0;
+  const discount = cart?.totals?.discount ?? 0;
+  const tax = cart?.totals?.tax ?? 0;
+  const grandTotal = cart?.totals?.grandTotal ?? 0;
 
-  /* -------- Guards to prevent double bumps -------- */
-  const BUMP_LOCK_MS = 180;
-  const lastBumpAtRef = useRef<Map<string, number>>(new Map());
-  const lockRef = useRef<Map<string, boolean>>(new Map());
+  const STORE = {
+    name: "Tech Cronet",
+    logo: "https://dummyimage.com/80x80/0b0b0b/ffffff&text=TC",
+  };
 
-  const bumpQty = (id: string, delta: 1 | -1) =>
-    setItems((prev) => {
-      if (lockRef.current.get(id)) return prev;
-      const now = Date.now();
-      const last = lastBumpAtRef.current.get(id) ?? 0;
-      if (now - last < BUMP_LOCK_MS) return prev;
-      lastBumpAtRef.current.set(id, now);
-      lockRef.current.set(id, true);
-      setTimeout(() => lockRef.current.set(id, false), BUMP_LOCK_MS);
-
-      const next = prev.map((i) => {
-        if (i.id !== id) return i;
-        const max = getMaxQtyFor(i);
-        const desired = i.qty + (delta < 0 ? -1 : 1);
-        const forced = clampQty(desired, max);
-        const diff = forced - i.qty;
-        const corrected = diff > 1 ? i.qty + 1 : diff < -1 ? i.qty - 1 : forced;
-        return { ...i, qty: corrected };
-      });
-      writeCart(next);
-      return next;
+  /* actions */
+  const bumpQty = async (item: CartItem, delta: 1 | -1) => {
+    const next = Math.max(1, (item.quantity || 1) + (delta === -1 ? -1 : 1));
+    await updateItem({
+      itemId: item.id,
+      businessId,
+      quantity: next,
     });
+    refetch();
+  };
 
-  const removeItem = (id: string) =>
-    setItems((prev) => {
-      const next = prev.filter((i) => i.id !== id);
-      writeCart(next);
-      return next;
-    });
+  const removeOne = async (item: CartItem) => {
+    await removeItem({ itemId: item.id, businessId });
+    refetch();
+  };
 
-  const doClearCart = () => {
-    setItems([]);
-    writeCart([]);
+  const doClearCart = async () => {
+    await clearCart({ businessId });
     setConfirmOpen(false);
+    refetch();
+  };
+
+  const doApplyCoupon = async () => {
+    if (!couponCode.trim() || !cart?.id) return;
+    await applyCoupon({ cartId: cart.id, businessId, code: couponCode.trim() });
+    setCouponCode("");
+    refetch();
   };
 
   const goBack = () => navigate(-1);
-  const applyCoupon = () => alert("Coupon flow (demo)");
 
-  const goCheckout = () => {
-    if (!selectedAddress) {
+  // Persist selection immediately when user presses "Deliver here"
+  const persistAddressSelection = async (addressId: string) => {
+    if (!cart?.id) return;
+    try {
+      await upsertDraft({
+        cartId: cart.id,
+        businessId,
+        shippingAddressId: addressId,
+        billingAddressId: addressId,
+      }).unwrap();
+    } catch (err) {
+      console.error("Failed saving address to draft:", err);
+      alert("Could not save the address. Please try again.");
+      throw err;
+    }
+  };
+
+  const goCheckout = async () => {
+    if (!selectedAddressId) {
       setPickerOpen(true);
       setAddrFlash(true);
       setTimeout(() => setAddrFlash(false), 1200);
       return;
     }
+    if (cart?.id) {
+      await upsertDraft({
+        cartId: cart.id,
+        businessId,
+        shippingAddressId: selectedAddressId,
+        billingAddressId: selectedAddressId,
+      }).unwrap();
+    }
     navigate(`/${storeSlug}/payment`, {
-      state: { from: location.pathname }, // exact return target
+      state: { from: location.pathname, note, addressId: selectedAddressId },
     });
   };
 
   const isEmpty = items.length === 0;
-  const needsAddress = items.length > 0 && !selectedAddress;
+  const needsAddress = items.length > 0 && !selectedAddressId;
 
-  /* ---- Mobile spacer for fixed card ---- */
+  /* ---- mobile spacer (for fixed bar) ---- */
   const barRef = useRef<HTMLDivElement | null>(null);
   const navWrapRef = useRef<HTMLDivElement | null>(null);
   const [barH, setBarH] = useState(0);
@@ -717,7 +515,7 @@ const AddToCart: React.FC = () => {
   const [pageScrollable, setPageScrollable] = useState(true);
 
   useEffect(() => {
-    if (!isMobile) return;
+    if (!isMobile || typeof window === "undefined") return;
     const measure = () => {
       if (barRef.current)
         setBarH(barRef.current.getBoundingClientRect().height);
@@ -750,17 +548,12 @@ const AddToCart: React.FC = () => {
     ? `calc(env(safe-area-inset-bottom, 0px) + ${4 + navH}px)`
     : undefined;
 
-  const openPicker = () => setPickerOpen(true);
-  const saveSelection = (id: string) => {
-    localStorage.setItem(SELECTED_ADDR_KEY, id);
-    setSelectedAddressId(id);
-    setPickerOpen(false);
-    window.dispatchEvent(
-      new CustomEvent("address:selected", { detail: { id } })
-    );
-  };
+  /* slug-aware addresses page path */
+  const addressesPath = storeSlug
+    ? `/${storeSlug}/profile/addresses`
+    : "/profile/addresses";
 
-  /* ===== Reusable address card (selected vs required) ===== */
+  /* address section */
   const AddressSection = ({ compact = false }: { compact?: boolean }) => {
     const baseCard =
       "rounded-2xl bg-white shadow-sm border overflow-hidden transition";
@@ -768,11 +561,13 @@ const AddToCart: React.FC = () => {
     const bgTone = needsAddress ? "bg-amber-50/40" : "bg-white";
     const flashRing = addrFlash ? "ring-2 ring-amber-300" : "";
 
+    const selected = addresses.find((a) => a.id === selectedAddressId) || null;
+
     return (
       <div className={`${baseCard} ${borderTone} ${bgTone} ${flashRing}`}>
         <div className="px-4 pt-4 pb-3">
           <button
-            onClick={openPicker}
+            onClick={() => setPickerOpen(true)}
             className="w-full text-left"
             type="button"
             aria-label="Choose address"
@@ -781,31 +576,41 @@ const AddToCart: React.FC = () => {
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
                   <div className="text-[16px] font-semibold">
-                    {selectedAddress
-                      ? selectedAddress.label
+                    {selected
+                      ? selected.label
+                      : addrFetching
+                      ? "Loading addresses…"
                       : "Select delivery address"}
                   </div>
                   {needsAddress ? (
                     <Pill tone="amber">Required</Pill>
-                  ) : (
+                  ) : selected ? (
                     <Pill tone="emerald">Selected</Pill>
-                  )}
-                  {!needsAddress && selectedAddress && (
+                  ) : null}
+                  {!needsAddress && selected && (
                     <Pill>
-                      {selectedAddress.kind === "home"
+                      {selected.kind === "home"
                         ? "Home"
-                        : selectedAddress.kind === "work"
+                        : selected.kind === "work"
                         ? "Work"
                         : "Other"}
                     </Pill>
                   )}
                 </div>
                 <div className="text-[12px] text-slate-500 mt-1 leading-5">
-                  {selectedAddress
-                    ? addressToLine(selectedAddress)
+                  {selected
+                    ? [
+                        selected.line1,
+                        selected.line2,
+                        selected.city,
+                        selected.state,
+                        selected.postalCode,
+                      ]
+                        .filter(Boolean)
+                        .join(", ")
                     : "Choose an address for delivery"}
                 </div>
-                {!needsAddress && selectedAddress && (
+                {!needsAddress && selected && (
                   <div className="mt-1">
                     <span className="text-[12px] text-violet-700 font-medium">
                       Change
@@ -823,7 +628,6 @@ const AddToCart: React.FC = () => {
                 ].join(" ")}
               >
                 {needsAddress ? (
-                  /* chevron */
                   <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none">
                     <path
                       d="M8 10l4 4 4-4"
@@ -834,7 +638,6 @@ const AddToCart: React.FC = () => {
                     />
                   </svg>
                 ) : (
-                  /* check */
                   <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none">
                     <path
                       d="M6 12l4 4 8-8"
@@ -856,7 +659,6 @@ const AddToCart: React.FC = () => {
             <span className="font-semibold text-slate-800">1 day(s)</span>
           </div>
 
-          {/* Inline warning hint when address missing */}
           {needsAddress && (
             <div
               className="mt-3 rounded-xl bg-amber-50 border border-amber-200 px-3 py-2 text-[12px] text-amber-800"
@@ -874,20 +676,26 @@ const AddToCart: React.FC = () => {
             <div className="flex-1">
               <div className="text-[12px] text-slate-500">Total</div>
               <div className="text-[22px] font-extrabold leading-6">
-                {currencyINR(toPay)}
+                {currencyINR(grandTotal || 0)}
               </div>
             </div>
             <button
+              disabled={
+                drafting ||
+                isFetching ||
+                applying ||
+                clearing ||
+                updating ||
+                removing
+              }
               onClick={goCheckout}
               className={[
                 "h-12 rounded-xl px-4 sm:px-5 text-white font-semibold shadow-sm active:scale-[0.98] transition",
-                needsAddress
-                  ? "bg-[#1677ff] hover:bg-[#1668e3]"
-                  : "bg-[#1677ff] hover:bg-[#1668e3]",
+                "bg-[#1677ff] hover:bg-[#1668e3]",
               ].join(" ")}
               type="button"
             >
-              Proceed to payment
+              {drafting ? "Preparing…" : "Proceed to payment"}
             </button>
           </div>
         </div>
@@ -913,7 +721,7 @@ const AddToCart: React.FC = () => {
               <div className="text-[15px] font-semibold">Your cart</div>
               <div className="text-[12px] text-slate-500">
                 {count} {count === 1 ? "item" : "items"} |{" "}
-                {currencyINR(subtotal)}
+                {currencyINR(grandTotal || 0)}
               </div>
             </div>
 
@@ -924,7 +732,7 @@ const AddToCart: React.FC = () => {
                 fill="none"
               >
                 <path
-                  d="M5 6.8A3.8 3.8 0 018.8 3h6.4A3.8 3.8 0 0119 6.8v5.4A3.8 3.8 0 0115.2 16H9.4c-.3 0-.6.1-.9.3L6 18.3V16"
+                  d="M5 6.8A3.8 3.8 0 018.8 3h6.4A3.8 3.8 0 0119 6.8v5.4A3.8 3.8 0 0115.2 16H9.4c-.3 0 -.6.1 -.9.3L6 18.3V16"
                   stroke="currentColor"
                   strokeWidth="1.6"
                   strokeLinecap="round"
@@ -951,7 +759,6 @@ const AddToCart: React.FC = () => {
             </IconBtn>
           </div>
 
-          {/* Popover menu */}
           {menuOpen && (
             <div
               id="cart-more-popover"
@@ -991,86 +798,81 @@ const AddToCart: React.FC = () => {
             </div>
           </div>
           <Divider />
-          {items.length === 0 ? (
+          {isFetching ? (
+            <div className="p-6 text-center text-slate-500 text-sm">
+              Loading…
+            </div>
+          ) : items.length === 0 ? (
             <div className="p-6 text-center text-slate-500 text-sm">
               Your cart is empty.
             </div>
           ) : (
-            items.map((item) => {
-              const max = getMaxQtyFor(item);
-              return (
-                <div
-                  key={item.id}
-                  className="p-4 flex gap-3 border-t border-slate-100 first:border-t-0"
-                >
-                  <div className="h-[84px] w-[84px] rounded-xl overflow-hidden bg-slate-100 border border-slate-200">
-                    <img
-                      src={item.image || FALLBACK_IMG}
-                      alt={item.title}
-                      className="w-full h-full object-cover"
-                      loading="lazy"
-                    />
+            items.map((item) => (
+              <div
+                key={item.id}
+                className="p-4 flex gap-3 border-t border-slate-100 first:border-t-0"
+              >
+                <div className="h-[84px] w-[84px] rounded-xl overflow-hidden bg-slate-100 border border-slate-200">
+                  <img
+                    src={firstMediaUrl(item)}
+                    alt={item.Product?.name ?? "Product"}
+                    className="w-full h-full object-cover"
+                    loading="lazy"
+                  />
+                </div>
+
+                <div className="flex-1 min-w-0">
+                  <div className="text-[14px] font-semibold truncate">
+                    {item.Product?.name ?? "Product"}
                   </div>
 
-                  <div className="flex-1 min-w-0">
-                    <div className="text-[14px] font-semibold truncate">
-                      {item.title}
+                  <div className="mt-2 flex items-center justify-between gap-3">
+                    <div className="text-[15px] font-semibold">
+                      {currencyINR(item.price)}
                     </div>
-                    {item.variant && (
-                      <div className="text-[12px] text-slate-500 mt-0.5 truncate">
-                        {item.variant}
-                      </div>
-                    )}
 
-                    <div className="mt-2 flex items-center justify-between gap-3">
-                      <div className="text-[15px] font-semibold">
-                        {currencyINR(item.price)}
-                      </div>
-
-                      <div className="flex items-center gap-2">
-                        <QtyStepper
-                          value={item.qty}
-                          max={max}
-                          onBump={(d) => bumpQty(item.id, d)}
-                        />
-                        <button
-                          type="button"
-                          onClick={() => removeItem(item.id)}
-                          className="h-9 w-9 inline-flex items-center justify-center rounded-full border border-rose-200/70 bg-white hover:bg-rose-50 text-rose-600 shadow-sm focus:outline-none focus:ring-2 focus:ring-rose-300/60"
-                          title="Remove from cart"
-                          aria-label={`Remove ${item.title}`}
+                    <div className="flex items-center gap-2">
+                      <QtyStepper
+                        value={item.quantity}
+                        onBump={(d) => bumpQty(item, d)}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => removeOne(item)}
+                        className="h-9 w-9 inline-flex items-center justify-center rounded-full border border-rose-200/70 bg-white hover:bg-rose-50 text-rose-600 shadow-sm focus:outline-none focus:ring-2 focus:ring-rose-300/60"
+                        title="Remove from cart"
+                        aria-label={`Remove ${item.Product?.name ?? "product"}`}
+                      >
+                        <svg
+                          viewBox="0 0 24 24"
+                          className="h-[18px] w-[18px]"
+                          fill="none"
                         >
-                          <svg
-                            viewBox="0 0 24 24"
-                            className="h-[18px] w-[18px]"
-                            fill="none"
-                          >
-                            <path
-                              d="M19 7l-1 12a2 2 0 01-2 2H8a2 2 0 01-2-2L5 7"
-                              stroke="currentColor"
-                              strokeWidth="1.8"
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                            />
-                            <path
-                              d="M4 7h16M9 7V5a2 2 0 012-2h2a2 2 0 012 2v2"
-                              stroke="currentColor"
-                              strokeWidth="1.8"
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                            />
-                          </svg>
-                        </button>
-                      </div>
+                          <path
+                            d="M19 7l-1 12a2 2 0 01-2 2H8a2 2 0 01-2-2L5 7"
+                            stroke="currentColor"
+                            strokeWidth="1.8"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          />
+                          <path
+                            d="M4 7h16M9 7V5a2 2 0 012-2h2a2 2 0 012 2v2"
+                            stroke="currentColor"
+                            strokeWidth="1.8"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          />
+                        </svg>
+                      </button>
                     </div>
                   </div>
                 </div>
-              );
-            })
+              </div>
+            ))
           )}
         </section>
 
-        {/* Note */}
+        {/* Note (kept client-side; send with place order later if needed) */}
         {items.length > 0 && (
           <section className="mt-3 rounded-2xl bg-white shadow-sm border border-slate-200">
             <textarea
@@ -1087,29 +889,34 @@ const AddToCart: React.FC = () => {
           <section className="mt-3 rounded-2xl bg-white shadow-sm border border-slate-200 p-4">
             <div className="flex items-center gap-3">
               <div className="h-10 w-10 rounded-xl bg-orange-500 text-white font-black text-[11px] tracking-wider flex items-center justify-center shadow-sm">
-                FOR
-                <br />
-                YOU
+                DEAL
               </div>
               <div className="min-w-0 flex-1">
-                <div className="text-[14px] font-medium">
-                  Save ₹12 off on this order
-                </div>
+                <div className="text-[14px] font-medium">Have a coupon?</div>
                 <div className="text-[12px] text-slate-500">
-                  Use code: <span className="font-semibold">DAZZLEMINI</span>
+                  Apply and refresh totals
                 </div>
               </div>
+            </div>
+            <div className="mt-3 flex gap-2">
+              <input
+                value={couponCode}
+                onChange={(e) => setCouponCode(e.target.value)}
+                placeholder="Enter coupon code"
+                className="flex-1 h-10 px-3 rounded-xl border border-slate-300 outline-none"
+              />
               <button
-                onClick={applyCoupon}
-                className="text-[13px] font-semibold text-rose-500 hover:text-rose-600"
+                disabled={!couponCode.trim() || applying || !cart?.id}
+                onClick={doApplyCoupon}
+                className="h-10 px-4 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-[13px] font-semibold disabled:opacity-60"
               >
-                Apply
+                {applying ? "Applying…" : "Apply"}
               </button>
             </div>
           </section>
         )}
 
-        {/* Bill details */}
+        {/* Bill details from API totals */}
         {items.length > 0 && (
           <section className="mt-3 rounded-2xl bg-white shadow-sm border border-slate-200 p-4">
             <div className="text-[16px] font-semibold">Bill Details</div>
@@ -1118,16 +925,36 @@ const AddToCart: React.FC = () => {
                 <span className="text-slate-700">Subtotal</span>
                 <span>{currencyINR(subtotal)}</span>
               </div>
+              <div className="flex items-center justify-between text-[14px]">
+                <span className="text-slate-700">Discount</span>
+                <span
+                  className={
+                    discount ? "text-emerald-700 font-medium" : "text-slate-400"
+                  }
+                >
+                  {discount ? "– " + currencyINR(discount) : "--"}
+                </span>
+              </div>
               <Divider dashed />
               <div className="flex items-center justify-between text-[14px]">
-                <span className="text-slate-700">Delivery Fee</span>
-                <span className="text-slate-400">--</span>
+                <span className="text-slate-700">Tax</span>
+                <span>{tax ? currencyINR(tax) : "—"}</span>
               </div>
               <Divider />
               <div className="flex items-center justify-between text-[15px] font-semibold">
                 <span>To Pay</span>
-                <span>{currencyINR(toPay)}</span>
+                <span>{currencyINR(grandTotal)}</span>
               </div>
+            </div>
+
+            <div className="mt-3">
+              <button
+                disabled={clearing || items.length === 0}
+                onClick={() => setConfirmOpen(true)}
+                className="text-[13px] font-semibold text-rose-600 hover:text-rose-700"
+              >
+                {clearing ? "Clearing…" : "Clear cart"}
+              </button>
             </div>
           </section>
         )}
@@ -1181,11 +1008,84 @@ const AddToCart: React.FC = () => {
         open={pickerOpen}
         addresses={addresses}
         selectedId={selectedAddressId}
+        saving={drafting}
+        addressesPath={addressesPath} // << slug-aware link
         onClose={() => setPickerOpen(false)}
-        onSelect={saveSelection}
+        onSelect={async (id) => {
+          await persistAddressSelection(id); // persist first to server draft
+          setSelectedAddressId(id); // then update UI
+          setPickerOpen(false);
+        }}
       />
     </div>
   );
 };
 
 export default AddToCart;
+
+/* --------------------------- Confirm Modal --------------------------- */
+type ConfirmModalProps = {
+  open: boolean;
+  title?: string;
+  message: string;
+  confirmText?: string;
+  cancelText?: string;
+  onConfirm: () => void;
+  onCancel: () => void;
+};
+const ConfirmModal: React.FC<ConfirmModalProps> = ({
+  open,
+  title = "Are you sure?",
+  message,
+  confirmText = "Yes",
+  cancelText = "Cancel",
+  onConfirm,
+  onCancel,
+}) => {
+  const confirmRef = useRef<HTMLButtonElement | null>(null);
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onCancel();
+      if (e.key === "Enter") onConfirm();
+    };
+    document.addEventListener("keydown", onKey);
+    setTimeout(() => confirmRef.current?.focus(), 0);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [open, onCancel, onConfirm]);
+
+  if (!open) return null;
+
+  return (
+    <div
+      className="fixed inset-0 z-[6000] flex items-center justify-center"
+      aria-modal="true"
+      role="dialog"
+    >
+      <div className="absolute inset-0 bg-black/40" onClick={onCancel} />
+      <div className="relative mx-3 w-full max-w-sm rounded-2xl bg-white shadow-xl border border-slate-200">
+        <div className="px-4 pt-4 pb-2">
+          <div className="text-[15px] font-semibold">{title}</div>
+          <div className="mt-2 text-[13px] text-slate-600">{message}</div>
+        </div>
+        <div className="flex items-center justify-end gap-2 px-4 py-3 border-t border-slate-200">
+          <button
+            onClick={onCancel}
+            className="h-9 px-3 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-[13px] font-medium"
+            type="button"
+          >
+            {cancelText}
+          </button>
+          <button
+            ref={confirmRef}
+            onClick={onConfirm}
+            className="h-9 px-3 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-[13px] font-semibold shadow-sm"
+            type="button"
+          >
+            {confirmText}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};

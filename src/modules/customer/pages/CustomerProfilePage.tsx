@@ -1,8 +1,13 @@
 // src/modules/customer/pages/CustomerProfilePage.tsx
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { useAuth } from "../../auth/contexts/AuthContext";
 import { useEffect, useMemo, useRef, useState } from "react";
 import BottomNav from "../../../shared/blocks/BottomNav";
+import { useAuth } from "../../auth/contexts/AuthContext";
+import {
+  useGetMyOrdersQuery,
+  type MyOrdersItem,
+} from "../services/customerOrderApi";
 
 /* ------------------------ helpers ------------------------ */
 const withSlug = (path: string, slug?: string | null) =>
@@ -11,6 +16,44 @@ const withSlug = (path: string, slug?: string | null) =>
     : path.startsWith("/")
     ? path
     : `/${path}`;
+
+const currencyINR = (v: number) =>
+  "₹" + new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 }).format(v);
+
+/** Full delivery pipeline mapping.
+ * Defaults to PREPARING when order is placed or status is missing/unknown.
+ */
+type DeliveryUiStatus =
+  | "preparing"
+  | "dispatched"
+  | "in_transit"
+  | "out_for_delivery"
+  | "delivered"
+  | "failed"
+  | "return_initiated"
+  | "returned";
+
+const normalizeStatus = (o: MyOrdersItem): DeliveryUiStatus => {
+  const s = (o.status || "").toUpperCase().replace(/\s+/g, "_");
+  const step = (o.OrderTrackingStatus?.currentStep || "")
+    .toUpperCase()
+    .replace(/\s+/g, "_");
+
+  const pick = (val: string): DeliveryUiStatus | undefined => {
+    if (val.includes("DELIVERED")) return "delivered";
+    if (val.includes("OUT_FOR_DELIVERY")) return "out_for_delivery";
+    if (val.includes("IN_TRANSIT")) return "in_transit";
+    if (val.includes("DISPATCHED")) return "dispatched";
+    if (val.includes("PREPARING") || val.includes("PLACED")) return "preparing";
+    if (val.includes("FAILED")) return "failed";
+    if (val.includes("RETURN_INITIATED")) return "return_initiated";
+    if (val.includes("RETURNED")) return "returned";
+    return undefined;
+  };
+
+  // Prefer explicit order.status, then tracking step, else default to PREPARING
+  return pick(s) || pick(step) || "preparing";
+};
 
 /* ------------------------ tiny SVG icon set ------------------------ */
 const Icon = {
@@ -103,7 +146,7 @@ const Icon = {
   ),
   XCircle: (p: React.SVGProps<SVGSVGElement>) => (
     <svg viewBox="0 0 24 24" fill="currentColor" {...p}>
-      <path d="M12 2a10 10 0 1010 10A10.012 10.012 0 0012 2Zm4.3 13.9l-1.4 1.4L12 13.4l-2.9 2.9-1.4-1.4 2.9-2.9-2.9-2.9 1.4-1.4 2.9 2.9 2.9-2.9 1.4 1.4-2.9 2.9Z" />
+      <path d="M12 2a10 10 0 1010 10A10.012 10.012 0 0012 2Zm4.3 13.9-1.4 1.4L12 13.4l-2.9 2.9-1.4-1.4 2.9-2.9-2.9-2.9 1.4-1.4 2.9 2.9 2.9-2.9 1.4 1.4-2.9 2.9Z" />
     </svg>
   ),
   Logout: (p: React.SVGProps<SVGSVGElement>) => (
@@ -119,7 +162,7 @@ const Icon = {
   ),
 };
 
-/* --------------------------- reusable list row --------------------------- */
+/* ----------------------------- reusable list row ----------------------------- */
 function ListRow({
   to,
   icon,
@@ -195,48 +238,58 @@ function StatCard({
   return to ? <Link to={to}>{Card}</Link> : Card;
 }
 
-/* ------------------------------ order types ------------------------------ */
-type OrderStatus = "ongoing" | "completed" | "cancelled";
-type OrderItem = { title: string; qty: number; price: number; image?: string };
-type Order = {
-  id: string;
-  placedAt: string;
-  status: OrderStatus;
-  total: number;
-  originalTotal?: number;
-  items: OrderItem[];
-};
-
 /* ------------------------------ status badge ----------------------------- */
-function StatusBadge({ status }: { status: OrderStatus }) {
+function StatusBadge({ status }: { status: DeliveryUiStatus }) {
   const map = {
-    ongoing: {
+    preparing: {
       cls: "bg-amber-50 text-amber-700 ring-amber-200",
+      label: "Preparing",
       icon: <Icon.Truck className="h-3.5 w-3.5" />,
-      label: "On the way",
     },
-    completed: {
+    dispatched: {
+      cls: "bg-blue-50 text-blue-700 ring-blue-200",
+      label: "Dispatched",
+      icon: <Icon.Truck className="h-3.5 w-3.5" />,
+    },
+    in_transit: {
+      cls: "bg-sky-50 text-sky-700 ring-sky-200",
+      label: "In Transit",
+      icon: <Icon.Truck className="h-3.5 w-3.5" />,
+    },
+    out_for_delivery: {
+      cls: "bg-indigo-50 text-indigo-700 ring-indigo-200",
+      label: "Out for Delivery",
+      icon: <Icon.Truck className="h-3.5 w-3.5" />,
+    },
+    delivered: {
       cls: "bg-emerald-50 text-emerald-700 ring-emerald-200",
-      icon: <Icon.CheckCircle className="h-3.5 w-3.5" />,
       label: "Delivered",
+      icon: <Icon.CheckCircle className="h-3.5 w-3.5" />,
     },
-    cancelled: {
+    failed: {
       cls: "bg-rose-50 text-rose-700 ring-rose-200",
+      label: "Failed",
       icon: <Icon.XCircle className="h-3.5 w-3.5" />,
-      label: "Cancelled",
     },
-  }[status];
+    return_initiated: {
+      cls: "bg-orange-50 text-orange-700 ring-orange-200",
+      label: "Return Initiated",
+      icon: <Icon.Truck className="h-3.5 w-3.5" />,
+    },
+    returned: {
+      cls: "bg-gray-50 text-gray-700 ring-gray-200",
+      label: "Returned",
+      icon: <Icon.CheckCircle className="h-3.5 w-3.5" />,
+    },
+  } as const;
 
+  const item = map[status];
   return (
     <span
-      className={[
-        "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium",
-        "ring-1",
-        map.cls,
-      ].join(" ")}
+      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium ring-1 ${item.cls}`}
     >
-      {map.icon}
-      {map.label}
+      {item.icon}
+      {item.label}
     </span>
   );
 }
@@ -301,6 +354,408 @@ function KebabMenu({ onLogout }: { onLogout: () => void }) {
   );
 }
 
+/* ================================= PAGE ================================== */
+export default function CustomerProfilePage() {
+  const { storeSlug } = useParams<{ storeSlug?: string }>();
+  const navigate = useNavigate();
+  const auth = useAuth();
+
+  /* ---- profile heading ---- */
+  const [profile, setProfile] = useState<{
+    name?: string | null;
+    mobile?: string | null;
+  }>(() => {
+    const ctx = {
+      name: (auth as any)?.user?.name,
+      mobile: (auth as any)?.user?.mobile,
+    };
+    try {
+      const ls = JSON.parse(localStorage.getItem("customer_profile") || "null");
+      return {
+        name: ctx.name ?? ls?.name ?? null,
+        mobile: ctx.mobile ?? ls?.mobile ?? null,
+      };
+    } catch {
+      return ctx;
+    }
+  });
+
+  useEffect(() => {
+    setProfile({
+      name: (auth as any)?.user?.name ?? profile.name ?? null,
+      mobile: (auth as any)?.user?.mobile ?? profile.mobile ?? null,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [(auth as any)?.user?.name, (auth as any)?.user?.mobile]);
+
+  const [editOpen, setEditOpen] = useState(false);
+  const handleSaveProfile = async (data: { name: string; mobile: string }) => {
+    const updater =
+      (auth as any)?.updateProfile ||
+      (auth as any)?.setUser ||
+      (auth as any)?.setUserDetails;
+    try {
+      if (typeof updater === "function") {
+        const payload =
+          updater === (auth as any).setUser ||
+          updater === (auth as any).setUserDetails
+            ? { ...(auth as any).user, ...data }
+            : data;
+        await Promise.resolve(updater(payload));
+      } else {
+        localStorage.setItem("customer_profile", JSON.stringify(data));
+        window.dispatchEvent(
+          new CustomEvent("auth:profile:update", { detail: data })
+        );
+      }
+      setProfile(data);
+      setEditOpen(false);
+    } catch {
+      alert("Failed to save profile. Please try again.");
+    }
+  };
+
+  /* ---- compute a reliable businessId for API ---- */
+  const userDetails = (auth as any)?.userDetails;
+  const slugFromUrl =
+    storeSlug ||
+    (typeof window !== "undefined"
+      ? window.location.pathname.split("/").filter(Boolean)[0]
+      : "");
+  const businessId: string =
+    userDetails?.storeLinks?.find(
+      (l: any) => l?.store?.slug === slugFromUrl || l?.storeSlug === slugFromUrl
+    )?.businessId ||
+    userDetails?.storeLinks?.[0]?.businessId ||
+    localStorage.getItem("active_business_id") ||
+    "";
+
+  /* ---- orders from API ---- */
+  // NOTE: your API still uses 'ONGOING'/'COMPLETED'—we keep these tabs for fetch,
+  // but the UI displays detailed delivery stages via normalizeStatus().
+  const [tab, setTab] = useState<"all" | "ongoing" | "completed">("all");
+  const statusParam =
+    tab === "all" ? undefined : (tab.toUpperCase() as "ONGOING" | "COMPLETED");
+
+  const {
+    data: ordersRes,
+    isFetching,
+    isError,
+    refetch,
+  } = useGetMyOrdersQuery(
+    { businessId, status: statusParam, page: 1, limit: 20 },
+    { skip: !businessId }
+  );
+
+  const apiOrders = ordersRes?.items ?? [];
+  const ordersCount = ordersRes?.total ?? 0;
+
+  const uiOrders = useMemo(
+    () =>
+      apiOrders.map((o) => {
+        const status = normalizeStatus(o);
+        const items = o.OrderItem.map((it) => ({
+          title: it.Product?.name || "Item",
+          qty: it.quantity,
+          price: it.totalPrice,
+          image: "", // (plug image when BE exposes it)
+        }));
+        return {
+          id: o.orderNumber || o.id,
+          placedAt: o.placedAt,
+          status,
+          total: o.totalAmount,
+          originalTotal: undefined as number | undefined,
+          items,
+          rawId: o.id,
+        };
+      }),
+    [apiOrders]
+  );
+
+  const rewards = "—";
+  const coupons = "—";
+  const wallet = "—";
+
+  return (
+    <div className="min-h-dvh bg-gradient-to-b from-slate-50 to-slate-100">
+      {/* ===== Header ===== */}
+      <div className="-mx-4 -mt-4">
+        <header
+          className="
+            relative isolate rounded-b-[28px]
+            bg-[radial-gradient(100%_120%_at_0%_0%,rgba(255,255,255,0.14),transparent_40%),linear-gradient(135deg,#7c3aed_0%,#c026d3_50%,#7c3aed_100%)]
+            shadow-[inset_0_-24px_64px_-40px_rgba(255,255,255,0.35)]
+          "
+        >
+          {/* toolbar */}
+          <div className="max-w-3xl mx-auto px-4 pt-4">
+            <div className="flex items-center justify-between">
+              <button
+                onClick={() => navigate(-1)}
+                className="h-10 w-10 rounded-full bg-white/15 text-white grid place-items-center backdrop-blur hover:bg-white/20 transition"
+                aria-label="Back"
+              >
+                <Icon.Back className="h-5 w-5" />
+              </button>
+
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setEditOpen(true)}
+                  className="inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1.5 text-white backdrop-blur hover:bg-white/20 transition"
+                  title="Edit profile"
+                >
+                  <Icon.Edit className="h-4 w-4" />
+                  <span className="text-xs font-medium">Edit</span>
+                </button>
+                <KebabMenu onLogout={auth.logout} />
+              </div>
+            </div>
+          </div>
+
+          {/* name & phone */}
+          <div className="max-w-3xl mx-auto px-4 pb-6 pt-8">
+            <div className="flex items-center gap-3 text-white">
+              <InitialAvatar name={profile.name || undefined} />
+              <div>
+                <div className="text-[22px] sm:text-2xl font-bold tracking-wide drop-shadow-sm">
+                  {profile.name || "—"}
+                </div>
+                <div className="text-[13px] sm:text-sm/5 opacity-95">
+                  {profile.mobile || "—"}
+                </div>
+              </div>
+            </div>
+          </div>
+        </header>
+      </div>
+
+      {/* ===== Content ===== */}
+      <main className="max-w-3xl mx-auto px-4 pb-24 pt-6">
+        {/* Actions */}
+        <section className="rounded-3xl bg-white shadow-sm ring-1 ring-black/5 overflow-hidden">
+          <ListRow
+            to={withSlug("/profile/addresses", storeSlug)}
+            icon={<Icon.MapPin className="h-5 w-5" />}
+            title="Your saved addresses"
+            subtitle="Manage delivery locations"
+          />
+          <div className="mx-5 border-t border-slate-100" />
+          <ListRow
+            to={withSlug("/profile/help", storeSlug)}
+            icon={<Icon.Info className="h-5 w-5" />}
+            title="Help & support"
+            subtitle="FAQs and contact options"
+          />
+        </section>
+
+        {/* Stats */}
+        <section className="mt-6 grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <StatCard label="Rewards" value={rewards} />
+          <StatCard label="Coupons" value={coupons} />
+          <StatCard label="Wallet" value={wallet} />
+          <StatCard
+            label="Orders"
+            value={isFetching ? "…" : ordersCount}
+            icon={<Icon.Receipt className="h-3.5 w-3.5" />}
+            to={withSlug("/profile/orders", storeSlug)}
+          />
+        </section>
+
+        {/* Orders */}
+        <section className="mt-8">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-[15px] font-semibold text-slate-900">
+              Your orders
+            </h2>
+
+            {/* Tabs (using API's Ongoing/Completed buckets) */}
+            <div className="flex items-center gap-1 rounded-full bg-slate-100 p-1">
+              {(["all", "ongoing", "completed"] as const).map((t) => (
+                <button
+                  key={t}
+                  onClick={() => setTab(t)}
+                  className={[
+                    "px-3 py-1.5 text-xs font-medium rounded-full transition",
+                    tab === t
+                      ? "bg-white shadow-sm text-slate-900"
+                      : "text-slate-600 hover:text-slate-800",
+                  ].join(" ")}
+                >
+                  {t[0].toUpperCase() + t.slice(1)}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Missing business ID */}
+          {!businessId && (
+            <div className="rounded-3xl bg-white ring-1 ring-amber-200 p-6 text-amber-700">
+              Business not selected. Please open the store again.
+            </div>
+          )}
+
+          {/* Loading */}
+          {businessId && isFetching && (
+            <div className="space-y-3">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <div
+                  key={i}
+                  className="h-24 rounded-2xl bg-white ring-1 ring-black/5 animate-pulse"
+                />
+              ))}
+            </div>
+          )}
+
+          {/* Error */}
+          {businessId && isError && !isFetching && (
+            <div className="rounded-3xl bg-white ring-1 ring-rose-200 p-6 text-rose-600">
+              Failed to load orders.{" "}
+              <button
+                className="underline font-medium"
+                onClick={() => refetch()}
+              >
+                Try again
+              </button>
+            </div>
+          )}
+
+          {/* Empty */}
+          {businessId && !isFetching && !isError && uiOrders.length === 0 && (
+            <div className="rounded-3xl bg-white ring-1 ring-black/5 p-8 text-center">
+              <div className="mx-auto mb-4 h-24 w-24 rounded-full bg-violet-50 grid place-items-center ring-1 ring-violet-100">
+                <Icon.Basket className="h-10 w-10 text-violet-600" />
+              </div>
+              <div className="text-base font-semibold text-slate-900">
+                Nothing here yet
+              </div>
+              <div className="text-sm text-slate-500">
+                All your orders will be available here
+              </div>
+              <Link
+                to={withSlug("/", storeSlug)}
+                className="mt-5 inline-flex items-center justify-center rounded-xl bg-violet-600 px-4 py-2 text-sm font-semibold text-white hover:bg-violet-700 active:bg-violet-800 transition"
+              >
+                Explore products
+              </Link>
+            </div>
+          )}
+
+          {/* List */}
+          {businessId && !isFetching && !isError && uiOrders.length > 0 && (
+            <div className="space-y-3">
+              {uiOrders.map((o) => {
+                const first = o.items[0];
+                const rest = o.items.length - 1;
+                const date = new Date(o.placedAt).toLocaleDateString(
+                  undefined,
+                  { year: "numeric", month: "short", day: "2-digit" }
+                );
+
+                return (
+                  <div
+                    key={o.id}
+                    className="rounded-2xl bg-white ring-1 ring-black/5 p-4 sm:p-5"
+                  >
+                    {/* Header */}
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="text-[13px] sm:text-sm text-slate-600">
+                        <span className="font-medium text-slate-900">
+                          {o.id}
+                        </span>{" "}
+                        • Placed on {date}
+                      </div>
+                      <StatusBadge status={o.status} />
+                    </div>
+
+                    {/* Body */}
+                    <div className="mt-3 flex items-start gap-3">
+                      {/* Image stack (images TBD when BE provides) */}
+                      <div className="flex -space-x-2">
+                        {o.items.slice(0, 3).map((_, idx) => (
+                          <div
+                            key={idx}
+                            className="h-10 w-10 overflow-hidden rounded-lg ring-1 ring-slate-200 bg-slate-100"
+                          />
+                        ))}
+                        {o.items.length > 3 && (
+                          <div className="h-10 w-10 grid place-items-center rounded-lg ring-1 ring-slate-200 bg-slate-50 text-[11px] text-slate-600">
+                            +{o.items.length - 3}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Titles */}
+                      <div className="min-w-0 flex-1">
+                        <div className="text-[14px] font-medium text-slate-900 truncate">
+                          {first?.title || "Items"}
+                        </div>
+                        <div className="text-xs text-slate-500">
+                          Qty: {first?.qty ?? 1}
+                          {rest > 0
+                            ? ` • +${rest} more item${rest > 1 ? "s" : ""}`
+                            : ""}
+                        </div>
+                      </div>
+
+                      {/* Total */}
+                      <div className="text-right">
+                        <div className="text-xs text-slate-500">Total</div>
+                        <div className="text-[15px] font-semibold">
+                          {currencyINR(o.total)}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Footer actions */}
+                    <div className="mt-4 flex items-center justify-end gap-2">
+                      <Link
+                        to={withSlug(`/profile/orders/${o.id}`, storeSlug)}
+                        className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
+                      >
+                        View details
+                      </Link>
+                      {(
+                        [
+                          "preparing",
+                          "dispatched",
+                          "in_transit",
+                          "out_for_delivery",
+                        ] as DeliveryUiStatus[]
+                      ).includes(o.status) && (
+                        <Link
+                          to={withSlug(
+                            `/profile/orders/${o.id}/track`,
+                            storeSlug
+                          )}
+                          className="rounded-lg bg-violet-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-violet-700"
+                        >
+                          Track
+                        </Link>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </section>
+      </main>
+
+      {/* Edit Profile Modal */}
+      <EditProfileModal
+        open={editOpen}
+        name={profile.name || ""}
+        mobile={profile.mobile || ""}
+        onClose={() => setEditOpen(false)}
+        onSave={handleSaveProfile}
+      />
+
+      <BottomNav />
+    </div>
+  );
+}
+
 /* ---------------------------- Edit Profile Modal ---------------------------- */
 function EditProfileModal({
   open,
@@ -332,7 +787,7 @@ function EditProfileModal({
       alert("Please enter your name.");
       return;
     }
-    onSave({ name: trimmed, mobile: mobileProp || "" }); // mobile read-only
+    onSave({ name: trimmed, mobile: mobileProp || "" });
   };
 
   return (
@@ -392,400 +847,6 @@ function EditProfileModal({
           </button>
         </div>
       </div>
-    </div>
-  );
-}
-
-/* ================================= PAGE ================================== */
-export default function CustomerProfilePage() {
-  const { storeSlug } = useParams<{ storeSlug?: string }>();
-  const auth = useAuth();
-  const { logout } = auth;
-  const navigate = useNavigate();
-
-  // derive profile
-  const [profile, setProfile] = useState<{
-    name?: string | null;
-    mobile?: string | null;
-  }>(() => {
-    const ctx = {
-      name: (auth as any)?.user?.name,
-      mobile: (auth as any)?.user?.mobile,
-    };
-    try {
-      const ls = JSON.parse(localStorage.getItem("customer_profile") || "null");
-      return {
-        name: ctx.name ?? ls?.name ?? null,
-        mobile: ctx.mobile ?? ls?.mobile ?? null,
-      };
-    } catch {
-      return ctx;
-    }
-  });
-
-  useEffect(() => {
-    setProfile({
-      name: (auth as any)?.user?.name ?? profile.name ?? null,
-      mobile: (auth as any)?.user?.mobile ?? profile.mobile ?? null,
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [(auth as any)?.user?.name, (auth as any)?.user?.mobile]);
-
-  const [editOpen, setEditOpen] = useState(false);
-
-  const handleSaveProfile = async (data: { name: string; mobile: string }) => {
-    const updater =
-      (auth as any)?.updateProfile ||
-      (auth as any)?.setUser ||
-      (auth as any)?.setUserDetails;
-    try {
-      if (typeof updater === "function") {
-        const payload =
-          updater === (auth as any).setUser ||
-          updater === (auth as any).setUserDetails
-            ? { ...(auth as any).user, ...data }
-            : data;
-        await Promise.resolve(updater(payload));
-      } else {
-        localStorage.setItem("customer_profile", JSON.stringify(data));
-        window.dispatchEvent(
-          new CustomEvent("auth:profile:update", { detail: data })
-        );
-      }
-      setProfile(data);
-      setEditOpen(false);
-    } catch {
-      alert("Failed to save profile. Please try again.");
-    }
-  };
-
-  // demo orders
-  const demoOrders: Order[] = [
-    {
-      id: "ODR-982341",
-      placedAt: "2025-05-22",
-      status: "ongoing",
-      total: 58990,
-      originalTotal: 61990,
-      items: [
-        {
-          title: "MacBook Air 13” (M2) · Midnight",
-          qty: 1,
-          price: 52990,
-          image: "https://dummyimage.com/80x60/111827/ffffff&text=MB",
-        },
-        {
-          title: "USB-C to MagSafe 3 Cable",
-          qty: 1,
-          price: 6000,
-          image: "https://dummyimage.com/80x60/0f172a/ffffff&text=CAB",
-        },
-      ],
-    },
-    {
-      id: "ODR-982112",
-      placedAt: "2025-05-05",
-      status: "completed",
-      total: 2999,
-      originalTotal: 3499,
-      items: [
-        {
-          title: "Wireless Mouse · Graphite",
-          qty: 1,
-          price: 1499,
-          image: "https://dummyimage.com/80x60/111827/ffffff&text=MS",
-        },
-        {
-          title: "Mouse Pad XL",
-          qty: 1,
-          price: 1500,
-          image: "https://dummyimage.com/80x60/1f2937/ffffff&text=PAD",
-        },
-      ],
-    },
-    {
-      id: "ODR-981930",
-      placedAt: "2025-04-18",
-      status: "completed",
-      total: 39990,
-      originalTotal: 41990,
-      items: [
-        {
-          title: "OnePlus 12R · 8/128 · Iron Gray",
-          qty: 1,
-          price: 39990,
-          image: "https://dummyimage.com/80x60/111827/ffffff&text=PHN",
-        },
-      ],
-    },
-  ];
-
-  const rewards = "—";
-  const coupons = "—";
-  const wallet = "—";
-  const ordersCount = demoOrders.length;
-
-  const [tab, setTab] = useState<"all" | "ongoing" | "completed">("all");
-  const filtered = useMemo(
-    () =>
-      tab === "all" ? demoOrders : demoOrders.filter((o) => o.status === tab),
-    [tab]
-  );
-
-  return (
-    <div className="min-h-dvh bg-gradient-to-b from-slate-50 to-slate-100">
-      {/* ===== Edge-to-edge header: cancel parent p-4 with -mx-4 and pull to top with -mt-4 ===== */}
-      <div className="-mx-4 -mt-4">
-        <header
-          className="
-            relative isolate rounded-b-[28px]
-            bg-[radial-gradient(100%_120%_at_0%_0%,rgba(255,255,255,0.14),transparent_40%),linear-gradient(135deg,#7c3aed_0%,#c026d3_50%,#7c3aed_100%)]
-            shadow-[inset_0_-24px_64px_-40px_rgba(255,255,255,0.35)]
-          "
-        >
-          {/* toolbar */}
-          <div className="max-w-3xl mx-auto px-4 pt-4">
-            <div className="flex items-center justify-between">
-              <button
-                onClick={() => navigate(-1)}
-                className="h-10 w-10 rounded-full bg-white/15 text-white grid place-items-center backdrop-blur hover:bg-white/20 transition"
-                aria-label="Back"
-              >
-                <Icon.Back className="h-5 w-5" />
-              </button>
-
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setEditOpen(true)}
-                  className="inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1.5 text-white backdrop-blur hover:bg-white/20 transition"
-                  title="Edit profile"
-                >
-                  <Icon.Edit className="h-4 w-4" />
-                  <span className="text-xs font-medium">Edit</span>
-                </button>
-                <KebabMenu onLogout={logout} />
-              </div>
-            </div>
-          </div>
-
-          {/* name & phone inside bar */}
-          <div className="max-w-3xl mx-auto px-4 pb-6 pt-8">
-            <div className="flex items-center gap-3 text-white">
-              <InitialAvatar name={profile.name || undefined} />
-              <div>
-                <div className="text-[22px] sm:text-2xl font-bold tracking-wide drop-shadow-sm">
-                  {profile.name || "—"}
-                </div>
-                <div className="text-[13px] sm:text-sm/5 opacity-95">
-                  {profile.mobile || "—"}
-                </div>
-              </div>
-            </div>
-          </div>
-        </header>
-      </div>
-
-      {/* ===== Content ===== */}
-      <main className="max-w-3xl mx-auto px-4 pb-24 pt-6">
-        {/* Actions */}
-        <section className="rounded-3xl bg-white shadow-sm ring-1 ring-black/5 overflow-hidden">
-          <ListRow
-            to={withSlug("/profile/addresses", storeSlug)}
-            icon={<Icon.MapPin className="h-5 w-5" />}
-            title="Your saved addresses"
-            subtitle="Manage delivery locations"
-          />
-          <div className="mx-5 border-t border-slate-100" />
-          <ListRow
-            to={withSlug("/profile/help", storeSlug)}
-            icon={<Icon.Info className="h-5 w-5" />}
-            title="Help & support"
-            subtitle="FAQs and contact options"
-          />
-        </section>
-
-        {/* Stats */}
-        <section className="mt-6 grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <StatCard label="Rewards" value={rewards} />
-          <StatCard label="Coupons" value={coupons} />
-          <StatCard label="Wallet" value={wallet} />
-          <StatCard
-            label="Orders"
-            value={ordersCount}
-            icon={<Icon.Receipt className="h-3.5 w-3.5" />}
-            to={withSlug("/profile/orders", storeSlug)}
-          />
-        </section>
-
-        {/* Orders */}
-        <section className="mt-8">
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="text-[15px] font-semibold text-slate-900">
-              Your orders
-            </h2>
-
-            {/* Tabs */}
-            <div className="flex items-center gap-1 rounded-full bg-slate-100 p-1">
-              {(["all", "ongoing", "completed"] as const).map((t) => (
-                <button
-                  key={t}
-                  onClick={() => setTab(t)}
-                  className={[
-                    "px-3 py-1.5 text-xs font-medium rounded-full transition",
-                    tab === t
-                      ? "bg-white shadow-sm text-slate-900"
-                      : "text-slate-600 hover:text-slate-800",
-                  ].join(" ")}
-                >
-                  {t[0].toUpperCase() + t.slice(1)}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* List */}
-          {filtered.length === 0 ? (
-            <div className="rounded-3xl bg-white ring-1 ring-black/5 p-8 text-center">
-              <div className="mx-auto mb-4 h-24 w-24 rounded-full bg-violet-50 grid place-items-center ring-1 ring-violet-100">
-                <Icon.Basket className="h-10 w-10 text-violet-600" />
-              </div>
-              <div className="text-base font-semibold text-slate-900">
-                Nothing here yet
-              </div>
-              <div className="text-sm text-slate-500">
-                All your orders will be available here
-              </div>
-              <Link
-                to={withSlug("/", storeSlug)}
-                className="mt-5 inline-flex items-center justify-center rounded-xl bg-violet-600 px-4 py-2 text-sm font-semibold text-white hover:bg-violet-700 active:bg-violet-800 transition"
-              >
-                Explore products
-              </Link>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {filtered.map((o) => {
-                const first = o.items[0];
-                const rest = o.items.length - 1;
-                const date = new Date(o.placedAt).toLocaleDateString(
-                  undefined,
-                  { year: "numeric", month: "short", day: "2-digit" }
-                );
-                const currencyINR = (v: number) =>
-                  "₹" +
-                  new Intl.NumberFormat("en-IN", {
-                    maximumFractionDigits: 0,
-                  }).format(v);
-
-                return (
-                  <div
-                    key={o.id}
-                    className="rounded-2xl bg-white ring-1 ring-black/5 p-4 sm:p-5"
-                  >
-                    {/* Header */}
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="text-[13px] sm:text-sm text-slate-600">
-                        <span className="font-medium text-slate-900">
-                          {o.id}
-                        </span>{" "}
-                        • Placed on {date}
-                      </div>
-                      <StatusBadge status={o.status} />
-                    </div>
-
-                    {/* Body */}
-                    <div className="mt-3 flex items-start gap-3">
-                      {/* Image stack */}
-                      <div className="flex -space-x-2">
-                        {o.items.slice(0, 3).map((it, idx) => (
-                          <div
-                            key={idx}
-                            className="h-10 w-10 overflow-hidden rounded-lg ring-1 ring-slate-200 bg-slate-100"
-                          >
-                            <img
-                              src={
-                                it.image ||
-                                "https://dummyimage.com/80x60/e5e7eb/111827&text=IMG"
-                              }
-                              alt={it.title}
-                              className="h-full w-full object-cover"
-                              loading="lazy"
-                            />
-                          </div>
-                        ))}
-                        {o.items.length > 3 && (
-                          <div className="h-10 w-10 grid place-items-center rounded-lg ring-1 ring-slate-200 bg-slate-50 text-[11px] text-slate-600">
-                            +{o.items.length - 3}
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Titles */}
-                      <div className="min-w-0 flex-1">
-                        <div className="text-[14px] font-medium text-slate-900 truncate">
-                          {first.title}
-                        </div>
-                        <div className="text-xs text-slate-500">
-                          Qty: {first.qty}
-                          {rest > 0
-                            ? ` • +${rest} more item${rest > 1 ? "s" : ""}`
-                            : ""}
-                        </div>
-                      </div>
-
-                      {/* Total + crossed original */}
-                      <div className="text-right">
-                        <div className="text-xs text-slate-500">Total</div>
-                        <div className="text-[15px] font-semibold">
-                          {currencyINR(o.total)}
-                        </div>
-                        {o.originalTotal && o.originalTotal > o.total && (
-                          <div className="text-xs text-slate-400 line-through">
-                            {currencyINR(o.originalTotal)}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Footer actions */}
-                    <div className="mt-4 flex items-center justify-end gap-2">
-                      <Link
-                        to={withSlug(`/profile/orders/${o.id}`, storeSlug)}
-                        className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
-                      >
-                        View details
-                      </Link>
-                      {o.status === "ongoing" && (
-                        <Link
-                          to={withSlug(
-                            `/profile/orders/${o.id}/track`,
-                            storeSlug
-                          )}
-                          className="rounded-lg bg-violet-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-violet-700"
-                        >
-                          Track
-                        </Link>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </section>
-      </main>
-
-      {/* Edit Profile Modal */}
-      <EditProfileModal
-        open={editOpen}
-        name={profile.name || ""}
-        mobile={profile.mobile || ""}
-        onClose={() => setEditOpen(false)}
-        onSave={handleSaveProfile}
-      />
-
-      {/* Bottom navigation */}
-      <BottomNav />
     </div>
   );
 }

@@ -1,4 +1,5 @@
 // src/modules/auth/services/baseQueryWithReauth.ts
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { fetchBaseQuery, FetchArgs } from "@reduxjs/toolkit/query/react";
 import { RootState } from "../../../common/state/store";
 import { loginSuccess, logout } from "../slices/authSlice";
@@ -15,99 +16,148 @@ export const IMAGE_URL = isDev
   ? import.meta.env.VITE_PUBLIC_IMAGE_URL_LOCAL
   : import.meta.env.VITE_PUBLIC_IMAGE_URL_LIVE;
 
-/* ───────────────── helpers ───────────────── */
+/** Optional helper kept for future use (no longer sets a header) */
+function getActiveBusinessId(state: RootState): string {
+  const anyState = state as any;
+  const fromSlice =
+    anyState?.storefront?.activeBusinessId ||
+    anyState?.customer?.activeBusinessId ||
+    "";
+  if (fromSlice) return String(fromSlice).trim();
+
+  try {
+    const pathname =
+      typeof window !== "undefined" ? window.location.pathname : "";
+    const slug = pathname.split("/").filter(Boolean)[0] || "";
+    const links = (state.auth?.userDetails as any)?.storeLinks ?? [];
+    const match =
+      links.find(
+        (l: any) => l?.store?.slug === slug || l?.storeSlug === slug
+      ) ?? links[0];
+    const biz = match?.businessId;
+    if (biz) return String(biz).trim();
+  } catch {
+    /* noop */
+  }
+
+  if (typeof window !== "undefined") {
+    const ls = localStorage.getItem("active_business_id");
+    if (ls) return String(ls).trim();
+
+    try {
+      const pathname = window.location.pathname;
+      const slug = pathname.split("/").filter(Boolean)[0] || "";
+      const mapRaw = localStorage.getItem("storeSlugBusinessMap");
+      if (slug && mapRaw) {
+        const map = JSON.parse(mapRaw) as Record<string, string>;
+        const b = map?.[slug];
+        if (b) return String(b).trim();
+      }
+    } catch {
+      /* noop */
+    }
+  }
+
+  const first =
+    (state.auth?.userDetails as any)?.storeLinks?.[0]?.businessId || "";
+  return String(first || "").trim();
+}
+
 const withAuthHeaders = (headers: Headers, getState: () => unknown) => {
-  const token = (getState() as RootState).auth.token;
+  const state = getState() as RootState;
+  const token = state.auth.token;
   if (token) headers.set("Authorization", `Bearer ${token}`);
+  // DO NOT set 'x-business-id' header; use query params instead.
   return headers;
 };
 
-/** Base that hits `${API_ROOT}/auth` (seller/admin auth endpoints live here) */
+/** Base that hits `${API_ROOT}/auth` */
 const authBase = fetchBaseQuery({
   baseUrl: `${API_ROOT}/auth`,
-  credentials: "include",
+  credentials: "omit", // avoid cookies to simplify CORS
   prepareHeaders: (h, api) => withAuthHeaders(h, api.getState),
 });
 
-/** Base that hits `${API_ROOT}` without the `/auth` prefix */
+/** Base that hits `${API_ROOT}` (no /auth prefix) */
 const rootBase = fetchBaseQuery({
   baseUrl: API_ROOT,
-  credentials: "include",
+  credentials: "omit",
   prepareHeaders: (h, api) => withAuthHeaders(h, api.getState),
 });
 
-/* ───────────────── routing rules ─────────────────
-   RULES:
-   - Everything under /customer/** (including /customer/auth/**) → ROOT (NO /auth).
-   - Seller/business/product, super-admin, and files also go to ROOT.
-   - Only seller/admin auth like /login, /register, /refresh-auth-token stay on /auth.
+/* Routing rules:
+   - Everything under /customer/** and other app routes → ROOT (no /auth)
+   - Only seller/admin auth endpoints stay on /auth
 */
 const routeViaRoot = (url: string) =>
-  url.startsWith("/customer/") || // NOTE: covers /customer/auth/** as well
+  url.startsWith("/customer/") ||
   url.startsWith("/super-admin/") ||
   url.startsWith("/seller/business") ||
   url.startsWith("/seller/product") ||
+  url.startsWith("/seller/coupons") ||
+  url.startsWith("/seller/orders") ||
   url.startsWith("/files");
 
-/** Endpoints where we should NOT attempt a refresh */
+/** Endpoints where refresh should NOT be attempted */
 const shouldSkipRefresh = (url: string) => {
   const path = url.split("?")[0];
   const skip = new Set<string>([
-    // SELLER/ADMIN auth (lives under /auth)
     "/login",
     "/register",
-
-    // CUSTOMER auth (lives under ROOT, but we still don't want to refresh)
     "/customer/auth/login-init",
     "/customer/auth/register",
     "/customer/auth/confirm-mobile-otp",
     "/customer/auth/resend-mobile-otp",
     "/customer/auth/logout",
-
-    // refresh itself
     "/refresh-auth-token",
   ]);
   return skip.has(path);
 };
 
-/* ───────────────── main wrapper with refresh ───────────────── */
+type ExtraOptionsWithRetry = Parameters<typeof authBase>[2] & {
+  __isRetryAttempt?: boolean;
+};
+
 export const baseQueryWithReauth: typeof authBase = async (
   args,
   api,
   extraOptions
 ) => {
   const url = typeof args === "string" ? args : args.url;
+  const base = routeViaRoot(url) ? rootBase : authBase;
 
-  // 1) Decide which base to use
-  if (routeViaRoot(url)) {
-    // -> Goes to ROOT (no /auth prefix). This fixes /customer/auth/** endpoints.
-    return rootBase(args as FetchArgs, api, extraOptions);
-  }
+  // 1) Original request
+  let result = await base(args as FetchArgs, api, extraOptions);
 
-  // 2) Default: use /auth-prefixed base
-  let result = await authBase(args, api, extraOptions);
+  // 2) If 401, try refresh then retry once
+  const err = (result as any)?.error as
+    | { status?: number; data?: any }
+    | undefined;
 
-  // 3) On 401, try refresh (unless excluded)
-  const err: any = result.error;
-  const statusCode: number | undefined = err?.data?.statusCode;
-  const requestUrl = typeof args === "string" ? args : args.url;
+  const statusFromRtk = err?.status;
+  const statusFromBody = err?.data?.statusCode;
+  const statusCode = (statusFromRtk ?? statusFromBody) as number | undefined;
+
+  const requestUrl = (typeof args === "string" ? args : args.url).split("?")[0];
   const skipRefresh = shouldSkipRefresh(requestUrl);
 
-  if (result.error && statusCode === 401 && !skipRefresh) {
-    const alreadyRetried = (extraOptions as any)?.__isRetryAttempt;
+  if (err && statusCode === 401 && !skipRefresh) {
+    const alreadyRetried = (extraOptions as ExtraOptionsWithRetry)
+      ?.__isRetryAttempt;
     if (alreadyRetried) {
       api.dispatch(logout());
       return result;
     }
 
+    // Refresh token request always under /auth
     const refreshRes = await authBase(
       { url: "/refresh-auth-token", method: "POST" },
       api,
       extraOptions
     );
 
-    if (refreshRes.data) {
-      const data = refreshRes.data as {
+    if ((refreshRes as any).data) {
+      const data = (refreshRes as any).data as {
         access_token: string;
         refresh_token: string;
         id: string;
@@ -133,9 +183,9 @@ export const baseQueryWithReauth: typeof authBase = async (
         })
       );
 
-      // retry original once
-      result = await authBase(args, api, {
-        ...extraOptions,
+      // Retry original once
+      result = await base(args as FetchArgs, api, {
+        ...(extraOptions as ExtraOptionsWithRetry),
         __isRetryAttempt: true,
       });
     } else {

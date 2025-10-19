@@ -12,7 +12,7 @@ export type CustomerAddress = {
   state: string;
   postalCode: string;
   country: string;
-  kind: AddressKind; // 👈 FE expects this, BE provides via mapOut
+  kind: AddressKind; // FE expects this, BE provides via mapOut
   isDefault?: boolean;
   createdAt: string; // ISO string from BE
   updatedAt?: string; // ISO string from BE
@@ -29,7 +29,7 @@ export const customerApi = apiClient.injectEndpoints({
   endpoints: (builder) => ({
     getCustomerAddresses: builder.query<CustomerAddress[], void>({
       query: () => ({
-        url: "/customer/addresses/list", // ✅ no /auth prefix
+        url: "/customer/addresses/list",
         method: "GET",
       }),
       transformResponse: (raw: {
@@ -40,45 +40,45 @@ export const customerApi = apiClient.injectEndpoints({
       }) => raw.data,
       providesTags: (res) =>
         res
-          ? [
+          ? ([
               ...res.map((a) => ({
                 type: "CustomerAddress" as const,
                 id: a.id,
               })),
               { type: "CustomerAddress" as const, id: "LIST" },
-            ]
-          : [{ type: "CustomerAddress" as const, id: "LIST" }],
+            ] as const)
+          : ([{ type: "CustomerAddress" as const, id: "LIST" }] as const),
     }),
 
     createCustomerAddress: builder.mutation<CustomerAddress, CreateAddressDto>({
       query: (body) => ({
-        url: "/customer/addresses", // ✅ no /auth prefix
+        url: "/customer/addresses",
         method: "POST",
         body,
       }),
-      invalidatesTags: [{ type: "CustomerAddress", id: "LIST" }],
+      invalidatesTags: [{ type: "CustomerAddress" as const, id: "LIST" }],
     }),
 
     updateCustomerAddress: builder.mutation<CustomerAddress, UpdateAddressDto>({
       query: ({ id, ...body }) => ({
-        url: `/customer/addresses/${id}`, // ✅ no /auth prefix
+        url: `/customer/addresses/${id}`,
         method: "PUT",
         body,
       }),
-      invalidatesTags: (_r, _e, arg) => [
-        { type: "CustomerAddress", id: arg.id },
-        { type: "CustomerAddress", id: "LIST" },
+      invalidatesTags: (_result, _error, { id }) => [
+        { type: "CustomerAddress" as const, id },
+        { type: "CustomerAddress" as const, id: "LIST" },
       ],
     }),
 
     deleteCustomerAddress: builder.mutation<{ success: true }, string>({
       query: (id) => ({
-        url: `/customer/addresses/${id}`, // ✅ no /auth prefix
+        url: `/customer/addresses/${id}`,
         method: "DELETE",
       }),
-      invalidatesTags: (_r, _e, id) => [
-        { type: "CustomerAddress", id },
-        { type: "CustomerAddress", id: "LIST" },
+      invalidatesTags: (_result, _error, id) => [
+        { type: "CustomerAddress" as const, id },
+        { type: "CustomerAddress" as const, id: "LIST" },
       ],
     }),
   }),

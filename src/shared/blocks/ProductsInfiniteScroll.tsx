@@ -12,6 +12,9 @@ import {
 } from "../../modules/auth/services/productApi";
 import CartDock from "./CartDock";
 
+/* ==== cart API (correct) ==== */
+import { useAddItemToCartMutation } from "../../modules/customer/services/customerCartApi";
+
 /* ------------------------- utils ------------------------- */
 const cn = (...v: (string | false | null | undefined)[]) =>
   v.filter(Boolean).join(" ");
@@ -286,6 +289,9 @@ export default function StorefrontWithApiImages({ settings = {} }: Props) {
     userDetails?.storeLinks?.[0]?.businessId?.trim?.() || "";
   const skip = !businessId;
 
+  /* ==== cart add mutation (API) ==== */
+  const [addToCart] = useAddItemToCartMutation();
+
   const [cats, setCats] = useState<
     Array<{ id: string; name: string; count?: number }>
   >([]);
@@ -429,33 +435,26 @@ export default function StorefrontWithApiImages({ settings = {} }: Props) {
       if (el) io.observe(el as Element);
     });
     return () => io.disconnect();
-  }, [cats.length]);
+  }, [cats, cats.length]);
 
-  /* cart demo */
-  const handleAddToCart = (p: any) => {
+  /* ==================== ADD TO CART (via API only) ==================== */
+  const handleAddToCart = async (p: any) => {
+    if (!businessId) return;
     try {
-      const cart = JSON.parse(localStorage.getItem("cart") || "[]");
-      const i = cart.findIndex((x: any) => x.id === p.id);
-      if (i > -1) cart[i].qty += 1;
-      else
-        cart.push({
-          id: p.id,
-          name: p.name,
-          price: p.discountedPrice ?? p.price,
-          image: getPrimaryImageUrl(p) || FALLBACK_IMG,
-          qty: 1,
-          currency: p.currency || "INR",
-        });
-      localStorage.setItem("cart", JSON.stringify(cart));
-    } catch {
-      /* empty */
-    }
-    try {
+      await addToCart({
+        businessId,
+        productId: String(p.id),
+        variantId: null,
+        quantity: 1,
+      }).unwrap();
+
+      // fire UI-only events (no localStorage)
       window.dispatchEvent(
         new CustomEvent("cart:add", { detail: { id: p.id } })
       );
-    } catch {
-      /* empty */
+      window.dispatchEvent(new CustomEvent("cart:update"));
+    } catch (e) {
+      console.error("Add to cart failed:", e);
     }
   };
 
@@ -583,7 +582,7 @@ export default function StorefrontWithApiImages({ settings = {} }: Props) {
                   "w-full text-left px-4 py-3 text-[13px]",
                   activeCatId === c.id
                     ? "bg-white/10 font-semibold"
-                    : "hover:bg-white/5"
+                    : "hover:bg:white/5"
                 )}
                 onClick={() => {
                   setActiveCatId(c.id);
@@ -721,7 +720,7 @@ export default function StorefrontWithApiImages({ settings = {} }: Props) {
 
       {MobileCatSheet}
 
-      {/* Reusable cart dock */}
+      {/* Reusable cart dock (already API-driven) */}
       <CartDock bottomOffsetPx={0} zIndex={6000} />
     </section>
   );
