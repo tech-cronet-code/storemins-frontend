@@ -7,10 +7,10 @@ import {
   useCustomerConfirmOtpMutation,
   useCustomerResendOtpMutation,
   JwtResponseDto,
-} from "../../modules/auth/services/authApi";
+} from "../../modules/customer/services/customerApi";
 import { AppDispatch } from "../../common/state/store";
 import { UserRoleName } from "../../modules/auth/constants/userRoles";
-import { loginSuccess } from "../../modules/auth/slices/authSlice";
+import { loginSuccess } from "../../modules/auth/slices/customerAuthSlice";
 
 /**
  * CustomerLoginModal.tsx — OTP-first flow (Login → Create → Verify → Access)

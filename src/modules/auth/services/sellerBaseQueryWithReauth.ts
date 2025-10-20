@@ -9,7 +9,7 @@ const API_ROOT =
     : import.meta.env.VITE_PUBLIC_API_URL_RUNTIME_LIVE) || "";
 
 const authBase = fetchBaseQuery({
-  baseUrl: `${API_ROOT}/auth`,
+  baseUrl: `${API_ROOT}`,
   credentials: "include", // send seller_refresh_token cookie
   prepareHeaders: (h, api) => {
     const state = api.getState() as RootState;

@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import toast from "react-hot-toast";
 import OTPVerifyForm from "../components/OTPVerifyForm";
-import { useResendOtpMutation } from "../services/authApi";
+import { useResendOtpMutation } from "../services/sellerApi";
 import { useSellerAuth } from "../contexts/SellerAuthContext";
 
 const OTPVerifyContainer = () => {

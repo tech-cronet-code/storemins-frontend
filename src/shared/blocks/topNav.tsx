@@ -1,4 +1,5 @@
 // shared/blocks/topNav.tsx
+import cn from "classnames";
 import React, {
   useEffect,
   useLayoutEffect,
@@ -7,9 +8,8 @@ import React, {
   useState,
 } from "react";
 import { useNavigate } from "react-router-dom";
-import cn from "classnames";
+import { useCustomerAuth } from "../../modules/customer/context/CustomerAuthContext";
 import CustomerLoginModal from "./CustomerLoginModal";
-import { useSellerAuth } from "../../modules/auth/contexts/SellerAuthContext";
 
 /* ============================== Types ============================== */
 export type TopNavSettings = {
@@ -137,12 +137,22 @@ function getCurrentStoreSlug(): string | null {
   }
 }
 
-/** Prefix a path with the current slug when present */
+/** Prefix a path with the current slug when present; otherwise return the clean path */
 function withSlug(path: string): string {
-  const slug = getCurrentStoreSlug();
-  if (!slug) return path.startsWith("/") ? path : `/${path}`;
   const clean = path.startsWith("/") ? path : `/${path}`;
+  const slug = getCurrentStoreSlug();
+  if (!slug) return clean; // ✅ fallback when no slug; fixes redirect-to-/home
   return `/${slug}${clean}`;
+}
+
+/** Read first defined localStorage key */
+function getFirstLS(keys: string[]): string | null {
+  if (typeof window === "undefined") return null;
+  for (const k of keys) {
+    const v = localStorage.getItem(k);
+    if (v) return v;
+  }
+  return null;
 }
 
 /* ============================== Icons ============================== */
@@ -413,7 +423,6 @@ const Drawer: React.FC<
 };
 
 /* ============================== Component ============================== */
-
 export const TopNavBlock: React.FC<{ settings?: Partial<TopNavSettings> }> = ({
   settings,
 }) => {
@@ -423,15 +432,24 @@ export const TopNavBlock: React.FC<{ settings?: Partial<TopNavSettings> }> = ({
   const navigate = useNavigate();
 
   // ---- AUTH
-  const auth = useSellerAuth();
-  const tokenLS =
-    (typeof window !== "undefined" &&
-      (localStorage.getItem("access_token") ||
-        localStorage.getItem("token"))) ||
-    "";
-  const isLoggedIn = !!(auth.user || auth.userDetails || tokenLS);
+  const auth = useCustomerAuth();
 
-  // If modal is open and auth flips to logged-in, close & go to /{slug}/profile
+  // Prefer context user; else check our known LS keys (matches your screenshot)
+  const tokenFromLS =
+    getFirstLS([
+      "customer_auth_token",
+      "customer_auth_user", // presence often implies logged-in along with token
+      "access_token", // fallbacks
+      "token",
+    ]) || "";
+
+  const isLoggedIn = Boolean(auth?.user?.id || tokenFromLS);
+
+  console.log(auth, "auth");
+  console.log(tokenFromLS, "tokenFromLS");
+  console.log(isLoggedIn, "isLoggedIn");
+
+  // If modal is open and auth flips to logged-in, close & go to /{slug}/profile (or /profile)
   const [authOpen, setAuthOpen] = useState(false);
   useEffect(() => {
     if (authOpen && isLoggedIn) {
@@ -574,7 +592,6 @@ export const TopNavBlock: React.FC<{ settings?: Partial<TopNavSettings> }> = ({
                 color={textColor}
                 label="Cart/Wishlist"
                 onClick={() => {
-                  // Go to slug-aware checkout page
                   window.location.href = withSlug("/checkout");
                 }}
               >
@@ -601,7 +618,7 @@ export const TopNavBlock: React.FC<{ settings?: Partial<TopNavSettings> }> = ({
                 label="Profile"
                 onClick={() => {
                   if (isLoggedIn) {
-                    navigate(withSlug("/profile"));
+                    navigate(withSlug("/profile")); // ✅ correct now
                   } else {
                     setAuthOpen(true);
                   }

@@ -1,4 +1,7 @@
+// sellerApi.ts
 import { createApi } from "@reduxjs/toolkit/query/react";
+import { sellerBaseQueryWithReauth } from "./sellerBaseQueryWithReauth";
+
 import {
   AddUpdateBusinessCategoryRequestDto,
   AddUpdateBusinessCategoryResponseDto,
@@ -7,20 +10,27 @@ import {
   BusinessDetailsResponseDto,
   BusinessTypeResponseDto,
 } from "../types/businessStoreTypes";
+
 import {
   DomainRequestDto,
   DomainResponseDto,
   DomainWithSSLResponseDto,
   ListDomainsParams,
 } from "../types/domainTypes";
+
 import { GetMyProfileDto } from "../types/profileTypes";
 import { UserRoleName } from "../constants/userRoles";
+
 import {
   UploadedFileResponse,
   UploadImagePayload,
 } from "../types/imageUploadTypes";
-import { sellerBaseQueryWithReauth } from "./sellerBaseQueryWithReauth";
+import {
+  StoreResponse,
+  UpdateStorePayload,
+} from "../../seller/types/storeTypes";
 
+/* ---------- Auth DTOs ---------- */
 export interface RegisterPayload {
   name: string;
   mobile: string;
@@ -28,6 +38,7 @@ export interface RegisterPayload {
   role: UserRoleName;
   isTermAndPrivarcyEnable: boolean;
 }
+
 export interface RegisterResponse {
   id: string;
   message?: string;
@@ -44,6 +55,7 @@ export interface RegisterResponse {
     mobile_confirmed: boolean;
   };
 }
+
 export interface LoginResponse {
   success: boolean;
   message: string;
@@ -64,20 +76,50 @@ export interface LoginResponse {
     otpExpiresAt: string;
   };
 }
+
 interface LoginPayload {
   mobile: string;
   password: string;
+}
+
+interface ConfirmMobileOtpPayload {
+  mobile: string;
+  confirm_mobile_otp_code: string;
+}
+
+interface ResendMobileOtpPayload {
+  mobile: string;
+  userId?: string;
+}
+
+interface ResendMobileOtpResponse {
+  message: string;
+  expiresAt: string;
+}
+
+export interface JwtResponseDto {
+  id: string;
+  name?: string;
+  mobile: string;
+  role?: UserRoleName[] | string[];
+  permissions?: string[];
+  access_token: string;
+  refresh_token?: string | null;
+  tenentId?: string | null;
+  mobile_confirmed?: boolean;
 }
 
 export const sellerApi = createApi({
   baseQuery: sellerBaseQueryWithReauth,
   reducerPath: "sellerApi",
   endpoints: (builder) => ({
+    /* ======================= SELLER AUTH ======================= */
     login: builder.mutation<LoginResponse, LoginPayload>({
-      query: (body) => ({ url: "/login", method: "POST", body }),
+      query: (body) => ({ url: "/auth/login", method: "POST", body }),
     }),
+
     register: builder.mutation<RegisterResponse, RegisterPayload>({
-      query: (body) => ({ url: "/register", method: "POST", body }),
+      query: (body) => ({ url: "/auth/register", method: "POST", body }),
       transformResponse: (raw: {
         success: boolean;
         message?: string;
@@ -88,8 +130,54 @@ export const sellerApi = createApi({
         message: raw.message,
       }),
     }),
+
+    // OTP confirm (seller)
+    confirmOtp: builder.mutation<JwtResponseDto, ConfirmMobileOtpPayload>({
+      query: (body) => ({
+        url: "/auth/confirm-mobile-otp",
+        method: "POST",
+        body,
+      }),
+      transformResponse: (raw: {
+        success: boolean;
+        message?: string;
+        statusCode: number;
+        data: JwtResponseDto;
+      }) => raw.data,
+    }),
+
+    // OTP resend (seller)
+    resendOtp: builder.mutation<
+      ResendMobileOtpResponse,
+      ResendMobileOtpPayload
+    >({
+      query: (body) => ({
+        url: "/auth/resend-mobile-otp",
+        method: "POST",
+        body,
+      }),
+      transformResponse: (raw: {
+        success: boolean;
+        statusCode: number;
+        data: ResendMobileOtpResponse;
+      }) => raw.data,
+    }),
+
+    // logout (seller)
+    logout: builder.mutation<
+      { message: string; statusCode: number },
+      { access_token: string }
+    >({
+      query: (body) => ({
+        url: "/auth/logout",
+        method: "POST",
+        body,
+      }),
+    }),
+
+    // profile
     getUserDetails: builder.query<GetMyProfileDto, void>({
-      query: () => ({ url: "/my-profile", method: "GET" }),
+      query: () => ({ url: "/auth/my-profile", method: "GET" }),
       transformResponse: (raw: {
         success: boolean;
         message: string;
@@ -97,11 +185,16 @@ export const sellerApi = createApi({
         data: GetMyProfileDto;
       }) => raw.data,
     }),
+
     updateUserProfile: builder.mutation<
       { id: string; name: string; mobile: string; imageId?: string | null },
       FormData
     >({
-      query: (form) => ({ url: "/my-profile", method: "PUT", body: form }),
+      query: (form) => ({
+        url: "/auth/my-profile",
+        method: "PUT",
+        body: form,
+      }),
       transformResponse: (raw: {
         success: boolean;
         message: string;
@@ -115,7 +208,8 @@ export const sellerApi = createApi({
       }) => raw.data,
     }),
 
-    // Business types/categories → arrays
+    /* ======================= BUSINESS MGMT ======================= */
+    // Business types/categories → arrays (super-admin scope)
     listBusinessTypes: builder.query<BusinessTypeResponseDto[], void>({
       query: () => ({
         url: "/super-admin/seller/business-types/list",
@@ -128,6 +222,7 @@ export const sellerApi = createApi({
         data: { data: BusinessTypeResponseDto[]; total: number };
       }) => raw.data.data,
     }),
+
     listBusinessCategories: builder.query<BusinessCategoryResponseDto[], void>({
       query: () => ({
         url: "/super-admin/business-categories/list",
@@ -140,6 +235,7 @@ export const sellerApi = createApi({
         data: { data: BusinessCategoryResponseDto[]; total: number };
       }) => raw.data.data,
     }),
+
     createOrUpdateBusinessCategory: builder.mutation<
       AddUpdateBusinessCategoryResponseDto,
       AddUpdateBusinessCategoryRequestDto
@@ -169,6 +265,7 @@ export const sellerApi = createApi({
       }),
     }),
 
+    /* ======================= DOMAINS ======================= */
     listDomains: builder.query<
       { data: DomainResponseDto[]; total: number },
       ListDomainsParams
@@ -186,6 +283,7 @@ export const sellerApi = createApi({
         total: raw.data.total,
       }),
     }),
+
     createOrUpdateDomain: builder.mutation<DomainResponseDto, DomainRequestDto>(
       {
         query: (body) => ({
@@ -200,16 +298,25 @@ export const sellerApi = createApi({
       }
     ),
 
-    getMyStore: builder.query<any, void>({
-      query: () => ({ url: "/seller/business/stores/me", method: "GET" }),
+    getMyDomain: builder.query<DomainWithSSLResponseDto, void>({
+      query: () => ({ url: "/seller/business/domains/me", method: "GET" }),
       transformResponse: (raw: {
-        success: boolean;
         message: string;
-        statusCode: number;
-        data: any;
+        data: DomainWithSSLResponseDto;
       }) => raw.data,
     }),
-    updateStore: builder.mutation<any, any>({
+
+    /* ======================= FILES ======================= */
+    uploadImage: builder.mutation<UploadedFileResponse[], UploadImagePayload>({
+      query: ({ formData }) => ({
+        url: "/files",
+        method: "POST",
+        body: formData,
+      }),
+    }),
+
+    /* ───────── POST /seller/business/stores/update ───── */
+    updateStore: builder.mutation<StoreResponse, UpdateStorePayload>({
       query: (body) => ({
         url: "/seller/business/stores/update",
         method: "POST",
@@ -219,40 +326,50 @@ export const sellerApi = createApi({
         success: boolean;
         message: string;
         statusCode: number;
-        data: any;
+        data: StoreResponse;
       }) => raw.data,
     }),
-    getMyDomain: builder.query<DomainWithSSLResponseDto, void>({
-      query: () => ({ url: "/seller/business/domains/me", method: "GET" }),
-      transformResponse: (raw: {
-        message: string;
-        data: DomainWithSSLResponseDto;
-      }) => raw.data,
-    }),
-    uploadImage: builder.mutation<UploadedFileResponse[], UploadImagePayload>({
-      query: ({ formData }) => ({
-        url: "/files",
-        method: "POST",
-        body: formData,
+
+    /* ───────── GET /seller/business/stores/me ───────── */
+    getMyStore: builder.query<StoreResponse, void>({
+      query: () => ({
+        url: "/seller/business/stores/me",
+        method: "GET",
       }),
+      transformResponse: (raw: {
+        success: boolean;
+        message: string;
+        statusCode: number;
+        data: StoreResponse;
+      }) => raw.data,
     }),
   }),
 });
 
 export const {
+  // auth
   useLoginMutation,
   useRegisterMutation,
+  useConfirmOtpMutation,
+  useResendOtpMutation,
+  useLogoutMutation,
   useGetUserDetailsQuery,
   useUpdateUserProfileMutation,
+
+  // business mgmt
   useListBusinessTypesQuery,
   useListBusinessCategoriesQuery,
   useCreateOrUpdateBusinessCategoryMutation,
   useCreateOrUpdateBusinessDetailsMutation,
-  useGetMyStoreQuery,
-  useUpdateStoreMutation,
-  useGetMyDomainQuery,
+
+  // domains
   useListDomainsQuery,
   useLazyListDomainsQuery,
   useCreateOrUpdateDomainMutation,
+  useGetMyDomainQuery,
+
+  useGetMyStoreQuery,
+  useUpdateStoreMutation,
+  // files
   useUploadImageMutation,
 } = sellerApi;

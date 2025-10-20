@@ -1,12 +1,13 @@
 import { Navigate, Route, Routes, useParams } from "react-router-dom";
 import { RenderLayout, type Block } from "../../../shared/blocks/registry";
-import { useSellerAuth } from "../../auth/contexts/SellerAuthContext";
 import { useGetStorefrontBootstrapQuery } from "../../auth/services/storefrontPublicApi";
 import ProductDetail from "../../../shared/blocks/ProductDetail";
 import AddToCart from "../../../shared/blocks/Addtocart";
 import Payment from "../../../shared/blocks/Payment";
 import CustomerAddressesPage from "../../customer/pages/CustomerAddressesPage";
 import CustomerProfilePage from "../../customer/pages/CustomerProfilePage";
+import { useCustomerAuth } from "../../customer/context/CustomerAuthContext";
+import { useSellerAuth } from "../../auth/contexts/SellerAuthContext";
 
 /** Public API bootstrap response (minimal shape used here) */
 type StorefrontBootstrap = {
@@ -29,14 +30,17 @@ type StorefrontBootstrap = {
 
 export default function PublicStorefrontPage() {
   const { storeSlug = "" } = useParams<{ storeSlug?: string }>();
-  const { user, userDetails } = useSellerAuth();
+  const { user: customerUser } = useCustomerAuth();
+  const { userDetails } = useSellerAuth();
 
   const isLoggedIn =
-    !!user ||
-    !!userDetails ||
+    !!customerUser?.id ||
     !!(
-      typeof window !== "undefined" &&
-      (localStorage.getItem("access_token") || localStorage.getItem("token"))
+      (
+        typeof window !== "undefined" &&
+        (localStorage.getItem("customer_auth_token") || // ← your customer token
+          localStorage.getItem("customer_auth_user"))
+      ) // ← presence implies logged-in
     );
 
   const { data, isLoading, isError } = useGetStorefrontBootstrapQuery(

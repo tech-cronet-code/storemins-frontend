@@ -1,3 +1,4 @@
+// sellerStoreApi.ts
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { createApi } from "@reduxjs/toolkit/query/react";
 import { sellerBaseQueryWithReauth } from "./sellerBaseQueryWithReauth";
