@@ -16,53 +16,6 @@ export const IMAGE_URL = isDev
   ? import.meta.env.VITE_PUBLIC_IMAGE_URL_LOCAL
   : import.meta.env.VITE_PUBLIC_IMAGE_URL_LIVE;
 
-/** Optional helper kept for future use (no longer sets a header) */
-function getActiveBusinessId(state: RootState): string {
-  const anyState = state as any;
-  const fromSlice =
-    anyState?.storefront?.activeBusinessId ||
-    anyState?.customer?.activeBusinessId ||
-    "";
-  if (fromSlice) return String(fromSlice).trim();
-
-  try {
-    const pathname =
-      typeof window !== "undefined" ? window.location.pathname : "";
-    const slug = pathname.split("/").filter(Boolean)[0] || "";
-    const links = (state.auth?.userDetails as any)?.storeLinks ?? [];
-    const match =
-      links.find(
-        (l: any) => l?.store?.slug === slug || l?.storeSlug === slug
-      ) ?? links[0];
-    const biz = match?.businessId;
-    if (biz) return String(biz).trim();
-  } catch {
-    /* noop */
-  }
-
-  if (typeof window !== "undefined") {
-    const ls = localStorage.getItem("active_business_id");
-    if (ls) return String(ls).trim();
-
-    try {
-      const pathname = window.location.pathname;
-      const slug = pathname.split("/").filter(Boolean)[0] || "";
-      const mapRaw = localStorage.getItem("storeSlugBusinessMap");
-      if (slug && mapRaw) {
-        const map = JSON.parse(mapRaw) as Record<string, string>;
-        const b = map?.[slug];
-        if (b) return String(b).trim();
-      }
-    } catch {
-      /* noop */
-    }
-  }
-
-  const first =
-    (state.auth?.userDetails as any)?.storeLinks?.[0]?.businessId || "";
-  return String(first || "").trim();
-}
-
 const withAuthHeaders = (headers: Headers, getState: () => unknown) => {
   const state = getState() as RootState;
   const token = state.auth.token;
