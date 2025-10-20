@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { UserRoleName } from "../../auth/constants/userRoles";
-// import { useAuth } from "../../auth/contexts/AuthContext";
 import CreditsBanner from "../components/CreditsBanner";
 import FeatureCarouselInsideCard from "../components/FeatureCarouselInsideCard";
 import GetMoreCard from "../components/GetMoreCard";
@@ -144,31 +143,21 @@ const SellerDashboard = () => {
 
   /* ------------ helper to pick active link & card JSX ------------ */
   const renderStoreLinkCard = () => {
-    // 1️⃣  Guard clauses
     if (!userDetails?.storeLinks?.length) return null;
 
     const activeLink = userDetails.storeLinks.find((l) => l.domain?.isActive);
     if (!activeLink?.domain) return null;
 
-    // 2️⃣  Derive URLs with utilities
     const storeUrl = buildStoreUrl(activeLink.domain);
     const suggestedDomain = getSuggestedDomain(activeLink.domain);
 
-    // 3️⃣  Return the actual card
+    // ⬇️ Do NOT pass custom copy/share using the raw URL.
+    // The card now normalizes & uses localhost:5173 automatically when on localhost.
     return (
       <StoreLinkCard
         storeUrl={storeUrl}
         suggestedDomain={suggestedDomain}
-        onCopy={() => navigator.clipboard.writeText(storeUrl)}
         onClose={() => console.log("Closed")}
-        onShare={(platform) => {
-          const encoded = encodeURIComponent(storeUrl);
-          const shareUrl =
-            platform === "whatsapp"
-              ? `https://wa.me/?text=${encoded}`
-              : `https://www.facebook.com/sharer/sharer.php?u=${encoded}`;
-          window.open(shareUrl, "_blank", "noopener,noreferrer");
-        }}
         onGetNow={() => console.log("Get Now clicked:", suggestedDomain)}
       />
     );
@@ -176,7 +165,6 @@ const SellerDashboard = () => {
 
   return (
     <Layout role={UserRoleName.SELLER}>
-      {/* <UploadImage /> */}
       <div className="w-full overflow-x-hidden">
         {/* Credits */}
         <CreditsBanner
@@ -308,7 +296,6 @@ const SellerDashboard = () => {
           </h3>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 items-stretch">
-            {/* 🔶 Original Cards */}
             <GetMoreCard
               title="Setup payment details"
               subtitle="Connect bank account to receive payments directly"
@@ -385,11 +372,6 @@ const SellerDashboard = () => {
           onToggle={handleToggleShortcut}
           onSave={() => setShortcutModalOpen(false)}
         />
-
-        {/* <div className="m-6">
-        <h2 className="text-2xl font-bold mb-4">Seller Dashboard</h2>
-        <p>Manage your products and orders here.</p>
-      </div> */}
       </div>
     </Layout>
   );
