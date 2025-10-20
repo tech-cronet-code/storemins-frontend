@@ -25,14 +25,14 @@ import {
   useGetInvoiceQuery,
   useCancelOrderMutation, // <-- cancel API
 } from "../../../customer/services/customerOrderApi";
-import { useAuth } from "../../../auth/contexts/AuthContext";
+import { useSellerAuth } from "../../../auth/contexts/SellerAuthContext";
 
 /* ---------------- helpers ---------------- */
 const currencyINR = (n: number) =>
   "₹" + new Intl.NumberFormat("en-IN", { maximumFractionDigits: 2 }).format(n);
 
 function useResolvedBusinessId() {
-  const { userDetails } = useAuth() as any;
+  const { userDetails } = useSellerAuth() as any;
   const [sp] = useSearchParams();
   const fromQuery = sp.get("businessId");
   if (fromQuery && fromQuery.trim()) return fromQuery.trim();

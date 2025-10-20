@@ -8,7 +8,7 @@ import {
   useUpdateProductStatusMutation,
 } from "../../../auth/services/productApi";
 import { showToast } from "../../../../common/utils/showToast";
-import { useAuth } from "../../../auth/contexts/AuthContext";
+import { useSellerAuth } from "../../../auth/contexts/SellerAuthContext";
 
 interface ProductRowProps {
   id: string;
@@ -49,7 +49,7 @@ const ProductTableRow: React.FC<ProductRowProps> = ({
   onDeleteComplete,
   isLastItemOnPage = false,
 }) => {
-  const { userDetails } = useAuth();
+  const { userDetails } = useSellerAuth();
 
   const businessId = userDetails?.storeLinks?.[0]?.businessId;
   const [active, setActive] = useState(isActive);

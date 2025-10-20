@@ -4,7 +4,7 @@ import ReactDOM from "react-dom";
 import { useLocation, useNavigate } from "react-router-dom";
 
 /* ==== NEW ==== */
-import { useAuth } from "../../modules/auth/contexts/AuthContext";
+import { useSellerAuth } from "../../modules/auth/contexts/SellerAuthContext";
 import { useGetActiveCartQuery } from "../../modules/customer/services/customerCartApi";
 
 type Props = {
@@ -27,7 +27,7 @@ const CartDock: React.FC<Props> = ({
   const nav = useNavigate();
   const loc = useLocation();
 
-  const { userDetails } = (useAuth() as any) ?? {};
+  const { userDetails } = (useSellerAuth() as any) ?? {};
   const businessId: string =
     userDetails?.storeLinks?.[0]?.businessId?.trim?.() ?? "";
 

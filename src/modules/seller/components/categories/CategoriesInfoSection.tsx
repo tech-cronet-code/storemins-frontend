@@ -7,9 +7,9 @@ import React, {
 } from "react";
 import { useFormContext } from "react-hook-form";
 import { FaImage } from "react-icons/fa6";
-import { useAuth } from "../../../auth/contexts/AuthContext";
 import { useSellerProduct } from "../../hooks/useSellerProduct";
 import { CategoriesFormValues } from "../../Schemas/CategoriesSchema";
+import { useSellerAuth } from "../../../auth/contexts/SellerAuthContext";
 
 interface CategoriesInfoSectionProps {
   categoryId?: string;
@@ -46,7 +46,7 @@ const CategoriesInfoSection: React.FC<CategoriesInfoSectionProps> = ({
     []
   );
   const modalRef = useRef<HTMLDivElement | null>(null);
-  const { userDetails } = useAuth();
+  const { userDetails } = useSellerAuth();
   const { listCategories } = useSellerProduct();
 
   const fetchCategories = useCallback(async () => {
@@ -109,7 +109,6 @@ const CategoriesInfoSection: React.FC<CategoriesInfoSectionProps> = ({
   // console.log(imageDiskName, "imageDiskName");
   // console.log(imageError, "imageError");
 
-
   // // AFTER
   // const serverImageDiskName = imageDiskName ?? undefined; // e.g. "<fileId>.webp"
   // const resolvedImageUrl = useMemo(() => {
@@ -129,7 +128,6 @@ const CategoriesInfoSection: React.FC<CategoriesInfoSectionProps> = ({
   // final URL preference: local preview (imageUrl from parent) → server URL → nothing
   const finalImageUrl = imageUrl;
   // const finalImageUrl = imageUrl || resolvedImageUrl;
-
 
   return (
     <div className="bg-white border border-gray-200 rounded-md p-6 space-y-6">
@@ -156,7 +154,6 @@ const CategoriesInfoSection: React.FC<CategoriesInfoSectionProps> = ({
             <FaImage className="text-blue-400 text-3xl" />
           )}
         </label>
-
 
         <input
           id="image-upload"
@@ -203,11 +200,13 @@ const CategoriesInfoSection: React.FC<CategoriesInfoSectionProps> = ({
           placeholder={
             isSubcategory ? "Enter subcategory name" : "Enter category name"
           }
-          className={`w-full border ${errors.name ? "border-red-500" : "border-gray-300"
-            } rounded-md px-3 py-2 text-sm focus:ring-1 focus:outline-none ${errors.name
+          className={`w-full border ${
+            errors.name ? "border-red-500" : "border-gray-300"
+          } rounded-md px-3 py-2 text-sm focus:ring-1 focus:outline-none ${
+            errors.name
               ? "focus:ring-red-500 focus:border-red-500"
               : "focus:ring-blue-500 focus:border-blue-500"
-            }`}
+          }`}
         />
         {errors.name?.message && (
           <p className="text-red-600 text-xs mt-1">{errors.name.message}</p>
@@ -231,13 +230,15 @@ const CategoriesInfoSection: React.FC<CategoriesInfoSectionProps> = ({
             }}
             value={parentName}
             placeholder="Select category"
-            className={`w-full rounded-md px-3 py-2 text-sm focus:ring-1 focus:outline-none ${creatingSub
-              ? "bg-gray-100 cursor-not-allowed"
-              : "cursor-pointer bg-white"
-              } ${errors.category
+            className={`w-full rounded-md px-3 py-2 text-sm focus:ring-1 focus:outline-none ${
+              creatingSub
+                ? "bg-gray-100 cursor-not-allowed"
+                : "cursor-pointer bg-white"
+            } ${
+              errors.category
                 ? "border-red-500 focus:ring-red-500 focus:border-red-500"
                 : "border-gray-300 focus:ring-blue-500 focus:border-blue-500"
-              }`}
+            }`}
           />
           {errors.category?.message && (
             <p className="text-red-600 text-xs mt-1">
@@ -265,8 +266,9 @@ const CategoriesInfoSection: React.FC<CategoriesInfoSectionProps> = ({
           />
           <label
             htmlFor="isSubcategory"
-            className={`text-sm ${isEditSub ? "text-gray-400 cursor-not-allowed" : "text-gray-700"
-              }`}
+            className={`text-sm ${
+              isEditSub ? "text-gray-400 cursor-not-allowed" : "text-gray-700"
+            }`}
             title={
               isEditSub
                 ? "You are editing a subcategory, this cannot be changed."
@@ -328,10 +330,11 @@ const CategoriesInfoSection: React.FC<CategoriesInfoSectionProps> = ({
                 filteredCategories.map((cat) => (
                   <label
                     key={cat.id}
-                    className={`flex justify-between items-center px-6 py-4 cursor-pointer transition-colors ${selectedCategoryId === cat.id
-                      ? "bg-green-50"
-                      : "hover:bg-gray-50"
-                      }`}
+                    className={`flex justify-between items-center px-6 py-4 cursor-pointer transition-colors ${
+                      selectedCategoryId === cat.id
+                        ? "bg-green-50"
+                        : "hover:bg-gray-50"
+                    }`}
                   >
                     <div className="flex items-center gap-4">
                       <img

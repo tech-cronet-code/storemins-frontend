@@ -2,14 +2,14 @@
 
 import { hashPassword } from "../../../common/utils/hashPassword";
 import { showToast } from "../../../common/utils/showToast";
-import { useAuth } from "../contexts/AuthContext";
 import RegisterForm, { RegisterFormData } from "../components/RegisterForm";
 import { useNavigate } from "react-router-dom";
+import { useSellerAuth } from "../contexts/SellerAuthContext";
 
 const RegisterContainer = () =>
   // { onSwitch }: { onSwitch: () => void }
   {
-    const { register, loading, error } = useAuth();
+    const { register, loading, error } = useSellerAuth();
     const navigate = useNavigate(); // ✅ Safe now
     const handleSubmit = async (data: RegisterFormData) => {
       const hashedPassword = await hashPassword(data.pass_hash); // 👈 hash here

@@ -5,7 +5,7 @@ import React, { useEffect } from "react";
 import { FormProvider, useForm, useWatch } from "react-hook-form";
 import { useNavigate } from "react-router-dom";
 import { showToast } from "../../../../common/utils/showToast";
-import { useAuth } from "../../../auth/contexts/AuthContext";
+import { useSellerAuth } from "../../../auth/contexts/SellerAuthContext";
 import {
   useCreateMeetingProductMutation,
   useGetProductByIdQuery,
@@ -118,7 +118,7 @@ const MeetingProductForm: React.FC<MeetingProductFormProps> = ({
   productId,
 }) => {
   const navigate = useNavigate();
-  const { userDetails } = useAuth();
+  const { userDetails } = useSellerAuth();
 
   const [createMeeting, { isLoading: isCreating }] =
     useCreateMeetingProductMutation();
@@ -581,11 +581,11 @@ const MeetingProductForm: React.FC<MeetingProductFormProps> = ({
         </section>
 
         <section id="meeting-breakdown" className="scroll-mt-24">
-          <MeetingBreakdownSection sectionName={"Meeting"}/>
+          <MeetingBreakdownSection sectionName={"Meeting"} />
         </section>
 
         <section id="meeting-channel" className="scroll-mt-24">
-          <MeetingChannelSection sectionName={"Meeting"}/>
+          <MeetingChannelSection sectionName={"Meeting"} />
         </section>
 
         <section id="inventory" className="scroll-mt-24">

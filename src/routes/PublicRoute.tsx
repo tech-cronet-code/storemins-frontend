@@ -1,9 +1,9 @@
 import { Navigate, Outlet } from "react-router-dom";
-import { useAuth } from "../modules/auth/contexts/AuthContext";
 import { getDefaultRouteForRoles } from "./RoleHomeRedirect";
+import { useSellerAuth } from "../modules/auth/contexts/SellerAuthContext";
 
 const PublicRoute = () => {
-  const { user } = useAuth();
+  const { user, rolesArray } = useSellerAuth();
 
   const persistedQuickLogin =
     localStorage.getItem("quick_login_enabled") === "true";
@@ -17,7 +17,7 @@ const PublicRoute = () => {
   }
 
   if (user && user.mobile_confirmed === true) {
-    return <Navigate to={getDefaultRouteForRoles(user.role)} replace />;
+    return <Navigate to={getDefaultRouteForRoles(rolesArray)} replace />;
   }
 
   return <Outlet />;

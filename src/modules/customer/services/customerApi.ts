@@ -1,43 +1,91 @@
-import { apiClient } from "../../auth/services/authApi";
+import { createApi } from "@reduxjs/toolkit/query/react";
+import { customerBaseQueryWithReauth } from "../../auth/services/customerBaseQueryWithReauth";
 
-/* =================== Types aligned with BE =================== */
+/* Types... (reuse your existing) */
 export type AddressKind = "home" | "work" | "other";
-
 export type CustomerAddress = {
   id: string;
-  label: string; // e.g. "Home"
+  label: string;
   line1: string;
   line2?: string | null;
   city: string;
   state: string;
   postalCode: string;
   country: string;
-  kind: AddressKind; // FE expects this, BE provides via mapOut
+  kind: AddressKind;
   isDefault?: boolean;
-  createdAt: string; // ISO string from BE
-  updatedAt?: string; // ISO string from BE
+  createdAt: string;
+  updatedAt?: string;
 };
-
 export type CreateAddressDto = Omit<
   CustomerAddress,
   "id" | "createdAt" | "updatedAt"
 >;
 export type UpdateAddressDto = Partial<CreateAddressDto> & { id: string };
 
-/* =================== RTK Query =================== */
-export const customerApi = apiClient.injectEndpoints({
+export const customerApi = createApi({
+  baseQuery: customerBaseQueryWithReauth,
+  reducerPath: "customerApi",
+  tagTypes: ["CustomerAddress", "Cart", "CartItem", "Order", "Coupon"] as const,
   endpoints: (builder) => ({
-    getCustomerAddresses: builder.query<CustomerAddress[], void>({
-      query: () => ({
-        url: "/customer/addresses/list",
-        method: "GET",
+    // AUTH (customer)
+    customerLoginInit: builder.mutation<any, { mobile: string }>({
+      query: (body) => ({
+        url: "/customer/auth/login-init",
+        method: "POST",
+        body,
       }),
-      transformResponse: (raw: {
-        success: boolean;
-        message?: string;
-        statusCode: number;
-        data: CustomerAddress[];
-      }) => raw.data,
+      transformResponse: (raw: any) => raw.data,
+    }),
+    customerRegister: builder.mutation<
+      any,
+      {
+        name: string;
+        mobile: string;
+        isTermAndPrivarcyEnable: boolean;
+        email?: string;
+      }
+    >({
+      query: (body) => ({
+        url: "/customer/auth/register",
+        method: "POST",
+        body,
+      }),
+      transformResponse: (raw: any) => raw.data,
+    }),
+    customerConfirmOtp: builder.mutation<
+      any,
+      { mobile: string; confirm_mobile_otp_code: string }
+    >({
+      query: (body) => ({
+        url: "/customer/auth/confirm-mobile-otp",
+        method: "POST",
+        body,
+      }),
+      transformResponse: (raw: any) => raw.data,
+    }),
+    customerResendOtp: builder.mutation<
+      any,
+      { mobile: string; userId?: string }
+    >({
+      query: (body) => ({
+        url: "/customer/auth/resend-mobile-otp",
+        method: "POST",
+        body,
+      }),
+      transformResponse: (raw: any) => raw.data,
+    }),
+    customerLogout: builder.mutation<
+      { message: string; statusCode: number },
+      { access_token: string }
+    >({
+      query: (body) => ({ url: "/customer/auth/logout", method: "POST", body }),
+    }),
+
+    // ADDRESSES
+    getCustomerAddresses: builder.query<CustomerAddress[], void>({
+      query: () => ({ url: "/customer/addresses/list", method: "GET" }),
+      transformResponse: (raw: any) => raw.data,
       providesTags: (res) =>
         res
           ? ([
@@ -49,43 +97,37 @@ export const customerApi = apiClient.injectEndpoints({
             ] as const)
           : ([{ type: "CustomerAddress" as const, id: "LIST" }] as const),
     }),
-
     createCustomerAddress: builder.mutation<CustomerAddress, CreateAddressDto>({
-      query: (body) => ({
-        url: "/customer/addresses",
-        method: "POST",
-        body,
-      }),
+      query: (body) => ({ url: "/customer/addresses", method: "POST", body }),
       invalidatesTags: [{ type: "CustomerAddress" as const, id: "LIST" }],
     }),
-
     updateCustomerAddress: builder.mutation<CustomerAddress, UpdateAddressDto>({
       query: ({ id, ...body }) => ({
         url: `/customer/addresses/${id}`,
         method: "PUT",
         body,
       }),
-      invalidatesTags: (_result, _error, { id }) => [
+      invalidatesTags: (_r, _e, { id }) => [
         { type: "CustomerAddress" as const, id },
         { type: "CustomerAddress" as const, id: "LIST" },
       ],
     }),
-
     deleteCustomerAddress: builder.mutation<{ success: true }, string>({
-      query: (id) => ({
-        url: `/customer/addresses/${id}`,
-        method: "DELETE",
-      }),
-      invalidatesTags: (_result, _error, id) => [
+      query: (id) => ({ url: `/customer/addresses/${id}`, method: "DELETE" }),
+      invalidatesTags: (_r, _e, id) => [
         { type: "CustomerAddress" as const, id },
         { type: "CustomerAddress" as const, id: "LIST" },
       ],
     }),
   }),
-  overrideExisting: false,
 });
 
 export const {
+  useCustomerLoginInitMutation,
+  useCustomerRegisterMutation,
+  useCustomerConfirmOtpMutation,
+  useCustomerResendOtpMutation,
+  useCustomerLogoutMutation,
   useGetCustomerAddressesQuery,
   useCreateCustomerAddressMutation,
   useUpdateCustomerAddressMutation,

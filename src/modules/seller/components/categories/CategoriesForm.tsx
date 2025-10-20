@@ -4,7 +4,7 @@ import { FormProvider, useForm, useWatch } from "react-hook-form";
 import { useNavigate } from "react-router-dom";
 import { z } from "zod";
 import { showToast } from "../../../../common/utils/showToast";
-import { useAuth } from "../../../auth/contexts/AuthContext";
+import { useSellerAuth } from "../../../auth/contexts/SellerAuthContext";
 import { useSellerProduct } from "../../hooks/useSellerProduct";
 import { CategoriesSchema } from "../../Schemas/CategoriesSchema";
 import CategoriesInfoSection from "./CategoriesInfoSection";
@@ -30,7 +30,7 @@ const CategoriesForm: React.FC<CategoriesFormProps> = ({
 }) => {
   const navigate = useNavigate();
   const { createCategory, updateCategory, getCategory } = useSellerProduct();
-  const { userDetails } = useAuth();
+  const { userDetails } = useSellerAuth();
 
   const methods = useForm<CategoriesFormValues>({
     resolver: zodResolver(CategoriesSchema),
@@ -53,9 +53,10 @@ const CategoriesForm: React.FC<CategoriesFormProps> = ({
   const { reset: resetForm } = methods;
 
   // Main image: keep as File[] semantics (your existing component expects this)
-  const imageFileList = useWatch({ name: "image", control: methods.control }) as
-    | File[]
-    | undefined;
+  const imageFileList = useWatch({
+    name: "image",
+    control: methods.control,
+  }) as File[] | undefined;
   const imageFile: File | undefined = imageFileList?.[0];
 
   // SEO image: treat as FileList (how RHF stores file inputs)
@@ -211,12 +212,13 @@ const CategoriesForm: React.FC<CategoriesFormProps> = ({
       resetForm();
       if (onSuccess) onSuccess();
       navigate("/seller/catalogue/categories");
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       console.error("Failed to save category:", err);
       showToast({
         type: "error",
-        message: err?.data?.message || "Something went wrong. Please try again.",
+        message:
+          err?.data?.message || "Something went wrong. Please try again.",
         showClose: true,
       });
     }
@@ -232,9 +234,13 @@ const CategoriesForm: React.FC<CategoriesFormProps> = ({
   return (
     <FormProvider {...methods}>
       {isLoading ? (
-        <div className="text-center py-6 text-gray-500">Loading category details...</div>
+        <div className="text-center py-6 text-gray-500">
+          Loading category details...
+        </div>
       ) : isError ? (
-        <div className="text-center py-6 text-red-500">Failed to load category.</div>
+        <div className="text-center py-6 text-red-500">
+          Failed to load category.
+        </div>
       ) : (
         <form onSubmit={methods.handleSubmit(onSubmit)} className="space-y-10">
           <section id="categories-info" className="scroll-mt-24">

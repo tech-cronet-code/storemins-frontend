@@ -3,7 +3,7 @@ import { useFormContext } from "react-hook-form";
 import { ProductFormValues } from "../../Schemas/productSchema";
 import CategorySelectModal from "../categories/CategorySelectorModal";
 import { useListCategoriesQuery } from "../../../auth/services/productApi";
-import { useAuth } from "../../../auth/contexts/AuthContext";
+import { useSellerAuth } from "../../../auth/contexts/SellerAuthContext";
 
 interface ProductInfoSectionProps {
   productId?: string;
@@ -22,7 +22,7 @@ const ProductInfoSection: React.FC<ProductInfoSectionProps> = () => {
   const [selectedCategoryNames, setSelectedCategoryNames] = useState("");
 
   const categoryLinks = watch("categoryLinks") || [];
-  const { userDetails } = useAuth();
+  const { userDetails } = useSellerAuth();
   const businessId = userDetails?.storeLinks?.[0]?.businessId;
 
   const { data: categories = [], isLoading } = useListCategoriesQuery(

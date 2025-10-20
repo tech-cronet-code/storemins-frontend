@@ -8,7 +8,7 @@ import {
   useListProductsQuery,
 } from "../../modules/auth/services/productApi";
 import { convertPath } from "../../modules/auth/utils/useImagePath";
-import { useAuth } from "../../modules/auth/contexts/AuthContext";
+import { useSellerAuth } from "../../modules/auth/contexts/SellerAuthContext";
 import CartDock from "./CartDock";
 import { useAddItemToCartMutation } from "../../modules/customer/services/customerCartApi";
 
@@ -641,7 +641,7 @@ const ProductDetail: React.FC = () => {
   // businessId from auth
   type AuthDetails = { storeLinks?: Array<{ businessId?: string | null }> };
   type AuthCtx = { userDetails?: AuthDetails };
-  const { userDetails } = (useAuth() as AuthCtx) ?? {};
+  const { userDetails } = (useSellerAuth() as AuthCtx) ?? {};
   const businessId: string =
     userDetails?.storeLinks?.[0]?.businessId?.trim?.() ?? "";
   const skip = !businessId;

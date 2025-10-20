@@ -9,7 +9,7 @@ import {
 } from "lucide-react";
 import React, { useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { useAuth } from "../../auth/contexts/AuthContext";
+import { useSellerAuth } from "../../auth/contexts/SellerAuthContext";
 import { useListProductsQuery } from "../../auth/services/productApi";
 import BulkActionsDropdown from "./BulkActionsDropdown";
 import PaginationControls from "./products/PaginationControls";
@@ -86,7 +86,7 @@ function getPrimaryImageUrl(product: any): string {
 /* ---------------- component ---------------- */
 
 const SellerWorkShopProductsForm: React.FC = () => {
-  const { userDetails } = useAuth();
+  const { userDetails } = useSellerAuth();
   const businessId = userDetails?.storeLinks?.[0]?.businessId;
 
   const {

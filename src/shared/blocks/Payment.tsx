@@ -3,7 +3,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 
 /* ===== API hooks ===== */
-import { useAuth } from "../../modules/auth/contexts/AuthContext";
+import { useSellerAuth } from "../../modules/auth/contexts/SellerAuthContext";
 import {
   useGetActiveCartQuery,
   useUpsertDraftFromCartMutation,
@@ -63,7 +63,7 @@ const Payment: React.FC = () => {
     | undefined;
 
   /* ===== businessId source ===== */
-  const { userDetails } = useAuth() as any;
+  const { userDetails } = useSellerAuth() as any;
   const businessId: string =
     userDetails?.storeLinks?.[0]?.businessId?.trim?.() || "";
 

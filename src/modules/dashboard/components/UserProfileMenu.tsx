@@ -8,8 +8,8 @@ import {
   FaUserCircle,
 } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
-import { useAuth } from "../../auth/contexts/AuthContext"; // ✅ adjust path as needed
 import { convertPath } from "../../auth/utils/useImagePath";
+import { useSellerAuth } from "../../auth/contexts/SellerAuthContext";
 
 interface UserProfileMenuProps {
   onClose?: () => void;
@@ -17,7 +17,7 @@ interface UserProfileMenuProps {
 
 const UserProfileMenu: React.FC<UserProfileMenuProps> = ({ onClose }) => {
   const navigate = useNavigate();
-  const { logout, userDetails } = useAuth(); // ✅ from context
+  const { logout, userDetails } = useSellerAuth(); // ✅ from context
   const [imageError, setImageError] = useState(false); // ✅ Track image load failure
 
   const [showNotificationOptions, setShowNotificationOptions] = useState(false);

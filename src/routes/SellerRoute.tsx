@@ -1,9 +1,9 @@
 // src/routes/SellerRoute.tsx
 import { Navigate, Outlet, useLocation } from "react-router-dom";
-import { useAuth } from "../modules/auth/contexts/AuthContext";
+import { useSellerAuth } from "../modules/auth/contexts/SellerAuthContext";
 
 const SellerRoute = () => {
-  const { loading, userDetails } = useAuth();
+  const { loading, userDetails } = useSellerAuth();
   const location = useLocation();
 
   if (loading || userDetails === undefined) return <div>Loading...</div>;

@@ -1,11 +1,11 @@
 import { useState, useRef, useEffect } from "react";
 import toast from "react-hot-toast";
 import OTPVerifyForm from "../components/OTPVerifyForm";
-import { useAuth } from "../contexts/AuthContext";
 import { useResendOtpMutation } from "../services/authApi";
+import { useSellerAuth } from "../contexts/SellerAuthContext";
 
 const OTPVerifyContainer = () => {
-  const { user, confirmOtp, logout } = useAuth();
+  const { user, confirmOtp, logout } = useSellerAuth();
   const [otp, setOtp] = useState(["", "", "", ""]);
   const [expiresAt, setExpiresAt] = useState<string | null>(null); // ✅ Track expiresAt
   const [resendOtp] = useResendOtpMutation();

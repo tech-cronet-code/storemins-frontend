@@ -5,7 +5,7 @@ import React, { useEffect } from "react";
 import { FormProvider, useForm, useWatch } from "react-hook-form";
 import { useNavigate } from "react-router-dom";
 import { showToast } from "../../../../common/utils/showToast";
-import { useAuth } from "../../../auth/contexts/AuthContext";
+import { useSellerAuth } from "../../../auth/contexts/SellerAuthContext";
 
 import InventorySection from "./InventorySection";
 import PostPurchaseNoteSection from "./PostPurchaseNoteSection";
@@ -112,7 +112,7 @@ const WorkShopProductForm: React.FC<WorkShopProductFormProps> = ({
   productId,
 }) => {
   const navigate = useNavigate();
-  const { userDetails } = useAuth();
+  const { userDetails } = useSellerAuth();
 
   const [createWorkshop, { isLoading: isCreating }] =
     useCreateWorkshopProductMutation();
@@ -465,10 +465,10 @@ const WorkShopProductForm: React.FC<WorkShopProductFormProps> = ({
           <WorkShopDurationSection />
         </section>
         <section id="workshop-breakdown" className="scroll-mt-24">
-          <MeetingBreakdownSection sectionName={"Workshop"}/>
+          <MeetingBreakdownSection sectionName={"Workshop"} />
         </section>
         <section id="workshop-channel" className="scroll-mt-24">
-          <MeetingChannelSection sectionName={"Workshop"}/>
+          <MeetingChannelSection sectionName={"Workshop"} />
         </section>
         <section id="inventory" className="scroll-mt-24">
           <InventorySection />

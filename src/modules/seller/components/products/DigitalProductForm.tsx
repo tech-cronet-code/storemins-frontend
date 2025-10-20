@@ -4,7 +4,7 @@ import React, { useEffect } from "react";
 import { FormProvider, useForm, useWatch } from "react-hook-form";
 import { useNavigate } from "react-router-dom";
 import { showToast } from "../../../../common/utils/showToast";
-import { useAuth } from "../../../auth/contexts/AuthContext";
+import { useSellerAuth } from "../../../auth/contexts/SellerAuthContext";
 import {
   useCreateDigitalProductMutation,
   useGetProductByIdQuery,
@@ -68,7 +68,7 @@ const DigitalProductForm: React.FC<DigitalProductFormProps> = ({
   productId,
 }) => {
   const navigate = useNavigate();
-  const { userDetails } = useAuth();
+  const { userDetails } = useSellerAuth();
 
   const [createDigital, { isLoading: isCreating }] =
     useCreateDigitalProductMutation();

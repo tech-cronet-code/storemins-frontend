@@ -1,10 +1,14 @@
 // src/hooks/useBusinessStoreDetails.ts
 
-import { useCreateOrUpdateBusinessDetailsMutation } from "../services/authApi";
-import { BusinessDetailsRequestDto, BusinessDetailsResponseDto } from "../types/businessStoreTypes";
+import { useCreateOrUpdateBusinessDetailsMutation } from "../services/sellerApi";
+import {
+  BusinessDetailsRequestDto,
+  BusinessDetailsResponseDto,
+} from "../types/businessStoreTypes";
 
 export const useBusinessDetails = () => {
-  const [trigger, { isLoading, error }] = useCreateOrUpdateBusinessDetailsMutation();
+  const [trigger, { isLoading, error }] =
+    useCreateOrUpdateBusinessDetailsMutation();
 
   /**
    * payload must conform to BusinessDetailsRequestDto

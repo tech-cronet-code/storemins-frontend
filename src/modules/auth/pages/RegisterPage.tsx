@@ -11,7 +11,7 @@ import "./Register.css";
 const RegisterPage = () =>
   // { onSwitch }: RegisterPageProps
   {
-    // const { register, loading, error } = useAuth();
+    // const { register, loading, error } = useSellerAuth();
     // const navigate = useNavigate(); // ✅ Safe now
     // const handleSubmit = async (data: RegisterFormData) => {
     //   const hashedPassword = await hashPassword(data.pass_hash); // 👈 hash here

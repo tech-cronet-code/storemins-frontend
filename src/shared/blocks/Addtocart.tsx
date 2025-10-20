@@ -4,7 +4,7 @@ import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import BottomNav from "./BottomNav";
 
 /* --- auth (for businessId) --- */
-import { useAuth } from "../../modules/auth/contexts/AuthContext";
+import { useSellerAuth } from "../../modules/auth/contexts/SellerAuthContext";
 
 /* --- customer cart API (ALL cart ops) --- */
 import {
@@ -352,7 +352,7 @@ const AddToCart: React.FC = () => {
   const isMobile = useMediaQuery("(max-width: 767.98px)");
 
   /* businessId from auth */
-  const { userDetails } = (useAuth() as any) ?? {};
+  const { userDetails } = (useSellerAuth() as any) ?? {};
   const businessId: string =
     userDetails?.storeLinks?.[0]?.businessId?.trim?.() ?? "";
   const skip = !businessId;

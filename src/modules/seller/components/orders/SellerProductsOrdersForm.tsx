@@ -19,7 +19,7 @@ import {
   MyOrdersItem,
   useGetMyOrdersQuery,
 } from "../../../customer/services/customerOrderApi";
-import { useAuth } from "../../../auth/contexts/AuthContext";
+import { useSellerAuth } from "../../../auth/contexts/SellerAuthContext";
 import BulkActionsOrderDropdown from "./BulkActionsOrderDropdown";
 
 /* -------------------------- helpers -------------------------- */
@@ -43,7 +43,7 @@ function formatPlacedDate(iso?: string | null) {
 
 /** Resolve businessId from URL → localStorage → AuthContext. */
 function useResolvedBusinessId() {
-  const { userDetails } = useAuth() as any;
+  const { userDetails } = useSellerAuth() as any;
 
   const businessId = useMemo(() => {
     // 1) URL (?businessId=...)

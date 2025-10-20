@@ -1,6 +1,6 @@
 import React, { useRef, useState } from "react";
 import { useFormContext } from "react-hook-form";
-import { useAuth } from "../../../auth/contexts/AuthContext";
+import { useSellerAuth } from "../../../auth/contexts/SellerAuthContext";
 import CategorySelectDropdown from "./CategorySelectorModal";
 
 const StoreSettingInfoSection: React.FC = () => {
@@ -11,7 +11,7 @@ const StoreSettingInfoSection: React.FC = () => {
     register,
     setValue,
     formState: { errors },
-  } = useFormContext();           // <-- grab methods from provider
+  } = useFormContext(); // <-- grab methods from provider
 
   /* ------------------------------------------------------------------ */
   /* ❷ category dropdown (kept outside RHF, per your request)           */
@@ -21,20 +21,20 @@ const StoreSettingInfoSection: React.FC = () => {
   const [selectedCategoryNames, setSelectedCategoryNames] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const { userDetails } = useAuth();
+  const { userDetails } = useSellerAuth();
   const businessId = userDetails?.storeLinks?.[0]?.businessId;
 
   const categories = [
-    { id: "1", name: "Pharmacy",            image: "…" },
-    { id: "2", name: "General Store",       image: "…" },
+    { id: "1", name: "Pharmacy", image: "…" },
+    { id: "2", name: "General Store", image: "…" },
     { id: "3", name: "Fruits & Vegetables", image: "…" },
-    { id: "4", name: "Meat Shop",           image: "…" },
-    { id: "5", name: "Bakery Shop",         image: "…" },
-    { id: "6", name: "Mobile Store",        image: "…" },
-    { id: "7", name: "Electronics Shop",    image: "…" },
-    { id: "8", name: "Restaurant",          image: "…" },
-    { id: "9", name: "Book Shop",           image: "…" },
-    { id: "10",name: "Beauty Store",        image: "…" },
+    { id: "4", name: "Meat Shop", image: "…" },
+    { id: "5", name: "Bakery Shop", image: "…" },
+    { id: "6", name: "Mobile Store", image: "…" },
+    { id: "7", name: "Electronics Shop", image: "…" },
+    { id: "8", name: "Restaurant", image: "…" },
+    { id: "9", name: "Book Shop", image: "…" },
+    { id: "10", name: "Beauty Store", image: "…" },
   ];
 
   /** called when modal closes with a selection */
@@ -58,9 +58,7 @@ const StoreSettingInfoSection: React.FC = () => {
   /* ------------------------------------------------------------------ */
   if (!businessId) {
     return (
-      <div className="text-center text-red-500">
-        Business ID not found.
-      </div>
+      <div className="text-center text-red-500">Business ID not found.</div>
     );
   }
 
@@ -83,15 +81,17 @@ const StoreSettingInfoSection: React.FC = () => {
       {/* Store Name                                                   */}
       {/* ───────────────────────────────────────────────────────────── */}
       <div className="space-y-1">
-        <label className="text-sm font-medium text-gray-700">
-          Store Name
-        </label>
+        <label className="text-sm font-medium text-gray-700">Store Name</label>
         <input
           {...register("businessName")}
           type="text"
           placeholder="Enter store name"
           className={`w-full border rounded-md px-3 py-2 text-sm focus:ring-1
-                      ${errors.businessName ? "border-red-500" : "border-gray-300"}
+                      ${
+                        errors.businessName
+                          ? "border-red-500"
+                          : "border-gray-300"
+                      }
                       focus:outline-none focus:ring-blue-500`}
         />
         {errors.businessName && (
@@ -142,7 +142,11 @@ const StoreSettingInfoSection: React.FC = () => {
               (e.currentTarget.value = e.currentTarget.value.replace(/\D/g, ""))
             }
             className={`w-full border rounded-md px-3 py-2 text-sm focus:ring-1
-                        ${errors.businessPhone ? "border-red-500" : "border-gray-300"}
+                        ${
+                          errors.businessPhone
+                            ? "border-red-500"
+                            : "border-gray-300"
+                        }
                         focus:outline-none focus:ring-blue-500`}
           />
           {errors.businessPhone && (
@@ -162,7 +166,11 @@ const StoreSettingInfoSection: React.FC = () => {
             type="email"
             placeholder="Enter email address"
             className={`w-full border rounded-md px-3 py-2 text-sm focus:ring-1
-                        ${errors.businessEmail ? "border-red-500" : "border-gray-300"}
+                        ${
+                          errors.businessEmail
+                            ? "border-red-500"
+                            : "border-gray-300"
+                        }
                         focus:outline-none focus:ring-blue-500`}
           />
           {errors.businessEmail && (

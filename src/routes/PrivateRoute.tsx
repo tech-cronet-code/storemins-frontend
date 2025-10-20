@@ -1,7 +1,7 @@
 import { Navigate, Outlet } from "react-router-dom";
-import { useAuth } from "../modules/auth/contexts/AuthContext";
 import { UserRoleName } from "../modules/auth/constants/userRoles";
 import RoleHomeRedirect from "./RoleHomeRedirect";
+import { useSellerAuth } from "../modules/auth/contexts/SellerAuthContext";
 
 type PrivateRouteProps = {
   /** If provided, user must have at least one of these roles */
@@ -11,7 +11,7 @@ type PrivateRouteProps = {
 };
 
 const PrivateRoute = ({ allowed, redirectTo = "/home" }: PrivateRouteProps) => {
-  const { user, loading, quickLoginEnabledFlag } = useAuth();
+  const { user, loading, quickLoginEnabledFlag } = useSellerAuth();
 
   // quick-login flag doesn't grant access by itself
   if (quickLoginEnabledFlag)

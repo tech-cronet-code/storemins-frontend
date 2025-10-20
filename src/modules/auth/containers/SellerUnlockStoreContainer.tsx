@@ -2,8 +2,8 @@
 import React, { useCallback, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import SellerUnlockStoreForm from "../components/SellerUnlockStoreForm";
-import { useAuth } from "../contexts/AuthContext";
 import { SellerUnlockStoreFormValues } from "../schemas/sellerUnlockStoreSchema";
+import { useSellerAuth } from "../contexts/SellerAuthContext";
 
 const SellerUnlockStoreContainer: React.FC = () => {
   const {
@@ -12,7 +12,7 @@ const SellerUnlockStoreContainer: React.FC = () => {
     checkDomainAvailability,
     saveDomain,
     refetchUserDetails,
-  } = useAuth();
+  } = useSellerAuth();
 
   const navigate = useNavigate();
   const [saving, setSaving] = useState(false);

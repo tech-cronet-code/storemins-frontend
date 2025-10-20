@@ -2,7 +2,7 @@
 import { useDispatch } from "react-redux";
 import { AppDispatch } from "../../../common/state/store";
 import { showToast } from "../../../common/utils/showToast";
-import { RegisterPayload, useRegisterMutation } from "../services/authApi";
+import { RegisterPayload, useRegisterMutation } from "../services/sellerApi";
 import { loginFailure, loginStart, registerSuccess } from "../slices/authSlice";
 import { UserRoleName } from "../constants/userRoles";
 
@@ -43,7 +43,7 @@ export const useRegister = (
         // 👇 cast `role` properly
         const castedRoles = role as UserRoleName[];
 
-         dispatch(
+        dispatch(
           registerSuccess({
             user: {
               id,

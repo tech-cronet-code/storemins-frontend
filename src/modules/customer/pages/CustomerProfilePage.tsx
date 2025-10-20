@@ -3,11 +3,11 @@
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useEffect, useMemo, useRef, useState } from "react";
 import BottomNav from "../../../shared/blocks/BottomNav";
-import { useAuth } from "../../auth/contexts/AuthContext";
 import {
   useGetMyOrdersQuery,
   type MyOrdersItem,
 } from "../services/customerOrderApi";
+import { useSellerAuth } from "../../auth/contexts/SellerAuthContext";
 
 /* ------------------------ helpers ------------------------ */
 const withSlug = (path: string, slug?: string | null) =>
@@ -358,7 +358,7 @@ function KebabMenu({ onLogout }: { onLogout: () => void }) {
 export default function CustomerProfilePage() {
   const { storeSlug } = useParams<{ storeSlug?: string }>();
   const navigate = useNavigate();
-  const auth = useAuth();
+  const auth = useSellerAuth();
 
   /* ---- profile heading ---- */
   const [profile, setProfile] = useState<{

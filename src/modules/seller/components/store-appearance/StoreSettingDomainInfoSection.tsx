@@ -1,5 +1,5 @@
-import React from 'react';
-import { useGetMyDomainQuery } from '../../../auth/services/authApi';
+import React from "react";
+import { useGetMyDomainQuery } from "../../../auth/services/sellerApi";
 
 const StoreSettingDomainInfoSection: React.FC = () => {
   /* ───────── fetch domain + SSL details ───────── */
@@ -7,7 +7,13 @@ const StoreSettingDomainInfoSection: React.FC = () => {
 
   /* → helpers */
   const formatDate = (iso?: string | null) =>
-    iso ? new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '-';
+    iso
+      ? new Date(iso).toLocaleDateString("en-US", {
+          month: "short",
+          day: "numeric",
+          year: "numeric",
+        })
+      : "-";
 
   /* UI states */
   if (isLoading) {
@@ -55,30 +61,32 @@ const StoreSettingDomainInfoSection: React.FC = () => {
               <td className="px-4 py-3 text-blue-600 underline break-all">
                 <a
                   href={
-                    data.domainType === 'SUBDOMAIN'
+                    data.domainType === "SUBDOMAIN"
                       ? `https://storemins.com/${data.domain}`
                       : `https://${data.domain}`
                   }
                   target="_blank"
                   rel="noopener noreferrer"
                 >
-                  {data.domainType === 'SUBDOMAIN'
+                  {data.domainType === "SUBDOMAIN"
                     ? `https://storemins.com/${data.domain}`
                     : `https://${data.domain}`}
                 </a>
               </td>
 
-
               <td className="px-4 py-3">
                 <span
-                  className={`${data.verificationStatus === 'VERIFIED'
-                      ? 'bg-green-600'
-                      : data.verificationStatus === 'PENDING'
-                        ? 'bg-yellow-400'
-                        : 'bg-red-500'
-                    }  text-white text-xs font-semibold px-2.5 py-1 rounded`}
+                  className={`${
+                    data.verificationStatus === "VERIFIED"
+                      ? "bg-green-600"
+                      : data.verificationStatus === "PENDING"
+                      ? "bg-yellow-400"
+                      : "bg-red-500"
+                  }  text-white text-xs font-semibold px-2.5 py-1 rounded`}
                 >
-                  {data.verificationStatus === 'VERIFIED' ? 'LIVE' : data.verificationStatus}
+                  {data.verificationStatus === "VERIFIED"
+                    ? "LIVE"
+                    : data.verificationStatus}
                 </span>
               </td>
 
@@ -87,7 +95,7 @@ const StoreSettingDomainInfoSection: React.FC = () => {
               </td>
 
               <td className="px-4 py-3 text-gray-700">
-                {data.domainType === 'SUBDOMAIN' ? 'StoreMins' : 'External'}
+                {data.domainType === "SUBDOMAIN" ? "StoreMins" : "External"}
               </td>
             </tr>
           </tbody>

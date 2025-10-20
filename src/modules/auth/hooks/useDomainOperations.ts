@@ -2,7 +2,7 @@
 import {
   useLazyListDomainsQuery,
   useCreateOrUpdateDomainMutation,
-} from "../services/authApi";
+} from "../services/sellerApi";
 import { DomainRequestDto, DomainResponseDto } from "../types/domainTypes";
 
 export function useDomain() {

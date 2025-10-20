@@ -16,7 +16,7 @@ import {
   useUpdateBlockMutation,
   usePublishThemeMutation,
 } from "../../../auth/services/storeApi";
-import { useAuth } from "../../../auth/contexts/AuthContext";
+import { useSellerAuth } from "../../../auth/contexts/SellerAuthContext";
 
 /* ---------- top_nav ---------- */
 import {
@@ -621,7 +621,7 @@ const AddStoreDiplaySettingPage: React.FC<
   >("general");
   const formContainerRef = useRef<HTMLDivElement>(null!);
 
-  const { userDetails } = useAuth();
+  const { userDetails } = useSellerAuth();
   const businessIdFromAuth = userDetails?.storeLinks?.[0]?.businessId ?? null;
 
   const { data: myStore, isFetching: loadingStore } = useGetMyStoreDetailsQuery(

@@ -1,6 +1,6 @@
 import { Navigate } from "react-router-dom";
-import { useAuth } from "../modules/auth/contexts/AuthContext";
 import { UserRoleName } from "../modules/auth/constants/userRoles";
+import { useSellerAuth } from "../modules/auth/contexts/SellerAuthContext";
 
 export const getDefaultRouteForRoles = (roles?: UserRoleName[] | null) => {
   if (!roles || roles.length === 0) return "/home";
@@ -12,8 +12,9 @@ export const getDefaultRouteForRoles = (roles?: UserRoleName[] | null) => {
 };
 
 const RoleHomeRedirect = () => {
-  const { user } = useAuth();
-  const to = getDefaultRouteForRoles(user?.role);
+  const { rolesArray } = useSellerAuth();
+
+  const to = getDefaultRouteForRoles(rolesArray);
   return <Navigate to={to} replace />;
 };
 

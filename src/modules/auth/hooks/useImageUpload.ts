@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { toast } from "react-hot-toast";
-import { useUploadImageMutation } from "../services/authApi";
+import { useUploadImageMutation } from "../services/sellerApi";
 import { convertPath } from "../utils/useImagePath";
 
 export type UploadedFileInfo = {

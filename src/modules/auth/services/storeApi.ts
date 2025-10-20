@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { createApi } from "@reduxjs/toolkit/query/react";
-import { baseQueryWithReauth } from "./baseQueryWithReauth";
+import { sellerBaseQueryWithReauth } from "./sellerBaseQueryWithReauth";
 
 /* =======================
    Shared DTOs (frontend)
@@ -199,9 +199,9 @@ export interface StorefrontRuntimeResponseDto {
 /* ==========================================
    API
    ========================================== */
-export const storeApi = createApi({
-  baseQuery: baseQueryWithReauth,
-  reducerPath: "storeApi",
+export const sellerStoreApi = createApi({
+  baseQuery: sellerBaseQueryWithReauth,
+  reducerPath: "sellerStoreApi",
   tagTypes: [
     "Store",
     "StoreTimings",
@@ -491,4 +491,4 @@ export const {
   useCreateBlockMutation,
   useUpdateBlockMutation,
   useDeleteBlockMutation,
-} = storeApi;
+} = sellerStoreApi;

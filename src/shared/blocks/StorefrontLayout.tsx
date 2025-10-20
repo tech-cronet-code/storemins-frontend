@@ -2,7 +2,7 @@ import React from "react";
 import cn from "classnames";
 import { TopNavBlock, type TopNavSettings } from "./topNav";
 import BottomNav from "./BottomNav";
-import { useAuth } from "../../modules/auth/contexts/AuthContext";
+import { useSellerAuth } from "../../modules/auth/contexts/SellerAuthContext";
 
 type Props = {
   children: React.ReactNode;
@@ -30,7 +30,7 @@ const StorefrontLayout: React.FC<Props> = ({
   // fallback businessId from auth if not provided
   type AuthDetails = { storeLinks?: Array<{ businessId?: string | null }> };
   type AuthCtx = { userDetails?: AuthDetails };
-  const { userDetails } = (useAuth() as AuthCtx) ?? {};
+  const { userDetails } = (useSellerAuth() as AuthCtx) ?? {};
   const businessId =
     businessIdProp ?? userDetails?.storeLinks?.[0]?.businessId?.trim?.() ?? "";
 

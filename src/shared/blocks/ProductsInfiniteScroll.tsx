@@ -3,7 +3,6 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 
 import { convertPath } from "../../modules/auth/utils/useImagePath";
-import { useAuth } from "../../modules/auth/contexts/AuthContext";
 import {
   useListCategoriesQuery,
   useListProductsQuery,
@@ -14,6 +13,7 @@ import CartDock from "./CartDock";
 
 /* ==== cart API (correct) ==== */
 import { useAddItemToCartMutation } from "../../modules/customer/services/customerCartApi";
+import { useSellerAuth } from "../../modules/auth/contexts/SellerAuthContext";
 
 /* ------------------------- utils ------------------------- */
 const cn = (...v: (string | false | null | undefined)[]) =>
@@ -284,7 +284,7 @@ type Props = { settings?: any };
 export default function StorefrontWithApiImages({ settings = {} }: Props) {
   const s = settings || {};
 
-  const { userDetails } = useAuth() as any;
+  const { userDetails } = useSellerAuth() as any;
   const businessId: string =
     userDetails?.storeLinks?.[0]?.businessId?.trim?.() || "";
   const skip = !businessId;

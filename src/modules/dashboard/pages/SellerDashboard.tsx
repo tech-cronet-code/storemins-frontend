@@ -10,14 +10,14 @@ import ShortcutModal from "../components/ShortcutModal";
 import StoreLinkCard from "../components/StoreLinkCard";
 import StoreSetupChecklist from "../components/StoreSetupChecklist";
 import WalletAlert from "../components/WalletAlert";
-import { useAuth } from "../../auth/contexts/AuthContext";
 import {
   buildStoreUrl,
   getSuggestedDomain,
 } from "../../../common/utils/buildStoreUrl";
+import { useSellerAuth } from "../../auth/contexts/SellerAuthContext";
 
 const SellerDashboard = () => {
-  const { userDetails } = useAuth();
+  const { userDetails } = useSellerAuth();
 
   const initialShortcuts = [
     {

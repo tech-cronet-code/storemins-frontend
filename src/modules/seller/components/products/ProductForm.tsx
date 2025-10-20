@@ -4,7 +4,7 @@ import React, { useEffect, useRef } from "react";
 import { FormProvider, useForm, useWatch } from "react-hook-form";
 import { useNavigate } from "react-router-dom";
 import { showToast } from "../../../../common/utils/showToast";
-import { useAuth } from "../../../auth/contexts/AuthContext";
+import { useSellerAuth } from "../../../auth/contexts/SellerAuthContext";
 import {
   useCreateProductMutation,
   useGetProductByIdQuery,
@@ -144,7 +144,7 @@ function normalizeQuestions(qs: NonNullable<ProductFormValues["questions"]>) {
 /* --------------- component --------------- */
 const ProductForm: React.FC<ProductFormProps> = ({ productId }) => {
   const navigate = useNavigate();
-  const { userDetails } = useAuth();
+  const { userDetails } = useSellerAuth();
 
   const [createProduct, { isLoading: isCreating }] = useCreateProductMutation();
   const [updateProduct, { isLoading: isUpdating }] = useUpdateProductMutation();

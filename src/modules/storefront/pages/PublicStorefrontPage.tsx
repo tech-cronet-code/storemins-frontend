@@ -1,6 +1,6 @@
 import { Navigate, Route, Routes, useParams } from "react-router-dom";
 import { RenderLayout, type Block } from "../../../shared/blocks/registry";
-import { useAuth } from "../../auth/contexts/AuthContext";
+import { useSellerAuth } from "../../auth/contexts/SellerAuthContext";
 import { useGetStorefrontBootstrapQuery } from "../../auth/services/storefrontPublicApi";
 import ProductDetail from "../../../shared/blocks/ProductDetail";
 import AddToCart from "../../../shared/blocks/Addtocart";
@@ -29,7 +29,7 @@ type StorefrontBootstrap = {
 
 export default function PublicStorefrontPage() {
   const { storeSlug = "" } = useParams<{ storeSlug?: string }>();
-  const { user, userDetails } = useAuth();
+  const { user, userDetails } = useSellerAuth();
 
   const isLoggedIn =
     !!user ||

@@ -6,7 +6,7 @@ import { mergeTopNavFromUI } from "../../../../shared/blocks/topNav";
 import { StoreStatsSettings } from "../../../../shared/blocks/storeStats";
 import { StoreDeliveryInfoSettings } from "../../../../shared/blocks/storeDeliveryInfo";
 import { FlashSaleHeroServerSettings } from "../../pages/store-appearance/FlashSaleHeroSettings";
-import { useAuth } from "../../../auth/contexts/AuthContext";
+import { useSellerAuth } from "../../../auth/contexts/SellerAuthContext";
 import { mergeAboutUsFromUI } from "../../../../shared/blocks/about_Us";
 
 /* small util */
@@ -184,7 +184,7 @@ const StorePreview: React.FC<StorePreviewProps> = ({
   socialProofUi,
   footerUi,
 }) => {
-  const { userDetails } = useAuth();
+  const { userDetails } = useSellerAuth();
   const businessId = userDetails?.storeLinks?.[0]?.businessId ?? "";
 
   /* force mobile behavior + live preview width */

@@ -1,6 +1,6 @@
 // src/modules/customer/services/customerOrderApi.ts
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { storeApi } from "../../auth/services/storeApi";
+import { customerApi } from "./customerApi";
 
 /* ======================= Types ======================= */
 export type PayMode =
@@ -130,7 +130,7 @@ export type InvoiceResponse = {
 };
 
 /* ======================= API ======================= */
-export const customerOrderApi = storeApi.injectEndpoints({
+export const customerOrderApi = customerApi.injectEndpoints({
   endpoints: (builder) => ({
     // 1) Place order
     placeOrder: builder.mutation<

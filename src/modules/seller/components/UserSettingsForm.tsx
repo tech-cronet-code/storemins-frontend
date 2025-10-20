@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { FaUserCircle } from "react-icons/fa";
 import * as z from "zod";
 import { showToast } from "../../../common/utils/showToast";
-import { useAuth } from "../../auth/contexts/AuthContext";
+import { useSellerAuth } from "../../auth/contexts/SellerAuthContext";
 import { convertPath } from "../../auth/utils/useImagePath"; // keep your existing util
 
 // ✅ Zod name schema
@@ -14,7 +14,7 @@ const nameSchema = z
   .regex(/^[A-Za-z\s]+$/, "Name must contain only letters and spaces.");
 
 const UserSettingsForm = () => {
-  const { userDetails, updateProfile } = useAuth();
+  const { userDetails, updateProfile } = useSellerAuth();
   const [name, setName] = useState(userDetails?.name || "");
   const [nameError, setNameError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);

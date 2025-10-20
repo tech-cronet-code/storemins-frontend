@@ -1,10 +1,10 @@
 // src/modules/store/containers/BusinessInformationSection.tsx
 
-import React, { useState } from 'react';
-import { useFormContext, FieldError, FieldErrorsImpl } from 'react-hook-form';
-import { Pencil } from 'lucide-react';
-import EditAddressModal from './EditAddressModal';
-import { useListBusinessTypesQuery } from '../../../auth/services/authApi';
+import React, { useState } from "react";
+import { useFormContext, FieldError, FieldErrorsImpl } from "react-hook-form";
+import { Pencil } from "lucide-react";
+import EditAddressModal from "./EditAddressModal";
+import { useListBusinessTypesQuery } from "../../../auth/services/sellerApi";
 
 const BusinessInformationSection: React.FC = () => {
   const {
@@ -22,30 +22,36 @@ const BusinessInformationSection: React.FC = () => {
 
   /* ---- local state ---- */
   const [showAddressModal, setShowAddressModal] = useState(false);
-  const address = watch('businessProfile');
+  const address = watch("businessProfile");
 
   /* ---- helpers ---- */
-  const formattedAddress = `${address?.address || ''} ${address?.street2 || ''}, ${address?.city || ''
-    }, ${address?.state || ''} - ${address?.pincode || ''}, ${address?.country || ''}`;
+  const formattedAddress = `${address?.address || ""} ${
+    address?.street2 || ""
+  }, ${address?.city || ""}, ${address?.state || ""} - ${
+    address?.pincode || ""
+  }, ${address?.country || ""}`;
 
   /* ---- safely pick nested error ---- */
-  const businessTypeErr =
-    (errors.businessProfile as FieldErrorsImpl<any> | undefined)?.businessTypeId as
-    | FieldError
-    | undefined;
+  const businessTypeErr = (
+    errors.businessProfile as FieldErrorsImpl<any> | undefined
+  )?.businessTypeId as FieldError | undefined;
 
   return (
     <div className="bg-white border border-gray-200 rounded-lg shadow-sm p-5 sm:p-6 lg:p-8 space-y-6">
       <div>
-        <h3 className="text-lg font-semibold text-gray-800">Business Information</h3>
-        <p className="text-sm text-gray-500">Submit Your Details to Formalize Your Business</p>
+        <h3 className="text-lg font-semibold text-gray-800">
+          Business Information
+        </h3>
+        <p className="text-sm text-gray-500">
+          Submit Your Details to Formalize Your Business
+        </p>
       </div>
 
       {/* Legal Name */}
       <div className="space-y-1">
         <label className="text-sm font-medium text-gray-700">Legal Name</label>
         <input
-          {...register('businessProfile.legalName')}
+          {...register("businessProfile.legalName")}
           type="text"
           placeholder="Enter legal name"
           className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-1 focus:outline-none focus:ring-blue-500"
@@ -54,15 +60,19 @@ const BusinessInformationSection: React.FC = () => {
 
       {/* Business Type (dynamic) */}
       <div className="space-y-1">
-        <label className="text-sm font-medium text-gray-700">Business Type</label>
+        <label className="text-sm font-medium text-gray-700">
+          Business Type
+        </label>
 
         {typesLoading ? (
           <p className="text-sm text-gray-500">Loading business types…</p>
         ) : typesError ? (
-          <p className="text-sm text-red-500">Couldn’t load business types. Try again later.</p>
+          <p className="text-sm text-red-500">
+            Couldn’t load business types. Try again later.
+          </p>
         ) : (
           <select
-            {...register('businessProfile.businessTypeId')}
+            {...register("businessProfile.businessTypeId")}
             className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-1 focus:outline-none focus:ring-blue-500"
             defaultValue=""
           >
@@ -85,9 +95,11 @@ const BusinessInformationSection: React.FC = () => {
       {/* GST & CIN */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="space-y-1">
-          <label className="text-sm font-medium text-gray-700">GST Number</label>
+          <label className="text-sm font-medium text-gray-700">
+            GST Number
+          </label>
           <input
-            {...register('businessProfile.gstNumber')}
+            {...register("businessProfile.gstNumber")}
             type="text"
             placeholder="Enter GST number"
             className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-1 focus:outline-none focus:ring-blue-500"
@@ -97,7 +109,7 @@ const BusinessInformationSection: React.FC = () => {
         <div className="space-y-1">
           <label className="text-sm font-medium text-gray-700">CIN</label>
           <input
-            {...register('businessProfile.cin')}
+            {...register("businessProfile.cin")}
             type="text"
             placeholder="Enter CIN"
             className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-1 focus:outline-none focus:ring-blue-500"
@@ -107,9 +119,11 @@ const BusinessInformationSection: React.FC = () => {
 
       {/* FSSAI */}
       <div className="space-y-1">
-        <label className="text-sm font-medium text-gray-700">FSSAI License Number</label>
+        <label className="text-sm font-medium text-gray-700">
+          FSSAI License Number
+        </label>
         <input
-          {...register('businessProfile.fssaiLicenseNumber')}
+          {...register("businessProfile.fssaiLicenseNumber")}
           type="text"
           placeholder="Enter FSSAI license number"
           className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-1 focus:outline-none focus:ring-blue-500"
@@ -121,8 +135,10 @@ const BusinessInformationSection: React.FC = () => {
         <label className="text-sm font-medium text-gray-700">Address</label>
         <div className="flex items-center justify-between p-3 bg-gray-50 border border-gray-200 rounded-md">
           <div className="text-sm text-gray-700">
-            🏠{' '}
-            {formattedAddress.trim() === ', , - ,' ? 'No address added yet.' : formattedAddress}
+            🏠{" "}
+            {formattedAddress.trim() === ", , - ,"
+              ? "No address added yet."
+              : formattedAddress}
           </div>
           <button
             type="button"
@@ -140,19 +156,27 @@ const BusinessInformationSection: React.FC = () => {
         open={showAddressModal}
         onClose={() => setShowAddressModal(false)}
         address={{
-          street1: address?.address || '',
-          street2: address?.street2 || '',
-          city: address?.city || '',
-          state: address?.state || '',
-          pincode: address?.pincode || '',
+          street1: address?.address || "",
+          street2: address?.street2 || "",
+          city: address?.city || "",
+          state: address?.state || "",
+          pincode: address?.pincode || "",
         }}
         onSave={(updated) => {
-          setValue('businessProfile.address', updated.street1, { shouldDirty: true });
-          setValue('businessProfile.street2', updated.street2, { shouldDirty: true });
-          setValue('businessProfile.city', updated.city, { shouldDirty: true });
-          setValue('businessProfile.state', updated.state, { shouldDirty: true });
-          setValue('businessProfile.pincode', updated.pincode, { shouldDirty: true });
-          setValue('businessProfile.country', 'India', { shouldDirty: true });
+          setValue("businessProfile.address", updated.street1, {
+            shouldDirty: true,
+          });
+          setValue("businessProfile.street2", updated.street2, {
+            shouldDirty: true,
+          });
+          setValue("businessProfile.city", updated.city, { shouldDirty: true });
+          setValue("businessProfile.state", updated.state, {
+            shouldDirty: true,
+          });
+          setValue("businessProfile.pincode", updated.pincode, {
+            shouldDirty: true,
+          });
+          setValue("businessProfile.country", "India", { shouldDirty: true });
         }}
       />
     </div>

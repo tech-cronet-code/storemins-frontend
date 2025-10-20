@@ -1,6 +1,7 @@
-// src/modules/user/auth/hooks/useAuth.ts
-import { useAuth } from "../contexts/AuthContext";
+// src/modules/user/auth/hooks/useSellerAuth.ts
+
+import { useSellerAuth } from "../contexts/SellerAuthContext";
 
 export const useAuthHook = () => {
-  return useAuth();
+  return useSellerAuth();
 };

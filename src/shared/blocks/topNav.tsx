@@ -9,7 +9,7 @@ import React, {
 import { useNavigate } from "react-router-dom";
 import cn from "classnames";
 import CustomerLoginModal from "./CustomerLoginModal";
-import { useAuth } from "../../modules/auth/contexts/AuthContext";
+import { useSellerAuth } from "../../modules/auth/contexts/SellerAuthContext";
 
 /* ============================== Types ============================== */
 export type TopNavSettings = {
@@ -423,7 +423,7 @@ export const TopNavBlock: React.FC<{ settings?: Partial<TopNavSettings> }> = ({
   const navigate = useNavigate();
 
   // ---- AUTH
-  const auth = useAuth();
+  const auth = useSellerAuth();
   const tokenLS =
     (typeof window !== "undefined" &&
       (localStorage.getItem("access_token") ||

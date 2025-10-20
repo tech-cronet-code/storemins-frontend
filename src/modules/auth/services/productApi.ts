@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 // src/common/services/productApi.ts
 import { createApi } from "@reduxjs/toolkit/query/react";
-import { baseQueryWithReauth } from "./baseQueryWithReauth";
+import { sellerBaseQueryWithReauth } from "./sellerBaseQueryWithReauth";
 
 export interface ProductCategoryRequest {
   name: string;
@@ -397,7 +397,7 @@ const pluckImages = (p: ProductResponseDto) =>
   p.media?.filter((m) => m.type === "IMAGE").map((m) => m.url) || [];
 
 export const productApi = createApi({
-  baseQuery: baseQueryWithReauth, // ⬅️ Uses the smart switch
+  baseQuery: sellerBaseQueryWithReauth, // ⬅️ Uses the smart switch
   reducerPath: "productApi",
   tagTypes: ["Product"] as const, // ✅ add this
   endpoints: (builder) => ({

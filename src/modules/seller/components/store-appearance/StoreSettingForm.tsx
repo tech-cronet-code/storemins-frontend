@@ -11,27 +11,23 @@ import SocialLinksSection from "./SocialLinksSection";
 import StoreSettingInfoSection from "./StoreSettingInfoSection";
 import StoreSettingMediaSection from "./StoreSettingMediaSection";
 
-import { useAuth } from "../../../auth/contexts/AuthContext";
+import { useSellerAuth } from "../../../auth/contexts/SellerAuthContext";
 import {
   useGetMyStoreQuery,
   useUpdateStoreMutation,
-} from "../../../auth/services/authApi";
+} from "../../../auth/services/sellerApi";
 import { storeSettingsSchema } from "../../Schemas/storeSettingsSchema";
 import { removeEmptyStrings } from "../../common/utils";
 import { UpdateStorePayload } from "../../types/storeTypes";
-
 
 type StoreSettingsInput = z.infer<typeof storeSettingsSchema>;
 
 const StoreSettingForm: React.FC = () => {
   /* auth / query --------------------------------------------------- */
-  const { userDetails } = useAuth();
+  const { userDetails } = useSellerAuth();
   const businessIdFromAuth = userDetails?.storeLinks?.[0]?.businessId ?? "";
 
-  const {
-    data: storeData,
-    refetch,
-  } = useGetMyStoreQuery();
+  const { data: storeData, refetch } = useGetMyStoreQuery();
 
   const [updateStore, { isLoading: isUpdating }] = useUpdateStoreMutation();
 
@@ -89,41 +85,41 @@ const StoreSettingForm: React.FC = () => {
 
   /* populate on initial fetch ------------------------------------- */
   /* inside your `useEffect` that populates the form */
-useEffect(() => {
-  if (storeData) {
-    const bp = (storeData.businessProfile ?? {}) as Partial<StoreSettingsInput["businessProfile"]>;
-    const businessType = (storeData.businessProfile as any)?.businessType;
+  useEffect(() => {
+    if (storeData) {
+      const bp = (storeData.businessProfile ?? {}) as Partial<
+        StoreSettingsInput["businessProfile"]
+      >;
+      const businessType = (storeData.businessProfile as any)?.businessType;
 
-    reset({
-      ...storeData,
-      businessId: businessIdFromAuth,
+      reset({
+        ...storeData,
+        businessId: businessIdFromAuth,
 
-      // root address
-      address: storeData.address ?? "",
-      street2: storeData.street2 ?? "",
-      city: storeData.city ?? "",
-      state: storeData.state ?? "",
-      pincode: storeData.pincode ?? "",
-      country: storeData.country ?? "",
+        // root address
+        address: storeData.address ?? "",
+        street2: storeData.street2 ?? "",
+        city: storeData.city ?? "",
+        state: storeData.state ?? "",
+        pincode: storeData.pincode ?? "",
+        country: storeData.country ?? "",
 
-      businessProfile: {
-        legalName: bp.legalName ?? "",
-        businessTypeId: businessType?.id ?? "",
-        gstNumber: bp.gstNumber ?? "",
-        cin: bp.cin ?? "",
-        fssaiLicenseNumber: bp.fssaiLicenseNumber ?? "",
-        address: bp.address ?? "",
-        street2: bp.street2 ?? "",
-        city: bp.city ?? "",
-        state: bp.state ?? "",
-        pincode: bp.pincode ?? "",
-        country: bp.country ?? "",
-      },
-    });
-  }
-}, [storeData, businessIdFromAuth, reset]);
-
-
+        businessProfile: {
+          legalName: bp.legalName ?? "",
+          businessTypeId: businessType?.id ?? "",
+          gstNumber: bp.gstNumber ?? "",
+          cin: bp.cin ?? "",
+          fssaiLicenseNumber: bp.fssaiLicenseNumber ?? "",
+          address: bp.address ?? "",
+          street2: bp.street2 ?? "",
+          city: bp.city ?? "",
+          state: bp.state ?? "",
+          pincode: bp.pincode ?? "",
+          country: bp.country ?? "",
+        },
+      });
+    }
+  }, [storeData, businessIdFromAuth, reset]);
 
   /* keep businessId in sync (just in case) ------------------------ */
   useEffect(() => {
@@ -136,11 +132,10 @@ useEffect(() => {
   const onSubmit = async (data: StoreSettingsInput) => {
     try {
       /* drop links with blank url */
-      const cleanedLinks = (data.socialMediaLinks ?? [])
-        .filter(
-          (l): l is { platform: string; url: string; icon?: string } =>
-            l.url.trim().length > 0,
-        );
+      const cleanedLinks = (data.socialMediaLinks ?? []).filter(
+        (l): l is { platform: string; url: string; icon?: string } =>
+          l.url.trim().length > 0
+      );
 
       const cleanedData: UpdateStorePayload = {
         ...removeEmptyStrings({
@@ -163,16 +158,10 @@ useEffect(() => {
     }
   };
 
-
-
   /* render -------------------------------------------------------- */
   return (
     <FormProvider {...methods}>
-      <form
-        className="space-y-8"
-        onSubmit={handleSubmit(onSubmit)}
-        noValidate
-      >
+      <form className="space-y-8" onSubmit={handleSubmit(onSubmit)} noValidate>
         <section id="store-media" className="scroll-mt-24">
           <StoreSettingMediaSection />
         </section>
@@ -198,9 +187,11 @@ useEffect(() => {
             type="submit"
             disabled={isUpdating || !isDirty}
             className={`px-6 py-3 rounded-md text-sm text-white
-              ${isUpdating || !isDirty
-                ? "bg-blue-300 cursor-not-allowed"
-                : "bg-blue-600 hover:bg-blue-700"}`}
+              ${
+                isUpdating || !isDirty
+                  ? "bg-blue-300 cursor-not-allowed"
+                  : "bg-blue-600 hover:bg-blue-700"
+              }`}
           >
             {isUpdating ? "Updating…" : "Update Store"}
           </button>
@@ -211,4 +202,3 @@ useEffect(() => {
 };
 
 export default StoreSettingForm;
-

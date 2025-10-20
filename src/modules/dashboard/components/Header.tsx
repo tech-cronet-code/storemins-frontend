@@ -4,9 +4,9 @@ import { FaUserCircle } from "react-icons/fa";
 import { MdNotificationsNone } from "react-icons/md";
 import { RiSettings3Fill } from "react-icons/ri";
 import { useLocation, useNavigate } from "react-router-dom";
-import { useAuth } from "../../auth/contexts/AuthContext";
 import UserProfileMenu from "./UserProfileMenu";
 import { convertPath } from "../../auth/utils/useImagePath";
+import { useSellerAuth } from "../../auth/contexts/SellerAuthContext";
 
 interface HeaderProps {
   collapsed?: boolean;
@@ -19,7 +19,7 @@ const Header = ({}: HeaderProps) => {
   const [showProfile, setShowProfile] = useState(false);
   const [imageError, setImageError] = useState(false);
   const profileRef = useRef<HTMLDivElement>(null);
-  const { userDetails } = useAuth(); // ⬅️ from context (has top-level imageId: "<fileId>.webp")
+  const { userDetails } = useSellerAuth(); // ⬅️ from context (has top-level imageId: "<fileId>.webp")
 
   const location = useLocation();
   const navigate = useNavigate();

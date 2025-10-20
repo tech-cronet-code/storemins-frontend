@@ -8,7 +8,7 @@ import React, {
 } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import CustomerLoginModal from "./CustomerLoginModal";
-import { useAuth } from "../../modules/auth/contexts/AuthContext";
+import { useSellerAuth } from "../../modules/auth/contexts/SellerAuthContext";
 
 /* ---------------- helpers ---------------- */
 
@@ -289,7 +289,7 @@ export default function BottomNav({
   const navRef = useRef<HTMLDivElement | null>(null);
 
   // auth
-  const auth = useAuth();
+  const auth = useSellerAuth();
   const tokenLS =
     (typeof window !== "undefined" &&
       (localStorage.getItem("access_token") ||

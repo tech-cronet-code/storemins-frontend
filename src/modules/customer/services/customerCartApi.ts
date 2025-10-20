@@ -1,4 +1,4 @@
-import { storeApi } from "../../auth/services/storeApi";
+import { customerApi } from "./customerApi";
 
 /* ======================= Types (aligned with BE) ======================= */
 export type Currency = "INR" | string;
@@ -150,7 +150,7 @@ export type AbandonCartParams = { cartId: string; businessId: string };
 export type AbandonCartResponse = { abandoned: true; abandonedAt: string };
 
 /* ======================= API ======================= */
-export const customerCartApi = storeApi.injectEndpoints({
+export const customerCartApi = customerApi.injectEndpoints({
   endpoints: (builder) => ({
     // #1
     getActiveCart: builder.query<Cart, GetActiveCartQuery>({

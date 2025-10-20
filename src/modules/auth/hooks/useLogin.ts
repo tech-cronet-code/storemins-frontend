@@ -4,7 +4,7 @@ import { castToUserRoles } from "../../../common/utils/common";
 import { showToast } from "../../../common/utils/showToast";
 import { UserRoleName } from "../constants/userRoles";
 import { loginFailure, loginStart, loginSuccess } from "../slices/authSlice";
-import { LoginResponse, useLoginMutation } from "../services/authApi";
+import { LoginResponse, useLoginMutation } from "../services/sellerApi";
 
 export const useLogin = () => {
   const dispatch = useDispatch<AppDispatch>();

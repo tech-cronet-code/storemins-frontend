@@ -1,10 +1,10 @@
 import { Navigate, Outlet } from "react-router-dom";
-import { useAuth } from "../modules/auth/contexts/AuthContext";
+import { useSellerAuth } from "../modules/auth/contexts/SellerAuthContext";
 
 const OtpRoute = () => {
   console.log("OtpRoute loaded");
 
-  const { user, quickLoginEnabledFlag } = useAuth();
+  const { user, quickLoginEnabledFlag } = useSellerAuth();
 
   // Save the flag in localStorage on first render
   if (quickLoginEnabledFlag) {
