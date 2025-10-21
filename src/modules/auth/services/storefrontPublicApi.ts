@@ -19,6 +19,7 @@ export interface StorefrontBranchDto {
 }
 export interface StorefrontRuntimeResponseDto {
   layout: StorefrontLayoutItemDto[];
+  // settings contains businessId and other runtime params
   settings: Record<string, string>;
   branches: StorefrontBranchDto[];
 }
@@ -33,15 +34,18 @@ export const storefrontPublicApi = createApi({
   reducerPath: "storefrontPublicApi",
   baseQuery: fetchBaseQuery({
     baseUrl: API_BASE,
-    // credentials: "include", // only if your BE sets cookies you need on public calls
   }),
   endpoints: (builder) => ({
-    // Path mode: :slug/storefront/bootstrap (BE derives tenant from path)
+    /** Path mode: :slug/storefront/bootstrap (BE derives tenant from path)
+     * Response (as per your screenshot):
+     * { message: "ok", data: { layout: [...], settings: { businessId: "...", ... }, branches: [...] } }
+     */
     getStorefrontBootstrap: builder.query<
       StorefrontRuntimeResponseDto,
       { slug: string }
     >({
       query: ({ slug }) => `${slug}/storefront/bootstrap`,
+      // Ensure we always return StorefrontRuntimeResponseDto
       transformResponse: (raw: {
         message: string;
         data: StorefrontRuntimeResponseDto;

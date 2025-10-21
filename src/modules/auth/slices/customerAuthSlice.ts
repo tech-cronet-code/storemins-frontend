@@ -1,4 +1,3 @@
-// src/modules/auth/slices/customerAuthSlice.ts
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
 
 export interface CustomerUser {
@@ -54,14 +53,13 @@ const slice = createSlice({
       s.refreshToken = a.payload.refreshToken ?? null;
       s.error = null;
       s.needsOtp = false;
+
       localStorage.setItem("customer_auth_token", a.payload.token);
       localStorage.setItem(
         "customer_auth_user",
         JSON.stringify(a.payload.user)
       );
     },
-
-    // ✅ NEW: same idea for customer
     registerSuccess(
       s,
       a: PayloadAction<{
@@ -78,13 +76,14 @@ const slice = createSlice({
       s.loading = false;
       s.error = null;
 
-      localStorage.setItem("customer_auth_token", a.payload.token ?? "Null");
+      if (a.payload.token) {
+        localStorage.setItem("customer_auth_token", a.payload.token);
+      }
       localStorage.setItem(
         "customer_auth_user",
         JSON.stringify(a.payload.user)
       );
     },
-
     loginFailure(s, a: PayloadAction<string>) {
       s.loading = false;
       s.error = a.payload;
@@ -113,7 +112,7 @@ const slice = createSlice({
 export const {
   loginStart,
   loginSuccess,
-  registerSuccess, // 👈 export
+  registerSuccess,
   loginFailure,
   logout,
   setUser,

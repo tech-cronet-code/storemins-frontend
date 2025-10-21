@@ -133,6 +133,10 @@ export const SellerAuthProvider = ({ children }: { children: ReactNode }) => {
   // logout (keeps old behavior with quick_login_enabled)
   const handleLogout = () => {
     const persistedQuickLogin = localStorage.getItem("quick_login_enabled");
+    // clear pending data
+    sessionStorage.removeItem("seller_pending_mobile");
+    sessionStorage.removeItem("seller_pending_user_id");
+
     dispatch(sellerLogout());
     if (persistedQuickLogin) {
       setTimeout(() => {
@@ -167,6 +171,10 @@ export const SellerAuthProvider = ({ children }: { children: ReactNode }) => {
       access_token?: string;
       refresh_token?: string | null;
     };
+
+    // Persist pending for OTP page regardless of BE response completeness
+    sessionStorage.setItem("seller_pending_mobile", qi.mobile ?? mobile);
+    if (qi.id) sessionStorage.setItem("seller_pending_user_id", qi.id);
 
     dispatch(
       sellerLoginSuccess({
@@ -208,7 +216,7 @@ export const SellerAuthProvider = ({ children }: { children: ReactNode }) => {
     const needsOtp = !!res?.needs_confirm_otp_code;
     const quickLoginEnable = !!res?.quickLoginEnable;
 
-    // keep quick_login_enabled parity with old flow
+    // quick_login_enabled parity with old flow
     if (quickLoginEnable || needsOtp) {
       localStorage.setItem("quick_login_enabled", "true");
       setQuickLoginEnabledFlag(true);
@@ -229,6 +237,13 @@ export const SellerAuthProvider = ({ children }: { children: ReactNode }) => {
       refresh_token?: string | null;
       otpExpiresAt?: string | null;
     } | null;
+
+    // Always persist pending mobile/userId for OTP page (even if BE doesn't return qi)
+    sessionStorage.setItem(
+      "seller_pending_mobile",
+      qi?.mobile ?? payload.mobile
+    );
+    if (qi?.id) sessionStorage.setItem("seller_pending_user_id", qi.id);
 
     if (qi?.id) {
       dispatch(
@@ -253,9 +268,10 @@ export const SellerAuthProvider = ({ children }: { children: ReactNode }) => {
     return { needsOtp, quickLoginEnable };
   };
 
-  // confirm OTP (restored feature)
+  // confirm OTP (uses pending fallback)
   const confirmOtp = async (code: string) => {
-    const mobile = user?.mobile;
+    const pendingMobile = sessionStorage.getItem("seller_pending_mobile") ?? "";
+    const mobile = user?.mobile || pendingMobile;
     if (!mobile) throw new Error("No mobile number available for OTP confirm.");
 
     const resp = await fetch(`/auth/confirm-mobile-otp`, {
@@ -270,9 +286,12 @@ export const SellerAuthProvider = ({ children }: { children: ReactNode }) => {
       throw new Error(err || "OTP confirmation failed");
     }
 
+    // Cleanup pending + set confirmed
     dispatch(sellerConfirmOtpSuccess({ mobile_confirmed: true }));
     localStorage.removeItem("quick_login_enabled");
     setQuickLoginEnabledFlag(false);
+    sessionStorage.removeItem("seller_pending_mobile");
+    sessionStorage.removeItem("seller_pending_user_id");
   };
 
   const ctx = useMemo<AuthContextType>(

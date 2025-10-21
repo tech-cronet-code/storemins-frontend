@@ -1,22 +1,72 @@
 // src/app/components/CustomerLoginModal.tsx
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useDispatch } from "react-redux";
-import {
-  useCustomerLoginInitMutation,
-  useCustomerRegisterMutation,
-  useCustomerConfirmOtpMutation,
-  useCustomerResendOtpMutation,
-  JwtResponseDto,
-} from "../../modules/customer/services/customerApi";
 import { AppDispatch } from "../../common/state/store";
 import { UserRoleName } from "../../modules/auth/constants/userRoles";
 import { loginSuccess } from "../../modules/auth/slices/customerAuthSlice";
+import { useCustomerAuth } from "../../modules/customer/context/CustomerAuthContext";
+import {
+  JwtResponseDto,
+  useCustomerConfirmOtpMutation,
+  useCustomerLoginInitMutation,
+  useCustomerRegisterMutation,
+  useCustomerResendOtpMutation,
+} from "../../modules/customer/services/customerApi";
 
-/**
- * CustomerLoginModal.tsx — OTP-first flow (Login → Create → Verify → Access)
- */
+/* ------------------------------ Types/Utils ------------------------------ */
 
 type Step = "login" | "create" | "verify";
+
+const PERSIST_KEY = "customer_login_modal_state";
+
+function resolveStoreSlug(): string | null {
+  const g: any = window as any;
+  if (typeof g.__STORE_SLUG__ === "string" && g.__STORE_SLUG__.trim())
+    return g.__STORE_SLUG__.trim();
+
+  const meta = document.querySelector<HTMLMetaElement>(
+    'meta[name="store-slug"]'
+  );
+  if (meta?.content?.trim()) return meta.content.trim();
+
+  const ds =
+    document.body?.getAttribute("data-store-slug") ||
+    document.documentElement?.getAttribute("data-store-slug");
+  if (ds && ds.trim()) return ds.trim();
+
+  const keys = [
+    "storeSlug",
+    "shopSlug",
+    "store_slug",
+    "shop_slug",
+    "current_store_slug",
+  ];
+  for (const k of keys) {
+    const v = localStorage.getItem(k) || sessionStorage.getItem(k);
+    if (v && v.trim()) return v.trim();
+  }
+
+  const reserved = new Set([
+    "profile",
+    "login",
+    "signup",
+    "auth",
+    "account",
+    "admin",
+    "dashboard",
+    "api",
+  ]);
+  const first = window.location.pathname.split("/").filter(Boolean)[0];
+  if (first && !reserved.has(first)) return first;
+  return null;
+}
+
+function buildProfileUrl(): string {
+  const slug = resolveStoreSlug();
+  return slug ? `/${slug}/profile` : "/profile";
+}
+
+/* --------------------------------- UI ---------------------------------- */
 
 const Spinner = ({ className = "h-4 w-4" }: { className?: string }) => (
   <svg className={`animate-spin ${className}`} viewBox="0 0 24 24">
@@ -144,7 +194,6 @@ const CardShell: React.FC<
 > = ({ onCancel, title, subtitle, children }) => {
   const rootRef = useRef<HTMLDivElement | null>(null);
   const [shown, setShown] = useState(false);
-
   useEffect(() => {
     const id = setTimeout(() => setShown(true), 10);
     return () => clearTimeout(id);
@@ -226,7 +275,7 @@ const CardShell: React.FC<
   );
 };
 
-/* ============================== Pages ============================== */
+/* -------------------------------- Pages -------------------------------- */
 
 const LoginPage: React.FC<{
   onDone: (exists: boolean, phone: string) => void;
@@ -234,17 +283,21 @@ const LoginPage: React.FC<{
 }> = ({ onDone, goCreate }) => {
   const [phone, setPhone] = useState("");
   const [loginInit, { isLoading }] = useCustomerLoginInitMutation();
+  const { businessId } = useCustomerAuth();
 
   const can = phone.replace(/\D/g, "").length === 10;
 
   const start = async () => {
     if (!can) return;
-    const res = await loginInit({ mobile: phone }).unwrap();
+    const res = await loginInit({
+      mobile: phone,
+      businessId: businessId,
+    }).unwrap();
     if (!res.id) {
       goCreate(phone);
       return;
     }
-    onDone(true, phone); // account exists → ALWAYS OTP
+    onDone(true, phone);
   };
 
   return (
@@ -270,24 +323,39 @@ const LoginPage: React.FC<{
 
 const CreateAccountPage: React.FC<{
   phone: string;
+  businessId: string | null;
   onCreated: () => void;
   onBack: () => void;
-}> = ({ phone, onCreated, onBack }) => {
+}> = ({ phone, businessId, onCreated, onBack }) => {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
-  const [register, { isLoading }] = useCustomerRegisterMutation();
+  const [registerApi, { isLoading }] = useCustomerRegisterMutation();
 
+  const [err, setErr] = useState<string | null>(null);
   const can = !!name.trim();
 
   const submit = async () => {
     if (!can) return;
-    await register({
-      name: name.trim(),
-      mobile: phone,
-      email: email.trim() || undefined,
-      isTermAndPrivarcyEnable: true,
-    }).unwrap();
-    onCreated();
+    setErr(null);
+
+    if (!businessId) {
+      setErr("Business ID missing. Please refresh the page.");
+      return;
+    }
+
+    try {
+      await registerApi({
+        customerName: name.trim(),
+        mobile: phone,
+        email: email.trim() || undefined,
+        isTermAndPrivarcyEnable: true,
+        businessId,
+      }).unwrap();
+      onCreated();
+    } catch (e: any) {
+      setErr(e?.message || "Something went wrong. Please try again.");
+      console.error(e);
+    }
   };
 
   return (
@@ -323,6 +391,9 @@ const CreateAccountPage: React.FC<{
           Back
         </button>
       </div>
+      {err && (
+        <div className="mt-2 text-center text-xs text-red-600">{err}</div>
+      )}
       <DemoNote />
     </>
   );
@@ -330,9 +401,9 @@ const CreateAccountPage: React.FC<{
 
 const VerifyOtpPage: React.FC<{
   phone: string;
+  businessId: string | null;
   onAccess: (tokens: JwtResponseDto) => void;
-}> = ({ phone, onAccess }) => {
-  // store 4 characters (digits or letters)
+}> = ({ phone, businessId, onAccess }) => {
   const [chars, setChars] = useState<string[]>(Array(4).fill(""));
   const inputs = useRef<Array<HTMLInputElement | null>>([]);
   const [confirmOtp, { isLoading }] = useCustomerConfirmOtpMutation();
@@ -350,7 +421,6 @@ const VerifyOtpPage: React.FC<{
   }, []);
 
   const code = useMemo(() => chars.join(""), [chars]);
-  // allow either 4 digits OR the test prefix "AAAA" (any case)
   const normalized = code.toUpperCase();
   const can =
     normalized.length === 4 &&
@@ -376,7 +446,6 @@ const VerifyOtpPage: React.FC<{
   };
 
   const onChange = (idx: number, val: string) => {
-    // allow a single alphanumeric char; uppercase for consistency
     const ch = (val || "").toUpperCase().slice(-1);
     const ok = /^[A-Z0-9]$/.test(ch);
     setChars((prev) => {
@@ -390,15 +459,22 @@ const VerifyOtpPage: React.FC<{
   const submit = async () => {
     if (!can || isLoading) return;
     setErr(null);
+
+    if (!businessId) {
+      setErr("Business ID missing. Please refresh the page.");
+      return;
+    }
+
     try {
-      // BE returns JwtResponseDto (access in body, refresh cookie set by server)
       const tokens = await confirmOtp({
         mobile: phone,
-        confirm_mobile_otp_code: code, // can be "1234" or "AAAA"
+        confirm_mobile_otp_code: code,
+        businessId,
       }).unwrap();
       onAccess(tokens);
-    } catch {
-      setErr("Invalid or expired OTP. Try again.");
+    } catch (e: any) {
+      setErr(e?.message || "Invalid or expired OTP. Try again.");
+      console.error(e);
     }
   };
 
@@ -479,9 +555,7 @@ const DemoNote: React.FC = () => (
   </div>
 );
 
-/* ============================== Main Modal ============================== */
-
-const PERSIST_KEY = "customer_login_modal_state";
+/* ------------------------------- Main Modal ----------------------------- */
 
 export default function CustomerLoginModal({
   open,
@@ -493,8 +567,20 @@ export default function CustomerLoginModal({
   const dispatch = useDispatch<AppDispatch>();
   const [step, setStep] = useState<Step>("login");
   const [phone, setPhone] = useState<string>("");
+  const { businessId } = useCustomerAuth();
 
-  // body scroll lock
+  // fetch bootstrap ONCE and derive businessId
+  const slug = resolveStoreSlug() ?? "";
+  // const { data: bootstrap } = useGetStorefrontBootstrapQuery(
+  //   { slug },
+  //   { skip: !slug }
+  // );
+  // // accept both "businessId" and "bussinessId" just in case
+  // const businessId: string | null =
+  //   (bootstrap?.settings as any)?.businessId ??
+  //   (bootstrap?.settings as any)?.bussinessId ??
+  //   null;
+
   useEffect(() => {
     if (!open) return;
     const prev = document.body.style.overflow;
@@ -504,7 +590,6 @@ export default function CustomerLoginModal({
     };
   }, [open]);
 
-  // hydrate
   useEffect(() => {
     if (!open) return;
     try {
@@ -515,11 +600,9 @@ export default function CustomerLoginModal({
         if (saved.phone) setPhone(saved.phone);
       }
     } catch {
-      /* noop */
+      /* empty */
     }
   }, [open]);
-
-  // persist
   useEffect(() => {
     if (!open) return;
     sessionStorage.setItem(PERSIST_KEY, JSON.stringify({ step, phone }));
@@ -538,25 +621,20 @@ export default function CustomerLoginModal({
           mobile_confirmed: tokens.mobile_confirmed ?? true,
         },
         token: tokens.access_token,
-        refreshToken: "", // refresh token stays in HttpOnly cookie
+        refreshToken: "",
       })
     );
     sessionStorage.removeItem(PERSIST_KEY);
     onClose();
-    window.location.href = "/profile";
+    window.location.assign(buildProfileUrl());
   };
 
   if (!open) return null;
 
   return (
     <div
-      className="
-        fixed inset-0 z-[1000]
-        bg-transparent
-        backdrop-blur-[2px] supports-[backdrop-filter]:backdrop-saturate-125
-        flex items-center justify-center
-        p-4 sm:p-6
-      "
+      className="fixed inset-0 z-[1000] bg-transparent backdrop-blur-[2px] supports-[backdrop-filter]:backdrop-saturate-125
+                 flex items-center justify-center p-4 sm:p-6"
       role="dialog"
       aria-modal="true"
       aria-labelledby="auth-modal"
@@ -579,7 +657,7 @@ export default function CustomerLoginModal({
       >
         {step === "login" && (
           <LoginPage
-            onDone={(exists, p) => {
+            onDone={(_exists, p) => {
               setPhone(p);
               setStep("verify");
             }}
@@ -593,13 +671,18 @@ export default function CustomerLoginModal({
         {step === "create" && (
           <CreateAccountPage
             phone={phone}
+            businessId={businessId}
             onCreated={() => setStep("verify")}
             onBack={() => setStep("login")}
           />
         )}
 
         {step === "verify" && (
-          <VerifyOtpPage phone={phone} onAccess={onAccess} />
+          <VerifyOtpPage
+            phone={phone}
+            businessId={businessId}
+            onAccess={onAccess}
+          />
         )}
       </CardShell>
     </div>

@@ -1,6 +1,6 @@
 // src/modules/customer/pages/CustomerProfilePage.tsx
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState, useEffect } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import BottomNav from "../../../shared/blocks/BottomNav";
 import { useCustomerAuth } from "../context/CustomerAuthContext";
@@ -20,9 +20,7 @@ const withSlug = (path: string, slug?: string | null) =>
 const currencyINR = (v: number) =>
   "₹" + new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 }).format(v);
 
-/** Full delivery pipeline mapping.
- * Defaults to PREPARING when order is placed or status is missing/unknown.
- */
+/** Full delivery pipeline mapping. Defaults to PREPARING. */
 type DeliveryUiStatus =
   | "preparing"
   | "dispatched"
@@ -51,7 +49,6 @@ const normalizeStatus = (o: MyOrdersItem): DeliveryUiStatus => {
     return undefined;
   };
 
-  // Prefer explicit order.status, then tracking step, else default to PREPARING
   return pick(s) || pick(step) || "preparing";
 };
 
@@ -196,14 +193,15 @@ function ListRow({
 /* ----------------------------- initials avatar ---------------------------- */
 function InitialAvatar({ name }: { name?: string }) {
   const initials = useMemo(() => {
-    if (!name) return "U";
-    const parts = name.trim().split(/\s+/);
-    return (parts[0]?.[0] || "") + (parts[1]?.[0] || "");
+    const safe = (name || "").trim();
+    if (!safe) return "U";
+    const parts = safe.split(/\s+/);
+    return ((parts[0]?.[0] || "") + (parts[1]?.[0] || "")).toUpperCase();
   }, [name]);
 
   return (
     <div className="grid h-12 w-12 place-items-center rounded-2xl bg-white/20 ring-1 ring-white/35 text-white font-semibold">
-      {initials.toUpperCase()}
+      {initials}
     </div>
   );
 }
@@ -360,79 +358,24 @@ export default function CustomerProfilePage() {
   const navigate = useNavigate();
   const auth = useCustomerAuth();
 
-  /* ---- profile heading ---- */
-  const [profile, setProfile] = useState<{
-    name?: string | null;
-    mobile?: string | null;
-  }>(() => {
-    const ctx = {
-      name: (auth as any)?.user?.name,
-      mobile: (auth as any)?.user?.mobile,
-    };
-    try {
-      const ls = JSON.parse(localStorage.getItem("customer_profile") || "null");
-      return {
-        name: ctx.name ?? ls?.name ?? null,
-        mobile: ctx.mobile ?? ls?.mobile ?? null,
-      };
-    } catch {
-      return ctx;
-    }
-  });
-
-  useEffect(() => {
-    setProfile({
-      name: (auth as any)?.user?.name ?? profile.name ?? null,
-      mobile: (auth as any)?.user?.mobile ?? profile.mobile ?? null,
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [(auth as any)?.user?.name, (auth as any)?.user?.mobile]);
-
-  const [editOpen, setEditOpen] = useState(false);
-  const handleSaveProfile = async (data: { name: string; mobile: string }) => {
-    const updater =
-      (auth as any)?.updateProfile ||
-      (auth as any)?.setUser ||
-      (auth as any)?.setUserDetails;
-    try {
-      if (typeof updater === "function") {
-        const payload =
-          updater === (auth as any).setUser ||
-          updater === (auth as any).setUserDetails
-            ? { ...(auth as any).user, ...data }
-            : data;
-        await Promise.resolve(updater(payload));
-      } else {
-        localStorage.setItem("customer_profile", JSON.stringify(data));
-        window.dispatchEvent(
-          new CustomEvent("auth:profile:update", { detail: data })
-        );
-      }
-      setProfile(data);
-      setEditOpen(false);
-    } catch {
-      alert("Failed to save profile. Please try again.");
-    }
-  };
-
-  /* ---- compute a reliable businessId for API ---- */
-  const userDetails = (auth as any)?.userDetails;
-  const slugFromUrl =
-    storeSlug ||
-    (typeof window !== "undefined"
-      ? window.location.pathname.split("/").filter(Boolean)[0]
-      : "");
-  const businessId: string =
-    userDetails?.storeLinks?.find(
-      (l: any) => l?.store?.slug === slugFromUrl || l?.storeSlug === slugFromUrl
-    )?.businessId ||
-    userDetails?.storeLinks?.[0]?.businessId ||
-    localStorage.getItem("active_business_id") ||
+  /** Name & mobile derived purely from auth / my-profile (no storage). */
+  const displayName =
+    (auth as any)?.userDetails?.customerName?.trim() ||
+    (auth as any)?.userDetails?.name?.trim() ||
+    (auth as any)?.user?.name ||
     "";
 
+  const displayMobile =
+    (auth as any)?.user?.mobile || (auth as any)?.userDetails?.mobile || "";
+
+  /** Edit modal state (UI only). */
+  const [editOpen, setEditOpen] = useState(false);
+
+  /** businessId for Orders — your storeLinks do not have slug, so use the first link. */
+  const businessId: string =
+    (auth as any)?.userDetails?.storeLinks?.[0]?.businessId || "";
+
   /* ---- orders from API ---- */
-  // NOTE: your API still uses 'ONGOING'/'COMPLETED'—we keep these tabs for fetch,
-  // but the UI displays detailed delivery stages via normalizeStatus().
   const [tab, setTab] = useState<"all" | "ongoing" | "completed">("all");
   const statusParam =
     tab === "all" ? undefined : (tab.toUpperCase() as "ONGOING" | "COMPLETED");
@@ -458,7 +401,7 @@ export default function CustomerProfilePage() {
           title: it.Product?.name || "Item",
           qty: it.quantity,
           price: it.totalPrice,
-          image: "", // (plug image when BE exposes it)
+          image: "",
         }));
         return {
           id: o.orderNumber || o.id,
@@ -516,13 +459,13 @@ export default function CustomerProfilePage() {
           {/* name & phone */}
           <div className="max-w-3xl mx-auto px-4 pb-6 pt-8">
             <div className="flex items-center gap-3 text-white">
-              <InitialAvatar name={profile.name || undefined} />
+              <InitialAvatar name={displayName || undefined} />
               <div>
                 <div className="text-[22px] sm:text-2xl font-bold tracking-wide drop-shadow-sm">
-                  {profile.name || "—"}
+                  {displayName || "—"}
                 </div>
                 <div className="text-[13px] sm:text-sm/5 opacity-95">
-                  {profile.mobile || "—"}
+                  {displayMobile || "—"}
                 </div>
               </div>
             </div>
@@ -745,10 +688,13 @@ export default function CustomerProfilePage() {
       {/* Edit Profile Modal */}
       <EditProfileModal
         open={editOpen}
-        name={profile.name || ""}
-        mobile={profile.mobile || ""}
+        name={displayName}
+        mobile={displayMobile}
         onClose={() => setEditOpen(false)}
-        onSave={handleSaveProfile}
+        onSave={() => {
+          // Wire this to a customer update-profile API when available.
+          setEditOpen(false);
+        }}
       />
 
       <BottomNav />
@@ -772,6 +718,7 @@ function EditProfileModal({
 }) {
   const [name, setName] = useState(nameProp || "");
   const nameRef = useRef<HTMLInputElement | null>(null);
+  const mobileSafe = mobileProp || "";
 
   useEffect(() => {
     if (!open) return;
@@ -787,7 +734,7 @@ function EditProfileModal({
       alert("Please enter your name.");
       return;
     }
-    onSave({ name: trimmed, mobile: mobileProp || "" });
+    onSave({ name: trimmed, mobile: mobileSafe });
   };
 
   return (
@@ -819,7 +766,7 @@ function EditProfileModal({
             <label className="block">
               <div className="text-xs text-slate-600 mb-1">Mobile</div>
               <input
-                value={mobileProp || ""}
+                value={mobileSafe}
                 readOnly
                 title="Mobile number is locked. Contact support to change."
                 className="w-full h-10 rounded-xl border border-slate-200 px-3 bg-slate-100 text-slate-500 cursor-not-allowed"

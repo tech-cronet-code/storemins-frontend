@@ -7,39 +7,25 @@ import { useSellerAuth } from "../contexts/SellerAuthContext";
 const OTPVerifyContainer = () => {
   const { user, confirmOtp, logout } = useSellerAuth();
   const [otp, setOtp] = useState(["", "", "", ""]);
-  const [expiresAt, setExpiresAt] = useState<string | null>(null); // ✅ Track expiresAt
+  const [expiresAt, setExpiresAt] = useState<string | null>(null);
   const [resendOtp] = useResendOtpMutation();
 
   const timerFnRef = useRef<((duration: number) => void) | null>(null);
 
   useEffect(() => {
-    console.log("✅ OTPVerifyContainer loaded");
-
     const stored = sessionStorage.getItem("otpExpiresAt");
-
-    console.log(stored, "stored");
-
     const now = Date.now();
-
-    let validExpiry = null;
+    let validExpiry: string | null = null;
 
     if (stored) {
       const storedTime = new Date(stored).getTime();
-      if (storedTime > now) {
-        validExpiry = stored;
-        // console.log("✅ Using valid session expiry:", stored);
-      } else {
-        // console.log("❌ Stored expiry is expired:", stored);
-      }
+      if (storedTime > now) validExpiry = stored;
     }
 
     if (!validExpiry) {
       const freshExpiry = new Date(now + 30 * 1000).toISOString();
-      console.log(freshExpiry, "freshExpiry");
-
       sessionStorage.setItem("otpExpiresAt", freshExpiry);
       validExpiry = freshExpiry;
-      // console.log("🆕 Fresh expiry set:", freshExpiry);
     }
 
     setExpiresAt(validExpiry);
@@ -48,7 +34,6 @@ const OTPVerifyContainer = () => {
       if (timerFnRef.current && validExpiry) {
         const remaining =
           Math.floor(new Date(validExpiry).getTime() - Date.now()) / 1000;
-        // console.log("⏱ Starting timer for", remaining, "seconds");
         if (remaining > 0) {
           timerFnRef.current(Math.floor(remaining));
         }
@@ -62,42 +47,50 @@ const OTPVerifyContainer = () => {
       toast.error("Please enter full OTP");
       return;
     }
-    confirmOtp(code);
+    confirmOtp(code).catch((e: any) => {
+      toast.error(e?.message || "OTP verification failed");
+    });
     setOtp(["", "", "", ""]);
     document.getElementById("otp-0")?.focus();
   };
 
   const handleResend = async () => {
-    if (!user?.mobile) {
+    const pendingMobile =
+      sessionStorage.getItem("seller_pending_mobile") || undefined;
+    const pendingUserId =
+      sessionStorage.getItem("seller_pending_user_id") || undefined;
+
+    const mobileToUse = user?.mobile || pendingMobile;
+    const userIdToUse = user?.id || pendingUserId;
+
+    if (!mobileToUse) {
       toast.error("Mobile number not found");
       return;
     }
 
     try {
       const res = await resendOtp({
-        mobile: user.mobile,
-        userId: user.id,
+        mobile: mobileToUse,
+        userId: userIdToUse,
       }).unwrap();
       toast.success(res.message);
       setOtp(["", "", "", ""]);
 
-      sessionStorage.setItem("otpExpiresAt", res.expiresAt); // ✅ Store new expiry
-      setExpiresAt(res.expiresAt); // ✅ Update state
+      sessionStorage.setItem("otpExpiresAt", res.expiresAt);
+      setExpiresAt(res.expiresAt);
+
       const newExpiresAt = new Date(res.expiresAt);
-      sessionStorage.setItem("otpExpiresAt", res.expiresAt); // ✅ Save new one
       const remaining = Math.floor(
         (newExpiresAt.getTime() - Date.now()) / 1000
       );
       if (remaining > 0) {
         timerFnRef.current?.(remaining);
       }
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       toast.error(err?.data?.message || "Failed to resend OTP");
     }
   };
 
-  // ✅ FIX: Add this return
   return (
     <OTPVerifyForm
       otp={otp}

@@ -67,10 +67,10 @@ const App = () => {
           }
         >
           {/* <Route path="/profile" element={<CustomerProfilePage />} />
-          <Route
-            path="/profile/addresses"
-            element={<CustomerAddressesPage />}
-          /> */}
+            <Route
+              path="/profile/addresses"
+              element={<CustomerAddressesPage />}
+            /> */}
           {/* Your existing grouped customer section */}
           <Route path="/customer/*" element={<CustomerRoute />} />
         </Route>

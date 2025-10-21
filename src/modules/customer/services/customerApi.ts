@@ -1,4 +1,3 @@
-// customerApi.ts
 import { createApi } from "@reduxjs/toolkit/query/react";
 import { customerBaseQueryWithReauth } from "../../auth/services/customerBaseQueryWithReauth";
 import { UserRoleName } from "../../auth/types/profileTypes";
@@ -8,36 +7,41 @@ export interface JwtResponseDto {
   id: string;
   name?: string;
   mobile: string;
-  role?: UserRoleName[] | string[]; // normalized later
+  role?: UserRoleName[] | string[];
   permissions?: string[];
   access_token: string;
-  refresh_token?: string | null; // optional (cookie on BE)
+  refresh_token?: string | null;
   tenentId?: string | null;
   mobile_confirmed?: boolean;
 }
 
-interface ConfirmMobileOtpPayload {
+export interface ConfirmMobileOtpPayload {
   mobile: string;
   confirm_mobile_otp_code: string;
+  businessId: string;
 }
 
 /* ---------------- Customer types ---------------- */
 export interface CustomerLoginInitPayload {
   mobile: string;
+  businessId: string;
 }
+
 export interface CustomerLoginInitResult {
-  id: string; // empty string if not found
+  id: string;
   needs_confirm_otp_code: boolean;
   otpExpiresAt: string | null;
   message?: string;
 }
 
 export interface CustomerRegisterPayload {
-  name: string;
+  customerName: string;
   mobile: string;
   isTermAndPrivarcyEnable: boolean;
   email?: string;
+  businessId: string;
 }
+
 export interface CustomerRegisterResult {
   id: string;
   needs_confirm_otp_code: boolean;
@@ -45,13 +49,14 @@ export interface CustomerRegisterResult {
   message?: string;
 }
 
-interface ResendMobileOtpPayload {
+/* ---------------- My Profile (Customer) ---------------- */
+export interface GetMyProfileDto {
+  id: string;
+  name: string;
+  customerName: string;
   mobile: string;
-  userId?: string;
-}
-interface ResendMobileOtpResponse {
-  message: string;
-  expiresAt: string;
+  image?: string;
+  role: string[];
 }
 
 /* ---------------- Addresses ---------------- */
@@ -70,6 +75,7 @@ export type CustomerAddress = {
   createdAt: string;
   updatedAt?: string;
 };
+
 export type CreateAddressDto = Omit<
   CustomerAddress,
   "id" | "createdAt" | "updatedAt"
@@ -83,7 +89,6 @@ export const customerApi = createApi({
   endpoints: (builder) => ({
     /* ======================= CUSTOMER AUTH ======================= */
 
-    // 1) login-init (mobile only) — always drive OTP flow
     customerLoginInit: builder.mutation<
       CustomerLoginInitResult,
       CustomerLoginInitPayload
@@ -93,18 +98,12 @@ export const customerApi = createApi({
         method: "POST",
         body,
       }),
-      transformResponse: (raw: {
-        success: boolean;
-        message?: string;
-        statusCode: number;
-        data: CustomerLoginInitResult;
-      }) => ({
+      transformResponse: (raw: any) => ({
         ...raw.data,
         message: raw.message ?? raw.data?.message,
       }),
     }),
 
-    // 2) register → sends OTP
     customerRegister: builder.mutation<
       CustomerRegisterResult,
       CustomerRegisterPayload
@@ -114,18 +113,12 @@ export const customerApi = createApi({
         method: "POST",
         body,
       }),
-      transformResponse: (raw: {
-        success: boolean;
-        message?: string;
-        statusCode: number;
-        data: CustomerRegisterResult;
-      }) => ({
+      transformResponse: (raw: any) => ({
         ...raw.data,
         message: raw.message ?? raw.data?.message,
       }),
     }),
 
-    // 3) confirm-mobile-otp → issues tokens (access in body, refresh via cookie)
     customerConfirmOtp: builder.mutation<
       JwtResponseDto,
       ConfirmMobileOtpPayload
@@ -135,32 +128,21 @@ export const customerApi = createApi({
         method: "POST",
         body,
       }),
-      transformResponse: (raw: {
-        success: boolean;
-        message?: string;
-        statusCode: number;
-        data: JwtResponseDto;
-      }) => raw.data,
+      transformResponse: (raw: any) => raw.data,
     }),
 
-    // 4) resend-mobile-otp
     customerResendOtp: builder.mutation<
-      ResendMobileOtpResponse,
-      ResendMobileOtpPayload
+      { message: string; expiresAt: string },
+      { mobile: string; userId?: string }
     >({
       query: (body) => ({
         url: "/customer/auth/resend-mobile-otp",
         method: "POST",
         body,
       }),
-      transformResponse: (raw: {
-        success: boolean;
-        statusCode: number;
-        data: ResendMobileOtpResponse;
-      }) => raw.data,
+      transformResponse: (raw: any) => raw.data,
     }),
 
-    // 5) logout
     customerLogout: builder.mutation<
       { message: string; statusCode: number },
       { access_token: string }
@@ -172,21 +154,25 @@ export const customerApi = createApi({
       }),
     }),
 
+    getMyProfile: builder.query<GetMyProfileDto, void>({
+      query: () => ({ url: "/customer/auth/my-profile", method: "GET" }),
+      transformResponse: (raw: any) => raw?.data as GetMyProfileDto,
+    }),
+
     /* ======================= ADDRESSES ======================= */
     getCustomerAddresses: builder.query<CustomerAddress[], void>({
       query: () => ({ url: "/customer/addresses/list", method: "GET" }),
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       transformResponse: (raw: any) => raw.data,
       providesTags: (res) =>
         res
-          ? ([
+          ? [
               ...res.map((a) => ({
                 type: "CustomerAddress" as const,
                 id: a.id,
               })),
               { type: "CustomerAddress" as const, id: "LIST" },
-            ] as const)
-          : ([{ type: "CustomerAddress" as const, id: "LIST" }] as const),
+            ]
+          : [{ type: "CustomerAddress" as const, id: "LIST" }],
     }),
 
     createCustomerAddress: builder.mutation<CustomerAddress, CreateAddressDto>({
@@ -217,14 +203,12 @@ export const customerApi = createApi({
 });
 
 export const {
-  // AUTH
   useCustomerLoginInitMutation,
   useCustomerRegisterMutation,
   useCustomerConfirmOtpMutation,
   useCustomerResendOtpMutation,
   useCustomerLogoutMutation,
-
-  // ADDRESSES
+  useGetMyProfileQuery,
   useGetCustomerAddressesQuery,
   useCreateCustomerAddressMutation,
   useUpdateCustomerAddressMutation,

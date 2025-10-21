@@ -1,3 +1,4 @@
+// src/modules/customer/context/CustomerAuthContext.tsx
 import { jwtDecode } from "jwt-decode";
 import {
   createContext,
@@ -8,29 +9,30 @@ import {
 } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { AppDispatch, RootState } from "../../../common/state/store";
-
-// slice actions (customer)
 import {
   loginSuccess as customerLoginSuccess,
   logout as customerLogoutAction,
 } from "../../auth/slices/customerAuthSlice";
-
-// customer API hooks (from customerApi you split earlier)
 import {
   useCustomerConfirmOtpMutation,
   useCustomerLoginInitMutation,
   useCustomerLogoutMutation,
   useCustomerRegisterMutation,
   useCustomerResendOtpMutation,
+  useGetMyProfileQuery,
 } from "../services/customerApi";
+import { useGetStorefrontBootstrapQuery } from "../../auth/services/storefrontPublicApi";
+import type { GetMyProfileDto } from "../services/customerApi";
 
-/* ---------- Types ---------- */
-export type CustomerRole = string; // keep loose to match BE
+/* ------------------------------- Types ---------------------------------- */
+
+export type CustomerRole = string;
+
 export interface CustomerUser {
   id: string;
   name?: string;
   mobile: string;
-  role?: CustomerRole[]; // or single role depending on BE
+  role?: CustomerRole[];
   permissions?: string[];
   mobile_confirmed?: boolean;
   otpExpiresAt?: string | null;
@@ -41,8 +43,10 @@ interface CustomerAuthContextType {
   token: string | null;
   loading: boolean;
   error: string | null;
+  userDetails: GetMyProfileDto | null;
+  /** Will be non-null only if bootstrap provided it */
+  businessId: string;
 
-  /** Step 1: login init by mobile (OTP flow starter) */
   loginInit: (mobile: string) => Promise<{
     id: string;
     needs_confirm_otp_code: boolean;
@@ -50,7 +54,6 @@ interface CustomerAuthContextType {
     message?: string;
   }>;
 
-  /** Alternative Step 1: register (also sends OTP) */
   register: (payload: {
     name: string;
     mobile: string;
@@ -63,131 +66,194 @@ interface CustomerAuthContextType {
     message?: string;
   }>;
 
-  /** Step 2: confirm OTP → issues tokens & logs in customer */
-  confirmOtp: (params: {
-    mobile: string;
-    code: string; // confirm_mobile_otp_code
-  }) => Promise<void>;
-
-  /** Optional: resend OTP */
+  confirmOtp: (params: { mobile: string; code: string }) => Promise<void>;
   resendOtp: (params: { mobile: string; userId?: string }) => Promise<{
     message: string;
     expiresAt: string;
   }>;
-
-  /** Logout (clears local state, also hits BE best-effort) */
   logout: () => Promise<void>;
 }
 
-/* ---------- Context ---------- */
+/* ------------------------------- Helpers -------------------------------- */
+
+function resolveStoreSlug(): string | null {
+  const meta = document.querySelector<HTMLMetaElement>(
+    'meta[name="store-slug"]'
+  );
+  if (meta?.content?.trim()) return meta.content.trim();
+
+  const ds =
+    document.body?.getAttribute("data-store-slug") ||
+    document.documentElement?.getAttribute("data-store-slug");
+  if (ds && ds.trim()) return ds.trim();
+
+  const storedKeys = [
+    "storeSlug",
+    "shopSlug",
+    "store_slug",
+    "shop_slug",
+    "current_store_slug",
+  ];
+  for (const k of storedKeys) {
+    const v = localStorage.getItem(k) || sessionStorage.getItem(k);
+    if (v && v.trim()) return v.trim();
+  }
+
+  const reserved = new Set([
+    "home",
+    "otp-verify",
+    "customer",
+    "seller",
+    "admin",
+    "api",
+    "profile",
+    "auth",
+    "login",
+    "signup",
+    "dashboard",
+  ]);
+  const first = window.location.pathname.split("/").filter(Boolean)[0];
+  if (first && !reserved.has(first)) return first;
+  return null;
+}
+
+const buildHomeUrl = () => {
+  const slug = resolveStoreSlug();
+  return slug ? `/${slug}` : "/";
+};
+
+/* ------------------------------- Context -------------------------------- */
+
 const CustomerAuthContext = createContext<CustomerAuthContextType | null>(null);
 
-/* ---------- Provider ---------- */
+/* ------------------------------- Provider ------------------------------- */
+
 export const CustomerAuthProvider = ({ children }: { children: ReactNode }) => {
   const dispatch = useDispatch<AppDispatch>();
-
-  // read from dedicated customer slice
   const { user, token, loading, error } = useSelector(
     (s: RootState) => s.customerAuth
   );
 
-  // rtk query hooks
+  // Bootstrap once and derive businessId ONLY from settings (handles misspelling too)
+  const slug = resolveStoreSlug();
+  const { data: bootstrap } = useGetStorefrontBootstrapQuery(
+    { slug: slug ?? "" },
+    { skip: !slug }
+  );
+  const businessId: string =
+    (bootstrap?.settings as any)?.businessId ??
+    (bootstrap?.settings as any)?.bussinessId ??
+    null;
+
   const [loginInitApi] = useCustomerLoginInitMutation();
   const [registerApi] = useCustomerRegisterMutation();
   const [confirmOtpApi] = useCustomerConfirmOtpMutation();
   const [resendOtpApi] = useCustomerResendOtpMutation();
   const [logoutApi] = useCustomerLogoutMutation();
 
-  /* ---------- token expiry watchdog ---------- */
+  const { data: myProfile } = useGetMyProfileQuery(undefined, {
+    skip: !token,
+  });
+
+  /* ----------------------- Token Expiry Auto Logout ---------------------- */
   useEffect(() => {
     if (!token) return;
     try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const decoded: any = jwtDecode(token);
       const now = Date.now() / 1000;
-      if (decoded.exp && decoded.exp < now) {
-        // customer token expired → local logout only (refresh handled by baseQuery)
-        dispatch(customerLogoutAction());
-      }
+      if (decoded.exp && decoded.exp < now) dispatch(customerLogoutAction());
     } catch {
       dispatch(customerLogoutAction());
     }
   }, [token, dispatch]);
 
-  /* ---------- (optional) keep slice.user in sync if you ever fetch a profile ----------
-     You currently don't have a "get my customer profile" endpoint.
-     When you add one, mirror SellerAuthContext's refetch + setUser mapping here.
-  ------------------------------------------------------------------------------- */
+  /* ----------------------------- Actions -------------------------------- */
 
-  /* ---------- actions ---------- */
-
-  const loginInit: CustomerAuthContextType["loginInit"] = async (mobile) => {
-    const res = await loginInitApi({ mobile }).unwrap();
+  const loginInit = async (mobile: string) => {
+    const res = await loginInitApi({ mobile, businessId }).unwrap();
     return {
       id: res.id,
       needs_confirm_otp_code: res.needs_confirm_otp_code,
       otpExpiresAt: res.otpExpiresAt ?? null,
       message: res.message,
     };
+    // businessId is needed for login-init
   };
 
-  const register: CustomerAuthContextType["register"] = async (payload) => {
-    const res = await registerApi(payload).unwrap();
-    return {
-      id: res.id,
-      needs_confirm_otp_code: res.needs_confirm_otp_code,
-      otpExpiresAt: res.otpExpiresAt ?? null,
-      message: res.message,
-    };
-  };
-
-  const confirmOtp: CustomerAuthContextType["confirmOtp"] = async ({
-    mobile,
-    code,
+  const register = async (payload: {
+    name: string;
+    mobile: string;
+    isTermAndPrivarcyEnable: boolean;
+    email?: string;
   }) => {
-    const data = await confirmOtpApi({
-      mobile,
-      confirm_mobile_otp_code: code,
+    if (!businessId)
+      throw new Error("Business ID not available from bootstrap");
+    const res = await registerApi({
+      customerName: payload.name,
+      mobile: payload.mobile,
+      isTermAndPrivarcyEnable: payload.isTermAndPrivarcyEnable,
+      email: payload.email,
+      businessId, // ✅ always the value from bootstrap (businessId | bussinessId)
     }).unwrap();
 
-    // BE returns JwtResponseDto-like object
+    return {
+      id: res.id,
+      needs_confirm_otp_code: res.needs_confirm_otp_code,
+      otpExpiresAt: res.otpExpiresAt ?? null,
+      message: res.message,
+    };
+  };
+
+  const confirmOtp = async ({
+    mobile,
+    code,
+  }: {
+    mobile: string;
+    code: string;
+  }) => {
+    if (!businessId)
+      throw new Error("Business ID not available from bootstrap");
+    const res = await confirmOtpApi({
+      mobile,
+      confirm_mobile_otp_code: code,
+      businessId, // ✅ from bootstrap only
+    }).unwrap();
+
     const customerUser: CustomerUser = {
-      id: data.id,
-      name: data.name ?? "",
-      mobile: data.mobile,
-      role: (data.role ?? []) as CustomerRole[],
-      permissions: data.permissions ?? [],
-      mobile_confirmed: data.mobile_confirmed ?? true,
+      id: res.id,
+      name: res.name ?? "",
+      mobile: res.mobile,
+      role: (res.role ?? []) as string[],
+      permissions: res.permissions ?? [],
+      mobile_confirmed: res.mobile_confirmed ?? true,
     };
 
     dispatch(
       customerLoginSuccess({
         user: customerUser,
-        token: data.access_token,
-        refreshToken: data.refresh_token ?? null,
+        token: res.access_token,
+        refreshToken: res.refresh_token ?? null,
       })
     );
   };
 
-  const resendOtp: CustomerAuthContextType["resendOtp"] = async (params) => {
-    const res = await resendOtpApi(params).unwrap();
-    return res;
+  const resendOtp = async (params: { mobile: string; userId?: string }) => {
+    return await resendOtpApi(params).unwrap();
   };
 
-  const logout: CustomerAuthContextType["logout"] = async () => {
+  const logout = async () => {
+    const target = buildHomeUrl();
     try {
-      // Try to tell BE (its endpoint expects body { access_token })
-      if (token) {
-        await logoutApi({ access_token: token }).unwrap();
-      }
+      if (token) await logoutApi({ access_token: token }).unwrap();
     } catch {
-      // ignore network/4xx on logout
+      /* ignore */
     } finally {
       dispatch(customerLogoutAction());
-      // optional UX redirect:
-      // window.location.href = "/home";
+      window.location.replace(target);
     }
   };
+
+  /* ----------------------------- Value ---------------------------------- */
 
   const value = useMemo<CustomerAuthContextType>(
     () => ({
@@ -195,23 +261,15 @@ export const CustomerAuthProvider = ({ children }: { children: ReactNode }) => {
       token,
       loading,
       error,
+      userDetails: myProfile ?? null,
+      businessId, // ✅ exposed (businessId or bussinessId)
       loginInit,
       register,
       confirmOtp,
       resendOtp,
       logout,
     }),
-    [
-      user,
-      token,
-      loading,
-      error,
-      loginInit,
-      register,
-      confirmOtp,
-      resendOtp,
-      logout,
-    ]
+    [user, token, loading, error, myProfile, businessId]
   );
 
   return (
@@ -221,7 +279,8 @@ export const CustomerAuthProvider = ({ children }: { children: ReactNode }) => {
   );
 };
 
-/* ---------- hook ---------- */
+/* --------------------------------- Hook --------------------------------- */
+
 export const useCustomerAuth = () => {
   const ctx = useContext(CustomerAuthContext);
   if (!ctx) {
