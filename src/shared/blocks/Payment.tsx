@@ -2,35 +2,27 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 
-/* ===== API hooks ===== */
-import { useSellerAuth } from "../../modules/auth/contexts/SellerAuthContext";
+/* ===== API hooks (Customer) ===== */
+import { useCustomerAuth } from "../../modules/customer/context/CustomerAuthContext";
 import {
   useGetActiveCartQuery,
   useUpsertDraftFromCartMutation,
 } from "../../modules/customer/services/customerCartApi";
 import { usePlaceOrderMutation } from "../../modules/customer/services/customerOrderApi";
-import { useGetCustomerAddressesQuery } from "../../modules/customer/services/customerApi";
+import {
+  useGetCustomerAddressesQuery,
+  CustomerAddress,
+} from "../../modules/customer/services/customerApi";
 
 /* =====================================================================================
-   Payment Options
-   - Back: prefer state.from, then history(-1), else /:storeSlug/cart
-   - Delivery address: respects the addressId passed from Cart; falls back to default
-   - After success: redirect to /:storeSlug/profile
+   Payment Options (Customer)
+   - Uses CustomerAuth (NOT SellerAuth) for businessId
+   - Header shows real item count and total
+   - Address: respects addressId from Cart; falls back to default
+   - COD flow: upsert draft with selected address -> place order
    ===================================================================================== */
 
 type AddressKind = "home" | "work" | "other";
-type CustomerAddress = {
-  id: string;
-  label: string;
-  line1: string;
-  line2?: string | null;
-  city: string;
-  state: string;
-  postalCode: string;
-  country: string;
-  kind: AddressKind;
-  isDefault?: boolean;
-};
 
 const currencyINR = (v: number) =>
   "₹" + new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 }).format(v);
@@ -40,6 +32,31 @@ function addressToLine(a: CustomerAddress) {
     Boolean
   );
   return parts.join(", ");
+}
+
+/** Fallback resolver to mirror your baseQuery logic */
+function resolveBusinessIdFromDOM(): string | null {
+  const meta = document.querySelector<HTMLMetaElement>(
+    'meta[name="business-id"]'
+  );
+  if (meta?.content?.trim()) return meta.content.trim();
+
+  const ds =
+    document.body?.getAttribute("data-business-id") ||
+    document.documentElement?.getAttribute("data-business-id");
+  if (ds && ds.trim()) return ds.trim();
+
+  const keys = [
+    "businessId",
+    "storeBusinessId",
+    "shopBusinessId",
+    "current_business_id",
+  ];
+  for (const k of keys) {
+    const v = localStorage.getItem(k) || sessionStorage.getItem(k);
+    if (v && v.trim()) return v.trim();
+  }
+  return null;
 }
 
 const Row = ({ children }: { children: React.ReactNode }) => (
@@ -62,19 +79,21 @@ const Payment: React.FC = () => {
     | string
     | undefined;
 
-  /* ===== businessId source ===== */
-  const { userDetails } = useSellerAuth() as any;
+  /* ===== businessId from CustomerAuth (fallback to DOM/localStorage) ===== */
+  const auth = (useCustomerAuth() as any) ?? {};
+  const ctxBiz: string | undefined =
+    auth?.businessId || auth?.userDetails?.storeLinks?.[0]?.businessId;
   const businessId: string =
-    userDetails?.storeLinks?.[0]?.businessId?.trim?.() || "";
+    (ctxBiz && String(ctxBiz).trim()) || resolveBusinessIdFromDOM() || "";
 
-  /* ===== Server cart (authoritative) ===== */
+  /* ===== Active cart (customer) ===== */
   const skipCart = !businessId;
-  const { data: activeCart } = useGetActiveCartQuery(
+  const { data: activeCart, isFetching: fetchingCart } = useGetActiveCartQuery(
     { businessId },
     { skip: skipCart }
   );
 
-  /* ===== Customer addresses from API ===== */
+  /* ===== Customer addresses ===== */
   const { data: apiAddresses = [], isFetching: loadingAddresses } =
     useGetCustomerAddressesQuery(undefined, { skip: !businessId });
 
@@ -92,14 +111,13 @@ const Payment: React.FC = () => {
     setSelectedAddressId(def?.id ?? null);
   }, [apiAddresses, selectedAddressId]);
 
-  /* ===== Totals (prefer API) ===== */
-  const subtotalApi = activeCart?.totals?.grandTotal ?? 0;
-  const countApi =
+  /* ===== Totals & count from active cart ===== */
+  const count =
     activeCart?.items?.reduce((n, i) => n + (i.quantity || 0), 0) ?? 0;
-
-  const subtotal = useMemo(() => Number(subtotalApi || 0), [subtotalApi]);
-  const total = subtotal;
-  const count = countApi;
+  const total = useMemo(
+    () => Number(activeCart?.totals?.grandTotal || 0),
+    [activeCart?.totals?.grandTotal]
+  );
 
   const selectedAddress: CustomerAddress | null =
     (selectedAddressId
@@ -112,7 +130,6 @@ const Payment: React.FC = () => {
     "COD" | "UPI" | "CARD" | "WALLET" | "NET"
   >("COD");
 
-  // unified helper for where to go after actions
   const profilePath = storeSlug ? `/${storeSlug}/profile` : "/profile";
 
   const goBackSmart = () => {
@@ -145,7 +162,7 @@ const Payment: React.FC = () => {
     }
 
     try {
-      // 1) Ensure draft has the selected address
+      // 1️⃣ Ensure draft has the selected address
       const draft = await upsertDraft({
         businessId,
         cartId: activeCart.id,
@@ -153,7 +170,7 @@ const Payment: React.FC = () => {
         billingAddressId: selectedAddress.id,
       }).unwrap();
 
-      // 2) Place order (COD)
+      // 2️⃣ Place order (COD)
       const order = await placeOrder({
         businessId,
         cartId: activeCart.id,
@@ -162,7 +179,14 @@ const Payment: React.FC = () => {
         notes: null,
       }).unwrap();
 
+      // ✅ 3️⃣ Invalidate cache + notify app-wide cart refresh
+      window.dispatchEvent(new CustomEvent("cart:update"));
+      // Force reload of active cart on next visit
+      localStorage.setItem("cart:refresh", "1");
+
       alert(`Order ${order.orderNumber} placed successfully!`);
+
+      // 4️⃣ Redirect to profile (slug-based)
       navigate(profilePath, { replace: true });
     } catch (e: any) {
       console.error("Order placement failed", e);
@@ -191,8 +215,11 @@ const Payment: React.FC = () => {
             <div className="min-w-0 flex-1">
               <div className="text-[15px] font-semibold">Payment Options</div>
               <div className="text-[12px] text-slate-500">
-                {count} item{count !== 1 ? "s" : ""}. Total:{" "}
-                {currencyINR(total)}
+                {fetchingCart
+                  ? "Loading…"
+                  : `${count} item${
+                      count !== 1 ? "s" : ""
+                    }. Total: ${currencyINR(total)}`}
               </div>
             </div>
           </div>
@@ -236,7 +263,7 @@ const Payment: React.FC = () => {
           <Divider />
           <div className="px-4 py-3 text-[13px] text-slate-700 leading-6">
             The order delivery is managed by{" "}
-            <span className="font-semibold text-slate-900">Stanlee India</span>.{" "}
+            <span className="font-semibold text-slate-900">Stanlee India</span>.
             Orders are usually dispatched in{" "}
             <span className="font-semibold">1 day(s)</span>.
           </div>

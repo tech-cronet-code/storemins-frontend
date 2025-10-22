@@ -94,10 +94,7 @@ export type ApplyCouponResponse = {
   totals: CartTotals;
 };
 
-/** #9 Merge guest cart → user cart */
-export type MergeCartBody =
-  | { guestCartId: string }
-  | { guestSessionId: string };
+/** #9 Merge guest cart → user cart (BE expects just businessId) */
 export type MergeCartQuery = { businessId: string };
 export type MergeCartResponse = {
   newCartId: string | null;
@@ -163,7 +160,7 @@ export const customerCartApi = customerApi.injectEndpoints({
         success: boolean;
         statusCode: number;
         data: GetActiveCartResponse;
-      }) => raw.data.cart,
+      }) => raw?.data?.cart,
       providesTags: (cart) =>
         cart
           ? ([
@@ -186,13 +183,13 @@ export const customerCartApi = customerApi.injectEndpoints({
         url: `/customer/cart/item`,
         method: "POST",
         params: { businessId },
-        body: { ...body, businessId }, // ← per your ask
+        body: { ...body, businessId }, // aligns with BE controller expecting businessId in body/scope
       }),
       transformResponse: (raw: {
         success: boolean;
         statusCode: number;
         data: AddItemResponse;
-      }) => raw.data,
+      }) => raw?.data,
       invalidatesTags: [{ type: "CartItem" as const, id: "LIST" }],
     }),
 
@@ -211,43 +208,43 @@ export const customerCartApi = customerApi.injectEndpoints({
         success: boolean;
         statusCode: number;
         data: UpdateItemResponse;
-      }) => raw.data,
+      }) => raw?.data,
       invalidatesTags: (_result, _error, { itemId }) => [
         { type: "CartItem" as const, id: itemId },
         { type: "CartItem" as const, id: "LIST" },
       ],
     }),
 
-    // #4
+    // #4  ✅ FIXED: POST /item/:id/remove (not DELETE)
     removeCartItem: builder.mutation<RemoveItemResponse, RemoveItemParams>({
       query: ({ itemId, businessId }) => ({
-        url: `/customer/cart/item/${itemId}`,
-        method: "DELETE",
+        url: `/customer/cart/item/${itemId}/remove`,
+        method: "POST",
         params: { businessId },
       }),
       transformResponse: (raw: {
         success: boolean;
         statusCode: number;
         data: RemoveItemResponse;
-      }) => raw.data,
+      }) => raw?.data,
       invalidatesTags: (_result, _error, { itemId }) => [
         { type: "CartItem" as const, id: itemId },
         { type: "CartItem" as const, id: "LIST" },
       ],
     }),
 
-    // #5
+    // #5  ✅ FIXED: POST /clear (not DELETE)
     clearCart: builder.mutation<ClearCartResponse, ClearCartQuery>({
       query: ({ businessId }) => ({
         url: `/customer/cart/clear`,
-        method: "DELETE",
+        method: "POST",
         params: { businessId },
       }),
       transformResponse: (raw: {
         success: boolean;
         statusCode: number;
         data: ClearCartResponse;
-      }) => raw.data,
+      }) => raw?.data,
       invalidatesTags: [{ type: "CartItem" as const, id: "LIST" }],
     }),
 
@@ -262,7 +259,7 @@ export const customerCartApi = customerApi.injectEndpoints({
         success: boolean;
         statusCode: number;
         data: MoveToSflResponse;
-      }) => raw.data,
+      }) => raw?.data,
       invalidatesTags: [{ type: "CartItem" as const, id: "LIST" }],
     }),
 
@@ -281,7 +278,7 @@ export const customerCartApi = customerApi.injectEndpoints({
         success: boolean;
         statusCode: number;
         data: MoveSflToCartResponse;
-      }) => raw.data,
+      }) => raw?.data,
       invalidatesTags: [{ type: "CartItem" as const, id: "LIST" }],
     }),
 
@@ -300,26 +297,23 @@ export const customerCartApi = customerApi.injectEndpoints({
         success: boolean;
         statusCode: number;
         data: ApplyCouponResponse;
-      }) => raw.data,
+      }) => raw?.data,
       invalidatesTags: [{ type: "CartItem" as const, id: "LIST" }],
     }),
 
-    // #9
-    mergeCart: builder.mutation<
-      MergeCartResponse,
-      MergeCartQuery & MergeCartBody
-    >({
-      query: ({ businessId, ...body }) => ({
+    // #9  ✅ Simplified: body is empty; BE infers from JWT + businessId
+    mergeCart: builder.mutation<MergeCartResponse, MergeCartQuery>({
+      query: ({ businessId }) => ({
         url: `/customer/cart/merge`,
         method: "POST",
         params: { businessId },
-        body,
+        body: { businessId }, // harmless to include; BE accepts from body/scope
       }),
       transformResponse: (raw: {
         success: boolean;
         statusCode: number;
         data: MergeCartResponse;
-      }) => raw.data,
+      }) => raw?.data,
       invalidatesTags: [{ type: "CartItem" as const, id: "LIST" }],
     }),
 
@@ -334,7 +328,7 @@ export const customerCartApi = customerApi.injectEndpoints({
         success: boolean;
         statusCode: number;
         data: CartSummaryResponse;
-      }) => raw.data,
+      }) => raw?.data,
       providesTags: [{ type: "CartItem" as const, id: "LIST" }],
     }),
 
@@ -353,7 +347,7 @@ export const customerCartApi = customerApi.injectEndpoints({
         success: boolean;
         statusCode: number;
         data: UpsertDraftResponse;
-      }) => raw.data,
+      }) => raw?.data,
     }),
 
     // #12
@@ -367,7 +361,7 @@ export const customerCartApi = customerApi.injectEndpoints({
         success: boolean;
         statusCode: number;
         data: AbandonCartResponse;
-      }) => raw.data,
+      }) => raw?.data,
     }),
   }),
   overrideExisting: false,

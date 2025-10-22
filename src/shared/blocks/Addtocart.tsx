@@ -3,8 +3,8 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import BottomNav from "./BottomNav";
 
-/* --- auth (for businessId) --- */
-import { useSellerAuth } from "../../modules/auth/contexts/SellerAuthContext";
+/* --- customer auth (for businessId & login gating) --- */
+import { useCustomerAuth } from "../../modules/customer/context/CustomerAuthContext";
 
 /* --- customer cart API (ALL cart ops) --- */
 import {
@@ -14,6 +14,8 @@ import {
   useClearCartMutation,
   useApplyCouponOnCartMutation,
   useUpsertDraftFromCartMutation,
+  /* NEW: merge guest cart into logged-in cart */
+  useMergeCartMutation,
   CartItem,
 } from "../../modules/customer/services/customerCartApi";
 
@@ -23,7 +25,9 @@ import {
   CustomerAddress,
 } from "../../modules/customer/services/customerApi";
 
-/* -------------------------------- UI helpers -------------------------------- */
+import CustomerLoginModal from "./CustomerLoginModal";
+
+/* -------------------------------- helpers -------------------------------- */
 
 type AddressKind = "home" | "work" | "other";
 const APP_BAR_H = 56;
@@ -109,6 +113,31 @@ function useMediaQuery(query: string) {
   return matches;
 }
 
+/* ---------- businessId fallback (mirrors your baseQuery resolver) ---------- */
+function resolveBusinessIdFromDOM(): string | null {
+  const meta = document.querySelector<HTMLMetaElement>(
+    'meta[name="business-id"]'
+  );
+  if (meta?.content?.trim()) return meta.content.trim();
+
+  const ds =
+    document.body?.getAttribute("data-business-id") ||
+    document.documentElement?.getAttribute("data-business-id");
+  if (ds && ds.trim()) return ds.trim();
+
+  const keys = [
+    "businessId",
+    "storeBusinessId",
+    "shopBusinessId",
+    "current_business_id",
+  ];
+  for (const k of keys) {
+    const v = localStorage.getItem(k) || sessionStorage.getItem(k);
+    if (v && v.trim()) return v.trim();
+  }
+  return null;
+}
+
 /* ------------------------------- thumbs ------------------------------- */
 
 const FALLBACK_IMG =
@@ -119,7 +148,8 @@ const FALLBACK_IMG =
 
 function firstMediaUrl(i?: CartItem) {
   const u = i?.Product?.Media?.[0]?.url;
-  return u && String(u).trim() ? String(u) : FALLBACK_IMG;
+  if (u && String(u).trim()) return String(u);
+  return FALLBACK_IMG;
 }
 
 /* --------------------------- Qty Stepper (click only) --------------------------- */
@@ -222,9 +252,9 @@ type AddressPickerProps = {
   addresses: CustomerAddress[];
   selectedId?: string | null;
   onClose: () => void;
-  onSelect: (id: string) => void;
-  saving?: boolean; // NEW: show loading state on persist
-  addressesPath: string; // NEW: slug-aware path to /profile/addresses
+  onSelect: (id: string) => void | Promise<void>;
+  saving?: boolean;
+  addressesPath: string;
 };
 const AddressPicker: React.FC<AddressPickerProps> = ({
   open,
@@ -309,7 +339,6 @@ const AddressPicker: React.FC<AddressPickerProps> = ({
           </div>
 
           <div className="mt-4 flex items-center justify-between">
-            {/* slug-aware Manage addresses link */}
             <Link
               to={addressesPath}
               className="text-[13px] font-semibold text-violet-700 hover:text-violet-800"
@@ -351,18 +380,77 @@ const AddToCart: React.FC = () => {
   const navigate = useNavigate();
   const isMobile = useMediaQuery("(max-width: 767.98px)");
 
-  /* businessId from auth */
-  const { userDetails } = (useSellerAuth() as any) ?? {};
+  /* businessId from CustomerAuth, fallback to DOM/localStorage */
+  const auth = (useCustomerAuth() as any) ?? {};
+  const ctxBiz: string | undefined =
+    auth?.businessId || auth?.userDetails?.storeLinks?.[0]?.businessId;
   const businessId: string =
-    userDetails?.storeLinks?.[0]?.businessId?.trim?.() ?? "";
-  const skip = !businessId;
+    (ctxBiz && String(ctxBiz).trim()) || resolveBusinessIdFromDOM() || "";
 
-  /* live cart */
+  /* simple auth flag (works with both context or redux-backed token) */
+  const isAuthed: boolean =
+    !!auth?.token ||
+    !!auth?.accessToken ||
+    !!auth?.user?.id ||
+    !!auth?.userDetails?.id;
+
+  /* login modal & “resume after auth” machinery */
+  const [loginOpen, setLoginOpen] = useState(false);
+  const afterAuthRef = useRef<null | (() => void | Promise<void>)>(null);
+  const requireAuth = (next: () => void | Promise<void>) => {
+    if (isAuthed) {
+      void next();
+    } else {
+      afterAuthRef.current = next;
+      setLoginOpen(true);
+    }
+  };
+
+  /* track guest cart id so we can merge post-login */
+  const preAuthCartIdRef = useRef<string | null>(null);
+
+  const skipCart = !businessId;
   const {
     data: cart,
     isFetching,
     refetch,
-  } = useGetActiveCartQuery({ businessId }, { skip });
+  } = useGetActiveCartQuery({ businessId }, { skip: skipCart });
+
+  // Auto-refresh cart after successful order
+  useEffect(() => {
+    if (localStorage.getItem("cart:refresh") === "1") {
+      localStorage.removeItem("cart:refresh");
+      refetch(); // RTK Query refetch
+      window.dispatchEvent(new CustomEvent("cart:update"));
+    }
+  }, [refetch]);
+
+  /* keep latest guest cart id until user logs in */
+  useEffect(() => {
+    if (!isAuthed) preAuthCartIdRef.current = cart?.id ?? null;
+  }, [cart?.id, isAuthed]);
+
+  const [mergeCart] = useMergeCartMutation();
+
+  /* resume work after auth + MERGE guest cart -> user cart */
+  const onAuthed = async () => {
+    try {
+      const guestCartId = preAuthCartIdRef.current;
+      if (guestCartId) {
+        await mergeCart({ businessId, cartId: guestCartId }).unwrap();
+      }
+    } catch (err) {
+      // Not fatal for UX; we still refetch and allow user to continue.
+      console.error("Merge cart failed:", err);
+    } finally {
+      preAuthCartIdRef.current = null;
+      await refetch();
+      window.dispatchEvent(new CustomEvent("cart:update"));
+      const fn = afterAuthRef.current;
+      afterAuthRef.current = null;
+      if (fn) await fn();
+    }
+  };
 
   const [updateItem, { isLoading: updating }] = useUpdateCartItemMutation();
   const [removeItem, { isLoading: removing }] = useRemoveCartItemMutation();
@@ -371,13 +459,11 @@ const AddToCart: React.FC = () => {
   const [upsertDraft, { isLoading: drafting }] =
     useUpsertDraftFromCartMutation();
 
-  /* addresses */
+  /* addresses (skip when not logged-in) */
   const { data: addresses = [], isFetching: addrFetching } =
-    useGetCustomerAddressesQuery(undefined, {
-      skip,
-    });
+    useGetCustomerAddressesQuery(undefined, { skip: !businessId || !isAuthed });
 
-  /* local UI state (not persisted) */
+  /* local UI state */
   const [menuOpen, setMenuOpen] = useState(false);
   const menuBtnRef = useRef<HTMLButtonElement | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -439,35 +525,59 @@ const AddToCart: React.FC = () => {
   /* actions */
   const bumpQty = async (item: CartItem, delta: 1 | -1) => {
     const next = Math.max(1, (item.quantity || 1) + (delta === -1 ? -1 : 1));
-    await updateItem({
-      itemId: item.id,
-      businessId,
-      quantity: next,
-    });
-    refetch();
+    try {
+      await updateItem({
+        itemId: item.id,
+        businessId,
+        quantity: next,
+      }).unwrap();
+      refetch();
+      window.dispatchEvent(new CustomEvent("cart:update"));
+    } catch (e) {
+      console.error("Update cart item failed:", e);
+    }
   };
 
   const removeOne = async (item: CartItem) => {
-    await removeItem({ itemId: item.id, businessId });
-    refetch();
+    try {
+      await removeItem({ itemId: item.id, businessId }).unwrap();
+      refetch();
+      window.dispatchEvent(new CustomEvent("cart:update"));
+    } catch (e) {
+      console.error("Remove cart item failed:", e);
+    }
   };
 
   const doClearCart = async () => {
-    await clearCart({ businessId });
-    setConfirmOpen(false);
-    refetch();
+    try {
+      await clearCart({ businessId }).unwrap();
+      setConfirmOpen(false);
+      refetch();
+      window.dispatchEvent(new CustomEvent("cart:update"));
+    } catch (e) {
+      console.error("Clear cart failed:", e);
+    }
   };
 
   const doApplyCoupon = async () => {
     if (!couponCode.trim() || !cart?.id) return;
-    await applyCoupon({ cartId: cart.id, businessId, code: couponCode.trim() });
-    setCouponCode("");
-    refetch();
+    try {
+      await applyCoupon({
+        cartId: cart.id,
+        businessId,
+        code: couponCode.trim(),
+      }).unwrap();
+      setCouponCode("");
+      refetch();
+      window.dispatchEvent(new CustomEvent("cart:update"));
+    } catch (e) {
+      console.error("Apply coupon failed:", e);
+    }
   };
 
   const goBack = () => navigate(-1);
 
-  // Persist selection immediately when user presses "Deliver here"
+  // persist selection immediately when user presses "Deliver here"
   const persistAddressSelection = async (addressId: string) => {
     if (!cart?.id) return;
     try {
@@ -484,7 +594,7 @@ const AddToCart: React.FC = () => {
     }
   };
 
-  const goCheckout = async () => {
+  const goCheckoutImpl = async () => {
     if (!selectedAddressId) {
       setPickerOpen(true);
       setAddrFlash(true);
@@ -492,17 +602,26 @@ const AddToCart: React.FC = () => {
       return;
     }
     if (cart?.id) {
-      await upsertDraft({
-        cartId: cart.id,
-        businessId,
-        shippingAddressId: selectedAddressId,
-        billingAddressId: selectedAddressId,
-      }).unwrap();
+      try {
+        await upsertDraft({
+          cartId: cart.id,
+          businessId,
+          shippingAddressId: selectedAddressId,
+          billingAddressId: selectedAddressId,
+        }).unwrap();
+      } catch (e) {
+        console.error("Draft creation failed:", e);
+        alert("Could not prepare checkout. Please try again.");
+        return;
+      }
     }
     navigate(`/${storeSlug}/payment`, {
       state: { from: location.pathname, note, addressId: selectedAddressId },
     });
   };
+
+  const openPickerAuthed = () => requireAuth(() => setPickerOpen(true));
+  const goCheckout = () => requireAuth(goCheckoutImpl);
 
   const isEmpty = items.length === 0;
   const needsAddress = items.length > 0 && !selectedAddressId;
@@ -567,7 +686,7 @@ const AddToCart: React.FC = () => {
       <div className={`${baseCard} ${borderTone} ${bgTone} ${flashRing}`}>
         <div className="px-4 pt-4 pb-3">
           <button
-            onClick={() => setPickerOpen(true)}
+            onClick={openPickerAuthed}
             className="w-full text-left"
             type="button"
             aria-label="Choose address"
@@ -704,6 +823,27 @@ const AddToCart: React.FC = () => {
   };
 
   /* ----------------------------- RENDER ----------------------------- */
+
+  if (!businessId) {
+    return (
+      <div className="min-h-[100dvh] grid place-items-center bg-[#f6f7f9] p-6">
+        <div className="max-w-md text-center text-slate-700">
+          <div className="text-lg font-semibold mb-2">Store not configured</div>
+          <p className="text-sm">
+            We couldn’t determine the current{" "}
+            <span className="font-medium">businessId</span>. Please ensure it’s
+            set in your CustomerAuth context or via a{" "}
+            <code className="px-1 rounded bg-slate-100">
+              meta[name="business-id"]
+            </code>{" "}
+            /{" "}
+            <code className="px-1 rounded bg-slate-100">data-business-id</code>.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-[100dvh] bg-[#f6f7f9] isolate">
       {/* APP BAR */}
@@ -794,7 +934,7 @@ const AddToCart: React.FC = () => {
             </div>
             <div className="min-w-0 flex-1">
               <div className="text-[15px] font-semibold">{STORE.name}</div>
-              <div className="mt-1">{/* optional pill here */}</div>
+              <div className="mt-1">{/* pill */}</div>
             </div>
           </div>
           <Divider />
@@ -872,7 +1012,7 @@ const AddToCart: React.FC = () => {
           )}
         </section>
 
-        {/* Note (kept client-side; send with place order later if needed) */}
+        {/* Note */}
         {items.length > 0 && (
           <section className="mt-3 rounded-2xl bg-white shadow-sm border border-slate-200">
             <textarea
@@ -916,10 +1056,10 @@ const AddToCart: React.FC = () => {
           </section>
         )}
 
-        {/* Bill details from API totals */}
+        {/* Bill details */}
         {items.length > 0 && (
           <section className="mt-3 rounded-2xl bg-white shadow-sm border border-slate-200 p-4">
-            <div className="text-[16px] font-semibold">Bill Details</div>
+            <div className="text:[16px] font-semibold">Bill Details</div>
             <div className="mt-4 space-y-3">
               <div className="flex items-center justify-between text-[14px]">
                 <span className="text-slate-700">Subtotal</span>
@@ -959,7 +1099,7 @@ const AddToCart: React.FC = () => {
           </section>
         )}
 
-        {/* DESKTOP (md+) in-flow Address + Payment section */}
+        {/* DESKTOP (md+) in-flow Address + Payment */}
         {items.length > 0 && (
           <section className="hidden md:block mt-6">
             <div className="max-w-md mx-auto">
@@ -968,7 +1108,7 @@ const AddToCart: React.FC = () => {
           </section>
         )}
 
-        {/* MOBILE spacer (only needed when fixed) */}
+        {/* MOBILE spacer */}
         {items.length > 0 && isMobile && <div style={{ height: spacerH }} />}
       </main>
 
@@ -1003,19 +1143,27 @@ const AddToCart: React.FC = () => {
         onCancel={() => setConfirmOpen(false)}
       />
 
-      {/* Address picker modal */}
+      {/* Address picker modal (shown after auth) */}
       <AddressPicker
         open={pickerOpen}
         addresses={addresses}
         selectedId={selectedAddressId}
         saving={drafting}
-        addressesPath={addressesPath} // << slug-aware link
+        addressesPath={addressesPath}
         onClose={() => setPickerOpen(false)}
         onSelect={async (id) => {
-          await persistAddressSelection(id); // persist first to server draft
-          setSelectedAddressId(id); // then update UI
+          await persistAddressSelection(id);
+          setSelectedAddressId(id);
           setPickerOpen(false);
         }}
+      />
+
+      {/* Auth gate modal */}
+      <CustomerLoginModal
+        open={loginOpen}
+        onClose={() => setLoginOpen(false)}
+        stayHereOnSuccess
+        onAuthed={onAuthed}
       />
     </div>
   );

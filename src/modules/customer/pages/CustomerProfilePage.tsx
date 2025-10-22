@@ -20,6 +20,62 @@ const withSlug = (path: string, slug?: string | null) =>
 const currencyINR = (v: number) =>
   "₹" + new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 }).format(v);
 
+/** Resolve businessId using slug, auth, DOM, and storage (robust). */
+function resolveBusinessId({
+  auth,
+  storeSlug,
+}: {
+  auth: any;
+  storeSlug?: string;
+}): string | null {
+  // 1) From auth context with slug match when possible
+  const links: any[] =
+    auth?.userDetails?.storeLinks ||
+    auth?.user?.storeLinks ||
+    auth?.storeLinks ||
+    [];
+
+  if (links.length) {
+    const match =
+      (storeSlug &&
+        links.find((l) =>
+          [l.slug, l.storeSlug, l.shopSlug, l.store?.slug]
+            ?.filter(Boolean)
+            ?.map((s: string) => String(s).trim().toLowerCase())
+            ?.includes(String(storeSlug).trim().toLowerCase())
+        )) ||
+      links[0];
+    if (match?.businessId?.trim()) return String(match.businessId).trim();
+  }
+
+  // 2) Direct businessId on auth
+  if (auth?.businessId?.trim()) return String(auth.businessId).trim();
+
+  // 3) DOM meta / data attributes
+  const meta = document.querySelector<HTMLMetaElement>(
+    'meta[name="business-id"]'
+  );
+  if (meta?.content?.trim()) return meta.content.trim();
+  const ds =
+    document.body?.getAttribute("data-business-id") ||
+    document.documentElement?.getAttribute("data-business-id");
+  if (ds && ds.trim()) return ds.trim();
+
+  // 4) Storage fallbacks
+  const keys = [
+    "businessId",
+    "storeBusinessId",
+    "shopBusinessId",
+    "current_business_id",
+  ];
+  for (const k of keys) {
+    const v = localStorage.getItem(k) || sessionStorage.getItem(k);
+    if (v && v.trim()) return v.trim();
+  }
+
+  return null;
+}
+
 /** Full delivery pipeline mapping. Defaults to PREPARING. */
 type DeliveryUiStatus =
   | "preparing"
@@ -358,7 +414,6 @@ export default function CustomerProfilePage() {
   const navigate = useNavigate();
   const auth = useCustomerAuth();
 
-  /** Name & mobile derived purely from auth / my-profile (no storage). */
   const displayName =
     (auth as any)?.userDetails?.customerName?.trim() ||
     (auth as any)?.userDetails?.name?.trim() ||
@@ -368,12 +423,13 @@ export default function CustomerProfilePage() {
   const displayMobile =
     (auth as any)?.user?.mobile || (auth as any)?.userDetails?.mobile || "";
 
-  /** Edit modal state (UI only). */
   const [editOpen, setEditOpen] = useState(false);
 
-  /** businessId for Orders — your storeLinks do not have slug, so use the first link. */
-  const businessId: string =
-    (auth as any)?.userDetails?.storeLinks?.[0]?.businessId || "";
+  /** ✅ Robust businessId resolution */
+  const businessId: string = useMemo(
+    () => resolveBusinessId({ auth, storeSlug }) || "",
+    [auth, storeSlug]
+  );
 
   /* ---- orders from API ---- */
   const [tab, setTab] = useState<"all" | "ongoing" | "completed">("all");
@@ -389,6 +445,15 @@ export default function CustomerProfilePage() {
     { businessId, status: statusParam, page: 1, limit: 20 },
     { skip: !businessId }
   );
+
+  /** Auto-refetch when we come here after placing order or cart changes */
+  useEffect(() => {
+    const onCartUpdate = () => refetch();
+    window.addEventListener("cart:update", onCartUpdate);
+    // also refetch once on mount if we just came from checkout flow
+    refetch();
+    return () => window.removeEventListener("cart:update", onCartUpdate);
+  }, [refetch]);
 
   const apiOrders = ordersRes?.items ?? [];
   const ordersCount = ordersRes?.total ?? 0;
@@ -494,9 +559,9 @@ export default function CustomerProfilePage() {
 
         {/* Stats */}
         <section className="mt-6 grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <StatCard label="Rewards" value={rewards} />
-          <StatCard label="Coupons" value={coupons} />
-          <StatCard label="Wallet" value={wallet} />
+          <StatCard label="Rewards" value="—" />
+          <StatCard label="Coupons" value="—" />
+          <StatCard label="Wallet" value="—" />
           <StatCard
             label="Orders"
             value={isFetching ? "…" : ordersCount}
@@ -512,7 +577,6 @@ export default function CustomerProfilePage() {
               Your orders
             </h2>
 
-            {/* Tabs (using API's Ongoing/Completed buckets) */}
             <div className="flex items-center gap-1 rounded-full bg-slate-100 p-1">
               {(["all", "ongoing", "completed"] as const).map((t) => (
                 <button
@@ -531,14 +595,12 @@ export default function CustomerProfilePage() {
             </div>
           </div>
 
-          {/* Missing business ID */}
           {!businessId && (
             <div className="rounded-3xl bg-white ring-1 ring-amber-200 p-6 text-amber-700">
               Business not selected. Please open the store again.
             </div>
           )}
 
-          {/* Loading */}
           {businessId && isFetching && (
             <div className="space-y-3">
               {Array.from({ length: 3 }).map((_, i) => (
@@ -550,7 +612,6 @@ export default function CustomerProfilePage() {
             </div>
           )}
 
-          {/* Error */}
           {businessId && isError && !isFetching && (
             <div className="rounded-3xl bg-white ring-1 ring-rose-200 p-6 text-rose-600">
               Failed to load orders.{" "}
@@ -563,7 +624,6 @@ export default function CustomerProfilePage() {
             </div>
           )}
 
-          {/* Empty */}
           {businessId && !isFetching && !isError && uiOrders.length === 0 && (
             <div className="rounded-3xl bg-white ring-1 ring-black/5 p-8 text-center">
               <div className="mx-auto mb-4 h-24 w-24 rounded-full bg-violet-50 grid place-items-center ring-1 ring-violet-100">
@@ -584,7 +644,6 @@ export default function CustomerProfilePage() {
             </div>
           )}
 
-          {/* List */}
           {businessId && !isFetching && !isError && uiOrders.length > 0 && (
             <div className="space-y-3">
               {uiOrders.map((o) => {
@@ -600,7 +659,6 @@ export default function CustomerProfilePage() {
                     key={o.id}
                     className="rounded-2xl bg-white ring-1 ring-black/5 p-4 sm:p-5"
                   >
-                    {/* Header */}
                     <div className="flex items-center justify-between gap-3">
                       <div className="text-[13px] sm:text-sm text-slate-600">
                         <span className="font-medium text-slate-900">
@@ -611,9 +669,7 @@ export default function CustomerProfilePage() {
                       <StatusBadge status={o.status} />
                     </div>
 
-                    {/* Body */}
                     <div className="mt-3 flex items-start gap-3">
-                      {/* Image stack (images TBD when BE provides) */}
                       <div className="flex -space-x-2">
                         {o.items.slice(0, 3).map((_, idx) => (
                           <div
@@ -628,7 +684,6 @@ export default function CustomerProfilePage() {
                         )}
                       </div>
 
-                      {/* Titles */}
                       <div className="min-w-0 flex-1">
                         <div className="text-[14px] font-medium text-slate-900 truncate">
                           {first?.title || "Items"}
@@ -641,7 +696,6 @@ export default function CustomerProfilePage() {
                         </div>
                       </div>
 
-                      {/* Total */}
                       <div className="text-right">
                         <div className="text-xs text-slate-500">Total</div>
                         <div className="text-[15px] font-semibold">
@@ -650,7 +704,6 @@ export default function CustomerProfilePage() {
                       </div>
                     </div>
 
-                    {/* Footer actions */}
                     <div className="mt-4 flex items-center justify-end gap-2">
                       <Link
                         to={withSlug(`/profile/orders/${o.id}`, storeSlug)}
@@ -692,7 +745,6 @@ export default function CustomerProfilePage() {
         mobile={displayMobile}
         onClose={() => setEditOpen(false)}
         onSave={() => {
-          // Wire this to a customer update-profile API when available.
           setEditOpen(false);
         }}
       />

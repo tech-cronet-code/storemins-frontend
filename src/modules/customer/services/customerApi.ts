@@ -26,7 +26,6 @@ export interface CustomerLoginInitPayload {
   mobile: string;
   businessId: string;
 }
-
 export interface CustomerLoginInitResult {
   id: string;
   needs_confirm_otp_code: boolean;
@@ -41,7 +40,6 @@ export interface CustomerRegisterPayload {
   email?: string;
   businessId: string;
 }
-
 export interface CustomerRegisterResult {
   id: string;
   needs_confirm_otp_code: boolean;
@@ -75,7 +73,6 @@ export type CustomerAddress = {
   createdAt: string;
   updatedAt?: string;
 };
-
 export type CreateAddressDto = Omit<
   CustomerAddress,
   "id" | "createdAt" | "updatedAt"
@@ -88,7 +85,6 @@ export const customerApi = createApi({
   tagTypes: ["CustomerAddress", "Cart", "CartItem", "Order", "Coupon"] as const,
   endpoints: (builder) => ({
     /* ======================= CUSTOMER AUTH ======================= */
-
     customerLoginInit: builder.mutation<
       CustomerLoginInitResult,
       CustomerLoginInitPayload
@@ -99,11 +95,10 @@ export const customerApi = createApi({
         body,
       }),
       transformResponse: (raw: any) => ({
-        ...raw.data,
-        message: raw.message ?? raw.data?.message,
+        ...raw?.data,
+        message: raw?.message ?? raw?.data?.message,
       }),
     }),
-
     customerRegister: builder.mutation<
       CustomerRegisterResult,
       CustomerRegisterPayload
@@ -114,11 +109,10 @@ export const customerApi = createApi({
         body,
       }),
       transformResponse: (raw: any) => ({
-        ...raw.data,
-        message: raw.message ?? raw.data?.message,
+        ...raw?.data,
+        message: raw?.message ?? raw?.data?.message,
       }),
     }),
-
     customerConfirmOtp: builder.mutation<
       JwtResponseDto,
       ConfirmMobileOtpPayload
@@ -128,9 +122,8 @@ export const customerApi = createApi({
         method: "POST",
         body,
       }),
-      transformResponse: (raw: any) => raw.data,
+      transformResponse: (raw: any) => raw?.data,
     }),
-
     customerResendOtp: builder.mutation<
       { message: string; expiresAt: string },
       { mobile: string; userId?: string }
@@ -140,20 +133,14 @@ export const customerApi = createApi({
         method: "POST",
         body,
       }),
-      transformResponse: (raw: any) => raw.data,
+      transformResponse: (raw: any) => raw?.data,
     }),
-
     customerLogout: builder.mutation<
       { message: string; statusCode: number },
       { access_token: string }
     >({
-      query: (body) => ({
-        url: "/customer/auth/logout",
-        method: "POST",
-        body,
-      }),
+      query: (body) => ({ url: "/customer/auth/logout", method: "POST", body }),
     }),
-
     getMyProfile: builder.query<GetMyProfileDto, void>({
       query: () => ({ url: "/customer/auth/my-profile", method: "GET" }),
       transformResponse: (raw: any) => raw?.data as GetMyProfileDto,
@@ -162,7 +149,7 @@ export const customerApi = createApi({
     /* ======================= ADDRESSES ======================= */
     getCustomerAddresses: builder.query<CustomerAddress[], void>({
       query: () => ({ url: "/customer/addresses/list", method: "GET" }),
-      transformResponse: (raw: any) => raw.data,
+      transformResponse: (raw: any) => raw?.data ?? [],
       providesTags: (res) =>
         res
           ? [
@@ -174,12 +161,10 @@ export const customerApi = createApi({
             ]
           : [{ type: "CustomerAddress" as const, id: "LIST" }],
     }),
-
     createCustomerAddress: builder.mutation<CustomerAddress, CreateAddressDto>({
       query: (body) => ({ url: "/customer/addresses", method: "POST", body }),
       invalidatesTags: [{ type: "CustomerAddress" as const, id: "LIST" }],
     }),
-
     updateCustomerAddress: builder.mutation<CustomerAddress, UpdateAddressDto>({
       query: ({ id, ...body }) => ({
         url: `/customer/addresses/${id}`,
@@ -191,7 +176,6 @@ export const customerApi = createApi({
         { type: "CustomerAddress" as const, id: "LIST" },
       ],
     }),
-
     deleteCustomerAddress: builder.mutation<{ success: true }, string>({
       query: (id) => ({ url: `/customer/addresses/${id}`, method: "DELETE" }),
       invalidatesTags: (_r, _e, id) => [

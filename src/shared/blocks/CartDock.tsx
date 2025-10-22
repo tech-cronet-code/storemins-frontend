@@ -3,9 +3,33 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import ReactDOM from "react-dom";
 import { useLocation, useNavigate } from "react-router-dom";
 
-/* ==== NEW ==== */
-import { useSellerAuth } from "../../modules/auth/contexts/SellerAuthContext";
 import { useGetActiveCartQuery } from "../../modules/customer/services/customerCartApi";
+import { useCustomerAuth } from "../../modules/customer/context/CustomerAuthContext";
+
+/* ---------- Small businessId resolver fallback (mirrors baseQuery) ---------- */
+function resolveBusinessIdFromDOM(): string | null {
+  const meta = document.querySelector<HTMLMetaElement>(
+    'meta[name="business-id"]'
+  );
+  if (meta?.content?.trim()) return meta.content.trim();
+
+  const ds =
+    document.body?.getAttribute("data-business-id") ||
+    document.documentElement?.getAttribute("data-business-id");
+  if (ds && ds.trim()) return ds.trim();
+
+  const keys = [
+    "businessId",
+    "storeBusinessId",
+    "shopBusinessId",
+    "current_business_id",
+  ];
+  for (const k of keys) {
+    const v = localStorage.getItem(k) || sessionStorage.getItem(k);
+    if (v && v.trim()) return v.trim();
+  }
+  return null;
+}
 
 type Props = {
   checkoutPath?: string;
@@ -27,11 +51,14 @@ const CartDock: React.FC<Props> = ({
   const nav = useNavigate();
   const loc = useLocation();
 
-  const { userDetails } = (useSellerAuth() as any) ?? {};
-  const businessId: string =
-    userDetails?.storeLinks?.[0]?.businessId?.trim?.() ?? "";
+  // Prefer CustomerAuth context, fallback to DOM/localStorage (supports guest)
+  const customerCtx = (useCustomerAuth() as any) ?? {};
+  const ctxBiz: string | undefined =
+    customerCtx?.businessId ||
+    customerCtx?.userDetails?.storeLinks?.[0]?.businessId;
+  const businessId =
+    (ctxBiz && String(ctxBiz).trim()) || resolveBusinessIdFromDOM() || "";
 
-  // Pull live cart
   const { data: cart, refetch } = useGetActiveCartQuery(
     { businessId },
     { skip: !businessId }
@@ -39,23 +66,21 @@ const CartDock: React.FC<Props> = ({
 
   const apiCount = useMemo(() => {
     if (!cart) return 0;
-    if (countMode === "qty")
+    if (countMode === "qty") {
       return cart.items.reduce((n, i) => n + (Number(i.quantity) || 0), 0);
-    // unique
-    return new Set(
-      cart.items.map((i) => i.productId + ":" + (i.variantId ?? ""))
-    ).size;
+    }
+    // unique (productId + variantId)
+    return new Set(cart.items.map((i) => `${i.productId}:${i.variantId ?? ""}`))
+      .size;
   }, [cart, countMode]);
 
   const [count, setCount] = useState<number>(apiCount);
   const [visible, setVisible] = useState<boolean>(false);
 
   const timer = useRef<number | null>(null);
-  const lastCountRef = useRef<number>(apiCount);
 
   useEffect(() => {
     setCount(apiCount);
-    lastCountRef.current = apiCount;
     if (stickWhileNotEmpty) setVisible(apiCount > 0);
   }, [apiCount, stickWhileNotEmpty]);
 
@@ -83,7 +108,7 @@ const CartDock: React.FC<Props> = ({
     }, ms);
   };
 
-  // Flash on add events and storage signals, then refetch
+  // Flash on add/update events, then refetch latest cart
   useEffect(() => {
     const onAdd = () => {
       refetch();
@@ -101,6 +126,7 @@ const CartDock: React.FC<Props> = ({
     };
   }, [refetch, stickWhileNotEmpty, showMs]);
 
+  // If no items and not sticky, don't render (saves a portal)
   if (!count && !stickWhileNotEmpty) return null;
 
   const node = (

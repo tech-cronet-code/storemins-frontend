@@ -560,26 +560,20 @@ const DemoNote: React.FC = () => (
 export default function CustomerLoginModal({
   open,
   onClose,
+  stayHereOnSuccess = false,
+  onAuthed,
 }: {
   open: boolean;
   onClose: () => void;
+  /** If true, don't redirect after login; just close & call onAuthed */
+  stayHereOnSuccess?: boolean;
+  /** Called after successful auth when stayHereOnSuccess=true */
+  onAuthed?: () => void;
 }) {
   const dispatch = useDispatch<AppDispatch>();
   const [step, setStep] = useState<Step>("login");
   const [phone, setPhone] = useState<string>("");
   const { businessId } = useCustomerAuth();
-
-  // fetch bootstrap ONCE and derive businessId
-  const slug = resolveStoreSlug() ?? "";
-  // const { data: bootstrap } = useGetStorefrontBootstrapQuery(
-  //   { slug },
-  //   { skip: !slug }
-  // );
-  // // accept both "businessId" and "bussinessId" just in case
-  // const businessId: string | null =
-  //   (bootstrap?.settings as any)?.businessId ??
-  //   (bootstrap?.settings as any)?.bussinessId ??
-  //   null;
 
   useEffect(() => {
     if (!open) return;
@@ -600,9 +594,10 @@ export default function CustomerLoginModal({
         if (saved.phone) setPhone(saved.phone);
       }
     } catch {
-      /* empty */
+      /* ignore */
     }
   }, [open]);
+
   useEffect(() => {
     if (!open) return;
     sessionStorage.setItem(PERSIST_KEY, JSON.stringify({ step, phone }));
@@ -625,6 +620,13 @@ export default function CustomerLoginModal({
       })
     );
     sessionStorage.removeItem(PERSIST_KEY);
+
+    if (stayHereOnSuccess) {
+      onClose();
+      onAuthed?.();
+      return;
+    }
+
     onClose();
     window.location.assign(buildProfileUrl());
   };

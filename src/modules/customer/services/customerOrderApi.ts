@@ -1,4 +1,3 @@
-// src/modules/customer/services/customerOrderApi.ts
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { customerApi } from "./customerApi";
 
@@ -132,7 +131,6 @@ export type InvoiceResponse = {
 /* ======================= API ======================= */
 export const customerOrderApi = customerApi.injectEndpoints({
   endpoints: (builder) => ({
-    // 1) Place order
     placeOrder: builder.mutation<
       PlaceOrderResponse,
       PlaceOrderQuery & PlaceOrderBody
@@ -140,29 +138,27 @@ export const customerOrderApi = customerApi.injectEndpoints({
       query: ({ businessId, ...body }) => ({
         url: `/customer/orders/place`,
         method: "POST",
-        params: { businessId }, // business id only as query param
+        params: { businessId },
         body,
       }),
       transformResponse: (raw: {
         success: boolean;
         statusCode: number;
         data: PlaceOrderResponse;
-      }) => raw.data,
+      }) => raw?.data,
       invalidatesTags: [{ type: "Order" as const, id: "LIST" }],
     }),
-
-    // 2) My orders
     getMyOrders: builder.query<MyOrdersResponse, MyOrdersQuery>({
-      query: ({ businessId, status, page = 1, limit = 20 }) => ({
+      query: ({ businessId, status, page = 1, limit = 50 }) => ({
         url: `/customer/orders/my`,
         method: "GET",
-        params: { businessId, status, page, limit }, // no custom header
+        params: { businessId, status, page, limit },
       }),
       transformResponse: (raw: {
         success: boolean;
         statusCode: number;
         data: MyOrdersResponse;
-      }) => raw.data,
+      }) => raw?.data,
       providesTags: (res) =>
         res
           ? ([
@@ -171,8 +167,6 @@ export const customerOrderApi = customerApi.injectEndpoints({
             ] as const)
           : ([{ type: "Order" as const, id: "LIST" }] as const),
     }),
-
-    // 3) Order detail
     getOrderDetail: builder.query<OrderDetailResponse, OrderDetailParams>({
       query: ({ businessId, orderId }) => ({
         url: `/customer/orders/${orderId}`,
@@ -183,13 +177,11 @@ export const customerOrderApi = customerApi.injectEndpoints({
         success: boolean;
         statusCode: number;
         data: OrderDetailResponse;
-      }) => raw.data,
-      providesTags: (_result, _error, { orderId }) => [
+      }) => raw?.data,
+      providesTags: (_r, _e, { orderId }) => [
         { type: "Order" as const, id: orderId },
       ],
     }),
-
-    // 4) Cancel order
     cancelOrder: builder.mutation<
       CancelOrderResponse,
       CancelOrderParams & CancelOrderBody
@@ -204,13 +196,11 @@ export const customerOrderApi = customerApi.injectEndpoints({
         success: boolean;
         statusCode: number;
         data: CancelOrderResponse;
-      }) => raw.data,
-      invalidatesTags: (_result, _error, { orderId }) => [
+      }) => raw?.data,
+      invalidatesTags: (_r, _e, { orderId }) => [
         { type: "Order" as const, id: orderId },
       ],
     }),
-
-    // 5) Request return
     requestReturn: builder.mutation<
       ReturnOrderResponse,
       ReturnOrderParams & ReturnOrderBody
@@ -225,13 +215,11 @@ export const customerOrderApi = customerApi.injectEndpoints({
         success: boolean;
         statusCode: number;
         data: ReturnOrderResponse;
-      }) => raw.data,
-      invalidatesTags: (_result, _error, { orderId }) => [
+      }) => raw?.data,
+      invalidatesTags: (_r, _e, { orderId }) => [
         { type: "Order" as const, id: orderId },
       ],
     }),
-
-    // 6) Track order
     trackOrder: builder.query<TrackOrderResponse, TrackOrderParams>({
       query: ({ businessId, orderId }) => ({
         url: `/customer/orders/${orderId}/tracking`,
@@ -242,13 +230,11 @@ export const customerOrderApi = customerApi.injectEndpoints({
         success: boolean;
         statusCode: number;
         data: TrackOrderResponse;
-      }) => raw.data,
-      providesTags: (_result, _error, { orderId }) => [
+      }) => raw?.data,
+      providesTags: (_r, _e, { orderId }) => [
         { type: "Order" as const, id: orderId },
       ],
     }),
-
-    // 7) Payment retry
     retryPayment: builder.mutation<
       RetryPaymentResponse,
       RetryPaymentParams & RetryPaymentBody
@@ -263,13 +249,11 @@ export const customerOrderApi = customerApi.injectEndpoints({
         success: boolean;
         statusCode: number;
         data: RetryPaymentResponse;
-      }) => raw.data,
-      invalidatesTags: (_result, _error, { orderId }) => [
+      }) => raw?.data,
+      invalidatesTags: (_r, _e, { orderId }) => [
         { type: "Order" as const, id: orderId },
       ],
     }),
-
-    // 8) Invoice
     getInvoice: builder.query<InvoiceResponse, InvoiceParams>({
       query: ({ businessId, orderId }) => ({
         url: `/customer/orders/${orderId}/invoice`,
@@ -280,8 +264,8 @@ export const customerOrderApi = customerApi.injectEndpoints({
         success: boolean;
         statusCode: number;
         data: InvoiceResponse;
-      }) => raw.data,
-      providesTags: (_result, _error, { orderId }) => [
+      }) => raw?.data,
+      providesTags: (_r, _e, { orderId }) => [
         { type: "Order" as const, id: orderId },
       ],
     }),
