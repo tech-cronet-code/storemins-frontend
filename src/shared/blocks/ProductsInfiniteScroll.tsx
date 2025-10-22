@@ -3,17 +3,17 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 
 import { convertPath } from "../../modules/auth/utils/useImagePath";
-import {
-  useListCategoriesQuery,
-  useListProductsQuery,
-  ProductCategoryListResponse,
-  ProductListItem,
-} from "../../modules/auth/services/productApi";
 import CartDock from "./CartDock";
 
 /* ==== cart API (correct) ==== */
+import {
+  ProductCategoryListResponse,
+  ProductListItem,
+  useListPublicCategoriesQuery,
+  useListPublicProductsQuery,
+} from "../../modules/auth/services/storefrontPublicApi";
+import { useCustomerAuth } from "../../modules/customer/context/CustomerAuthContext";
 import { useAddItemToCartMutation } from "../../modules/customer/services/customerCartApi";
-import { useSellerAuth } from "../../modules/auth/contexts/SellerAuthContext";
 
 /* ------------------------- utils ------------------------- */
 const cn = (...v: (string | false | null | undefined)[]) =>
@@ -284,9 +284,9 @@ type Props = { settings?: any };
 export default function StorefrontWithApiImages({ settings = {} }: Props) {
   const s = settings || {};
 
-  const { userDetails } = useSellerAuth() as any;
-  const businessId: string =
-    userDetails?.storeLinks?.[0]?.businessId?.trim?.() || "";
+  const { businessId } = useCustomerAuth() as any;
+  // const businessId: string =
+  //   userDetails?.storeLinks?.[0]?.businessId?.trim?.() || "";
   const skip = !businessId;
 
   /* ==== cart add mutation (API) ==== */
@@ -309,7 +309,10 @@ export default function StorefrontWithApiImages({ settings = {} }: Props) {
   const gridClass = "pgrid grid gap-3 sm:gap-4 lg:gap-6";
 
   /* categories */
-  const { data: catResp } = useListCategoriesQuery({ businessId }, { skip });
+  const { data: catResp } = useListPublicCategoriesQuery(
+    { businessId },
+    { skip }
+  );
 
   useEffect(() => {
     const listRaw = Array.isArray(catResp)
@@ -337,19 +340,19 @@ export default function StorefrontWithApiImages({ settings = {} }: Props) {
   }, [catResp]);
 
   /* products: all types */
-  const { data: physical = [], isFetching: f1 } = useListProductsQuery(
+  const { data: physical = [], isFetching: f1 } = useListPublicProductsQuery(
     { businessId, type: "PHYSICAL" },
     { skip }
   );
-  const { data: digital = [], isFetching: f2 } = useListProductsQuery(
+  const { data: digital = [], isFetching: f2 } = useListPublicProductsQuery(
     { businessId, type: "DIGITAL" },
     { skip }
   );
-  const { data: meeting = [], isFetching: f3 } = useListProductsQuery(
+  const { data: meeting = [], isFetching: f3 } = useListPublicProductsQuery(
     { businessId, type: "MEETING" },
     { skip }
   );
-  const { data: workshop = [], isFetching: f4 } = useListProductsQuery(
+  const { data: workshop = [], isFetching: f4 } = useListPublicProductsQuery(
     { businessId, type: "WORKSHOP" },
     { skip }
   );

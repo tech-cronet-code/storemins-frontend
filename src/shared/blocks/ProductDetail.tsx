@@ -2,15 +2,14 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 
 import StorefrontLayout from "./StorefrontLayout";
-
 import {
   ProductListItem,
-  useListProductsQuery,
-} from "../../modules/auth/services/productApi";
+  useListPublicProductsQuery,
+} from "../../modules/auth/services/storefrontPublicApi";
 import { convertPath } from "../../modules/auth/utils/useImagePath";
-import { useSellerAuth } from "../../modules/auth/contexts/SellerAuthContext";
-import CartDock from "./CartDock";
+import { useCustomerAuth } from "../../modules/customer/context/CustomerAuthContext";
 import { useAddItemToCartMutation } from "../../modules/customer/services/customerCartApi";
+import CartDock from "./CartDock";
 
 /* ------------------------------ local types ------------------------------ */
 type MediaItem = { url?: string; order?: number | null | undefined };
@@ -639,27 +638,28 @@ const ProductDetail: React.FC = () => {
   const [addItem] = useAddItemToCartMutation();
 
   // businessId from auth
-  type AuthDetails = { storeLinks?: Array<{ businessId?: string | null }> };
-  type AuthCtx = { userDetails?: AuthDetails };
-  const { userDetails } = (useSellerAuth() as AuthCtx) ?? {};
-  const businessId: string =
-    userDetails?.storeLinks?.[0]?.businessId?.trim?.() ?? "";
+  // type AuthDetails = { storeLinks?: Array<{ businessId?: string | null }> };
+  // type AuthCtx = { userDetails?: AuthDetails };
+  // const { userDetails } = (useSellerAuth() as AuthCtx) ?? {};
+  // const businessId: string =
+  //   userDetails?.storeLinks?.[0]?.businessId?.trim?.() ?? "";
+  const { businessId } = useCustomerAuth();
   const skip = !businessId;
 
   // fetch all product types (search locally)
-  const { data: physical = [], isFetching: f1 } = useListProductsQuery(
+  const { data: physical = [], isFetching: f1 } = useListPublicProductsQuery(
     { businessId, type: "PHYSICAL" },
     { skip }
   );
-  const { data: digital = [], isFetching: f2 } = useListProductsQuery(
+  const { data: digital = [], isFetching: f2 } = useListPublicProductsQuery(
     { businessId, type: "DIGITAL" },
     { skip }
   );
-  const { data: meeting = [], isFetching: f3 } = useListProductsQuery(
+  const { data: meeting = [], isFetching: f3 } = useListPublicProductsQuery(
     { businessId, type: "MEETING" },
     { skip }
   );
-  const { data: workshop = [], isFetching: f4 } = useListProductsQuery(
+  const { data: workshop = [], isFetching: f4 } = useListPublicProductsQuery(
     { businessId, type: "WORKSHOP" },
     { skip }
   );

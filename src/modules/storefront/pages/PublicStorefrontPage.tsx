@@ -1,13 +1,12 @@
 import { Navigate, Route, Routes, useParams } from "react-router-dom";
-import { RenderLayout, type Block } from "../../../shared/blocks/registry";
-import { useGetStorefrontBootstrapQuery } from "../../auth/services/storefrontPublicApi";
-import ProductDetail from "../../../shared/blocks/ProductDetail";
 import AddToCart from "../../../shared/blocks/Addtocart";
 import Payment from "../../../shared/blocks/Payment";
+import ProductDetail from "../../../shared/blocks/ProductDetail";
+import { RenderLayout, type Block } from "../../../shared/blocks/registry";
+import { useGetStorefrontBootstrapQuery } from "../../auth/services/storefrontPublicApi";
+import { useCustomerAuth } from "../../customer/context/CustomerAuthContext";
 import CustomerAddressesPage from "../../customer/pages/CustomerAddressesPage";
 import CustomerProfilePage from "../../customer/pages/CustomerProfilePage";
-import { useCustomerAuth } from "../../customer/context/CustomerAuthContext";
-import { useSellerAuth } from "../../auth/contexts/SellerAuthContext";
 
 /** Public API bootstrap response (minimal shape used here) */
 type StorefrontBootstrap = {
@@ -31,7 +30,7 @@ type StorefrontBootstrap = {
 export default function PublicStorefrontPage() {
   const { storeSlug = "" } = useParams<{ storeSlug?: string }>();
   const { user: customerUser } = useCustomerAuth();
-  const { userDetails } = useSellerAuth();
+  // const { userDetails } = useSellerAuth();
 
   const isLoggedIn =
     !!customerUser?.id ||
@@ -47,6 +46,9 @@ export default function PublicStorefrontPage() {
     { slug: storeSlug },
     { skip: !storeSlug }
   );
+
+  console.log(storeSlug, "storeSlug");
+  // console.log(data?.settings.bussinessId, "storeSlug - businessId");
 
   if (!storeSlug) return <div className="p-6">Missing slug.</div>;
   if (isLoading) return <div className="p-6">Loading store…</div>;
@@ -70,14 +72,17 @@ export default function PublicStorefrontPage() {
       1,
   }));
 
-  const businessIdFromAuth: string =
-    userDetails?.storeLinks?.[0]?.businessId ?? "";
+  // const businessIdFromAuth: string =
+  //   userDetails?.storeLinks?.[0]?.businessId ?? "";
 
-  const businessId: string =
-    businessIdFromAuth ||
-    String(
-      api.businessStoreId ?? api.businessId ?? api.store?.businessStoreId ?? ""
-    );
+  // const businessId: string =
+  //   businessIdFromAuth ||
+  //   String(
+  //     api.businessStoreId ?? api.businessId ?? api.store?.businessStoreId ?? ""
+  //   );
+
+  const businessId: string = data?.settings.bussinessId;
+  console.log(businessId, "storeSlug - businessId");
 
   return (
     <div className="min-h-dvh">
