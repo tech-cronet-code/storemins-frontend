@@ -1,13 +1,13 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { RenderLayout } from "../../../../shared/blocks/registry";
-import { mergeAnnBarFromUI } from "../../../../shared/blocks/announcementBar";
-import { mergeTopNavFromUI } from "../../../../shared/blocks/topNav";
-import { StoreStatsSettings } from "../../../../shared/blocks/storeStats";
-import { StoreDeliveryInfoSettings } from "../../../../shared/blocks/storeDeliveryInfo";
-import { FlashSaleHeroServerSettings } from "../../pages/store-appearance/FlashSaleHeroSettings";
-import { useSellerAuth } from "../../../auth/contexts/SellerAuthContext";
 import { mergeAboutUsFromUI } from "../../../../shared/blocks/about_Us";
+import { mergeAnnBarFromUI } from "../../../../shared/blocks/announcementBar";
+import { RenderLayout } from "../../../../shared/blocks/registry";
+import { StoreDeliveryInfoSettings } from "../../../../shared/blocks/storeDeliveryInfo";
+import { StoreStatsSettings } from "../../../../shared/blocks/storeStats";
+import { mergeTopNavFromUI } from "../../../../shared/blocks/topNav";
+import { useSellerAuth } from "../../../auth/contexts/SellerAuthContext";
+import { FlashSaleHeroServerSettings } from "../../pages/store-appearance/FlashSaleHeroSettings";
 
 /* small util */
 const cn = (...v: Array<string | false | null | undefined>) =>
@@ -22,13 +22,26 @@ function useForceMobileThreshold(threshold = 920) {
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
-    const ro = new ResizeObserver(([entry]) => {
+
+    // Guard for environments where ResizeObserver is not available
+    const RO: any =
+      (typeof window !== "undefined" && (window as any).ResizeObserver) || null;
+    if (!RO) return;
+
+    const ro = new RO(([entry]: any[]) => {
       const w = entry?.contentRect?.width ?? 0;
       setWidth(w);
       setForce(w < threshold);
     });
+
     ro.observe(el);
-    return () => ro.disconnect();
+    return () => {
+      try {
+        ro.disconnect();
+      } catch {
+        /* noop */
+      }
+    };
   }, [threshold]);
 
   return { ref, force, width };

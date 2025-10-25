@@ -141,7 +141,7 @@ function getCurrentStoreSlug(): string | null {
 function withSlug(path: string): string {
   const clean = path.startsWith("/") ? path : `/${path}`;
   const slug = getCurrentStoreSlug();
-  if (!slug) return clean; // ✅ fallback when no slug; fixes redirect-to-/home
+  if (!slug) return clean;
   return `/${slug}${clean}`;
 }
 
@@ -433,23 +433,15 @@ export const TopNavBlock: React.FC<{ settings?: Partial<TopNavSettings> }> = ({
 
   // ---- AUTH
   const auth = useCustomerAuth();
-
-  // Prefer context user; else check our known LS keys (matches your screenshot)
   const tokenFromLS =
     getFirstLS([
       "customer_auth_token",
-      "customer_auth_user", // presence often implies logged-in along with token
-      "access_token", // fallbacks
+      "customer_auth_user",
+      "access_token",
       "token",
     ]) || "";
-
   const isLoggedIn = Boolean(auth?.user?.id || tokenFromLS);
 
-  console.log(auth, "auth");
-  console.log(tokenFromLS, "tokenFromLS");
-  console.log(isLoggedIn, "isLoggedIn");
-
-  // If modal is open and auth flips to logged-in, close & go to /{slug}/profile (or /profile)
   const [authOpen, setAuthOpen] = useState(false);
   useEffect(() => {
     if (authOpen && isLoggedIn) {
@@ -523,12 +515,14 @@ export const TopNavBlock: React.FC<{ settings?: Partial<TopNavSettings> }> = ({
   const effectiveRight: NonNullable<TopNavSettings["right_button"]> =
     s.right_button ?? "NONE";
 
+  // ---- positioning classes
   const classes = cn(
     "w-full",
     visibilityClass(s.visibility),
-    "fixed top-0 left-0 right-0 z-[100] md:static md:top-auto md:left-auto md:right-auto md:z-auto",
-    desktopStickyOn && !desktopFixedOn && "md:sticky md:top-0 md:z-[100]",
-    desktopFixedOn && "md:fixed md:top-0 md:left-0 md:right-0 md:z-[100]"
+    // fixed on mobile, sticky/fixed on desktop depending on settings/editor
+    "fixed top-0 left-0 right-0 z-[200] md:static md:top-auto md:left-auto md:right-auto md:z-auto",
+    desktopStickyOn && !desktopFixedOn && "md:sticky md:top-0 md:z-[200]",
+    desktopFixedOn && "md:fixed md:top-0 md:left-0 md:right-0 md:z-[200]"
   );
 
   const rowClass = isEditor
@@ -537,6 +531,36 @@ export const TopNavBlock: React.FC<{ settings?: Partial<TopNavSettings> }> = ({
 
   const openSearch = () => setSearchOpen(true);
 
+  // --- IMPORTANT: clamp top to 0 while scrolling so header is flush to top
+  const [dynamicTop, setDynamicTop] = useState<string>(
+    "var(--annbar-offset, 0px)"
+  );
+  useEffect(() => {
+    const readVar = () =>
+      getComputedStyle(document.documentElement)
+        .getPropertyValue("--annbar-offset")
+        .trim() || "0px";
+
+    const update = () => {
+      const scrolled = (window.scrollY || window.pageYOffset || 0) > 1;
+      setDynamicTop(scrolled ? "0px" : `var(--annbar-offset, ${readVar()})`);
+    };
+
+    update();
+    window.addEventListener("scroll", update, { passive: true });
+    window.addEventListener("resize", update);
+    const id = window.setInterval(update, 500); // defensive in case the var changes
+    return () => {
+      window.removeEventListener("scroll", update);
+      window.removeEventListener("resize", update);
+      clearInterval(id);
+    };
+  }, []);
+
+  const isMobile = !mdUp;
+  const needsAnnounceOffset =
+    isMobile || (mdUp && (desktopStickyOn || desktopFixedOn));
+
   return (
     <>
       <header
@@ -544,7 +568,7 @@ export const TopNavBlock: React.FC<{ settings?: Partial<TopNavSettings> }> = ({
         className={classes}
         style={{
           backgroundColor: s.background_color || "#ffffff",
-          willChange: "transform",
+          top: needsAnnounceOffset ? dynamicTop : undefined,
         }}
       >
         <div className={rowClass}>
@@ -618,7 +642,7 @@ export const TopNavBlock: React.FC<{ settings?: Partial<TopNavSettings> }> = ({
                 label="Profile"
                 onClick={() => {
                   if (isLoggedIn) {
-                    navigate(withSlug("/profile")); // ✅ correct now
+                    navigate(withSlug("/profile"));
                   } else {
                     setAuthOpen(true);
                   }

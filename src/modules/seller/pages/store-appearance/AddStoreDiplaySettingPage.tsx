@@ -101,6 +101,7 @@ import BottomNavSettingsCard, {
 } from "./BottomNavSettings";
 
 /* ---------------- Announcement Bar types & mappers ---------------- */
+/* ---------------- Announcement Bar types & mappers ---------------- */
 type AnnBarSettings = {
   enabled?: boolean;
   message?: string;
@@ -127,21 +128,31 @@ type AnnBarSettings = {
   [key: string]: any;
 };
 
+const normalizeVisibility = (
+  v?: string | null
+): "all" | "desktop" | "mobile" => {
+  const k = (v || "").toString().toLowerCase().trim();
+  if (k === "desktop" || k === "desktop only") return "desktop";
+  if (k === "mobile" || k === "mobile only") return "mobile";
+  return "all";
+};
+
+// In mapToHeaderSettings (near the top of the file)
 const mapToHeaderSettings = (s: AnnBarSettings | undefined) => ({
   showAnnouncement: s?.enabled ?? true,
-  message: s?.message ?? "this is announced bar test it out",
-  barColor: s?.section_background_color ?? "#296fc2",
-  fontColor: s?.text_color ?? "#FFFFFF",
-  visibility: s?.visibility ?? "all",
+  message: s?.message ?? "Welcome! Check out our latest news.",
+  barColor: s?.section_background_color ?? "#FFFFFF",
+  fontColor: s?.text_color ?? "#111827",
+  visibility: normalizeVisibility(s?.visibility as any),
   marqueeEnabled: s?.marquee_enabled ?? false,
   marqueeMode: (s?.marquee_mode as "bounce" | "loop") ?? "bounce",
   marqueeSpeed: typeof s?.marquee_speed === "number" ? s.marquee_speed : 5,
   leftBtnEnabled:
     typeof s?.left_button_enabled === "boolean"
       ? s.left_button_enabled
-      : !!s?.left_button_show,
-  leftBtnText: s?.left_button_text ?? s?.left_button_label ?? "",
-  leftBtnUrl: s?.left_button_url ?? s?.left_button_href ?? "",
+      : s?.left_button_show ?? true,
+  leftBtnText: s?.left_button_text ?? s?.left_button_label ?? "Read more",
+  leftBtnUrl: s?.left_button_url ?? s?.left_button_href ?? "#",
   leftBtnNewTab: s?.left_button_new_tab ?? true,
   rightBtnEnabled:
     typeof s?.right_button_enabled === "boolean"
@@ -169,7 +180,7 @@ function mergeAnnBarSettings(
     message: ui.message ?? "",
     section_background_color: ui.barColor ?? "#296fc2",
     text_color: ui.fontColor ?? "#FFFFFF",
-    visibility: ui.visibility || "all",
+    visibility: normalizeVisibility(ui.visibility),
     marquee_enabled: !!ui.marqueeEnabled,
     marquee_mode: ui.marqueeMode === "loop" ? "loop" : "bounce",
     marquee_speed: Number(ui.marqueeSpeed ?? 5),
@@ -646,18 +657,19 @@ const AddStoreDiplaySettingPage: React.FC<
   });
 
   /* -------- announcement UI -------- */
+  // initial headerSettings state
   const [headerSettings, setHeaderSettings] = useState<any>({
     showAnnouncement: true,
-    message: "this is announced bar test it out",
+    message: "Welcome! Check out our latest news.",
     barColor: "#FFFFFF",
     fontColor: "#111827",
     visibility: "all",
     marqueeEnabled: false,
     marqueeMode: "bounce",
     marqueeSpeed: 5,
-    leftBtnEnabled: false,
-    leftBtnText: "",
-    leftBtnUrl: "",
+    leftBtnEnabled: true,
+    leftBtnText: "Read more",
+    leftBtnUrl: "#",
     leftBtnNewTab: true,
     rightBtnEnabled: false,
     rightBtnText: "",

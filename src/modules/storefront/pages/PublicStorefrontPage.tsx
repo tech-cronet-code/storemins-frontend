@@ -25,30 +25,38 @@ type StorefrontBootstrap = {
   businessStoreId?: string | number;
   businessId?: string | number;
   store?: { businessStoreId?: string | number } | null;
+  settings?: { bussinessId?: string | number };
 };
+
+function toSettingsObject(v: unknown): Record<string, unknown> {
+  if (v && typeof v === "object") return v as Record<string, unknown>;
+  if (typeof v === "string") {
+    try {
+      const parsed = JSON.parse(v || "{}");
+      return parsed && typeof parsed === "object" ? parsed : {};
+    } catch {
+      return {};
+    }
+  }
+  return {};
+}
 
 export default function PublicStorefrontPage() {
   const { storeSlug = "" } = useParams<{ storeSlug?: string }>();
   const { user: customerUser } = useCustomerAuth();
-  // const { userDetails } = useSellerAuth();
 
   const isLoggedIn =
     !!customerUser?.id ||
     !!(
-      (
-        typeof window !== "undefined" &&
-        (localStorage.getItem("customer_auth_token") || // ← your customer token
-          localStorage.getItem("customer_auth_user"))
-      ) // ← presence implies logged-in
+      typeof window !== "undefined" &&
+      (localStorage.getItem("customer_auth_token") ||
+        localStorage.getItem("customer_auth_user"))
     );
 
   const { data, isLoading, isError } = useGetStorefrontBootstrapQuery(
     { slug: storeSlug },
     { skip: !storeSlug }
   );
-
-  console.log(storeSlug, "storeSlug");
-  // console.log(data?.settings.bussinessId, "storeSlug - businessId");
 
   if (!storeSlug) return <div className="p-6">Missing slug.</div>;
   if (isLoading) return <div className="p-6">Loading store…</div>;
@@ -59,30 +67,39 @@ export default function PublicStorefrontPage() {
   const api = data as StorefrontBootstrap;
 
   // Normalize to the Block[] shape expected by RenderLayout
-  const layout: Block[] = (api.layout ?? []).map((b) => ({
-    id: b.id ?? b._id ?? undefined,
-    code: b.code,
-    position: typeof b.position === "number" ? b.position : b.order ?? 0,
-    settings: b.settings ?? {},
-    is_active:
-      b.is_active ??
-      (typeof b.isActive === "boolean" ? (b.isActive ? 1 : 0) : undefined) ??
-      (typeof b.active === "boolean" ? (b.active ? 1 : 0) : undefined) ??
-      (typeof b.enabled === "boolean" ? (b.enabled ? 1 : 0) : undefined) ??
-      1,
-  }));
+  const layout: Block[] = (api.layout ?? [])
+    .map((b) => {
+      const settings = toSettingsObject(b.settings);
+      const isActive =
+        b.is_active ??
+        (typeof b.isActive === "boolean" ? (b.isActive ? 1 : 0) : undefined) ??
+        (typeof b.active === "boolean" ? (b.active ? 1 : 0) : undefined) ??
+        (typeof b.enabled === "boolean" ? (b.enabled ? 1 : 0) : undefined) ??
+        1;
 
-  // const businessIdFromAuth: string =
-  //   userDetails?.storeLinks?.[0]?.businessId ?? "";
+      return {
+        id: b.id ?? b._id ?? undefined,
+        code: b.code,
+        position:
+          typeof b.position === "number"
+            ? b.position
+            : typeof b.order === "number"
+            ? b.order
+            : 0,
+        settings,
+        is_active: isActive,
+      };
+    })
+    .sort((a, b) => a.position - b.position);
 
-  // const businessId: string =
-  //   businessIdFromAuth ||
-  //   String(
-  //     api.businessStoreId ?? api.businessId ?? api.store?.businessStoreId ?? ""
-  //   );
-
-  const businessId: string = data?.settings.bussinessId;
-  console.log(businessId, "storeSlug - businessId");
+  // businessId used by RenderLayout
+  const businessId: string = String(
+    (data as any)?.settings?.bussinessId ??
+      api.businessStoreId ??
+      api.businessId ??
+      api.store?.businessStoreId ??
+      ""
+  );
 
   return (
     <div className="min-h-dvh">
