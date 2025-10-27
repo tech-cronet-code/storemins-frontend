@@ -46,7 +46,7 @@ interface AuthContextType {
   ) => Promise<{ needsOtp: boolean; role: UserRoleName[] | UserRoleName }>;
 
   register: (payload: {
-    name: string;
+    // name: string;
     mobile: string;
     pass_hash: string;
     role: UserRoleName;

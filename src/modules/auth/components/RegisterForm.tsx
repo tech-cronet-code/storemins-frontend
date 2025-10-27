@@ -11,7 +11,7 @@ import { useNavigate } from "react-router-dom";
 // eslint-disable-next-line react-refresh/only-export-components
 export const registerSchema = z
   .object({
-    name: z.string().min(1, "Name is required"),
+    // name: z.string().min(1, "Name is required"),
     mobile: z
       .string()
       .min(10, "Mobile number must be at least 10 digits")
@@ -58,7 +58,7 @@ const RegisterForm = ({ onSubmit }: RegisterFormProps) => {
       <form className="space-y-4 w-full" onSubmit={handleSubmit(onSubmit)}>
         <input type="hidden" value="SELLER" {...register("role")} />
 
-        <div className="flex-1">
+        {/* <div className="flex-1">
           <input
             {...register("name")}
             placeholder="Name"
@@ -67,7 +67,7 @@ const RegisterForm = ({ onSubmit }: RegisterFormProps) => {
           {errors.name && (
             <p className="text-red-500 text-sm">{errors.name.message}</p>
           )}
-        </div>
+        </div> */}
 
         <div className="flex-1">
           <input

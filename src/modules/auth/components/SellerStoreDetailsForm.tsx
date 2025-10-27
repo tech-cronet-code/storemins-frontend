@@ -107,7 +107,7 @@ const SellerStoreDetailsForm: React.FC<Props> = ({
         {/* Business Name */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            Business Name
+            Business/brand Name or Your name
           </label>
           <input
             {...register("businessName")}

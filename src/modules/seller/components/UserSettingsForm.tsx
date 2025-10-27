@@ -1,47 +1,20 @@
 import { Pencil } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { FaUserCircle } from "react-icons/fa";
-import * as z from "zod";
 import { showToast } from "../../../common/utils/showToast";
 import { useSellerAuth } from "../../auth/contexts/SellerAuthContext";
 import { convertPath } from "../../auth/utils/useImagePath"; // keep your existing util
 
-// ✅ Zod name schema
-const nameSchema = z
-  .string()
-  .min(3, "Name must be at least 3 characters long.")
-  .max(50, "Name cannot be more than 50 characters.")
-  .regex(/^[A-Za-z\s]+$/, "Name must contain only letters and spaces.");
-
 const UserSettingsForm = () => {
   const { userDetails, updateProfile } = useSellerAuth();
-  const [name, setName] = useState(userDetails?.name || "");
-  const [nameError, setNameError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [imageError, setImageError] = useState(false);
 
-  // 🔻 New: track the picked file + preview URL
+  // 🔻 Track picked file + preview URL
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  // keep name in sync with userDetails
-  useEffect(() => {
-    if (userDetails) setName(userDetails.name);
-  }, [userDetails]);
-
-  // validate name live
-  useEffect(() => {
-    try {
-      nameSchema.parse(name);
-      setNameError(null);
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        setNameError(error.errors[0]?.message || "Invalid name");
-      }
-    }
-  }, [name]);
 
   // cleanup preview object URL
   useEffect(() => {
@@ -52,15 +25,12 @@ const UserSettingsForm = () => {
 
   if (!userDetails) return <div>Loading...</div>;
 
-  //  Form change checks
-  const isNameChanged = name.trim() !== (userDetails?.name || "").trim();
+  // Form change checks
   const isImageChanged = !!avatarFile;
-  const isFormChanged = isNameChanged || isImageChanged;
 
   const onFileButtonClick = () => fileInputRef.current?.click();
 
-  //  Resolve current image URL (preview takes priority)
-  // Backend returns: top-level "imageId": "<fileId>.webp"
+  // Resolve current image URL (preview takes priority)
   const serverImageDiskName = userDetails?.image ?? undefined; // already has .webp
   const serverThumbUrl = serverImageDiskName
     ? convertPath(serverImageDiskName, "original/auth")
@@ -83,44 +53,34 @@ const UserSettingsForm = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    try {
-      nameSchema.parse(name);
-      if (!isFormChanged) {
-        showToast({
-          type: "error",
-          message: "Nothing to update.",
-          showClose: true,
-        });
-        return;
-      }
-      setLoading(true);
+    if (!isImageChanged) {
+      showToast({
+        type: "error",
+        message: "Nothing to update.",
+        showClose: true,
+      });
+      return;
+    }
 
-      //  NEW: send multipart (name + optional avatarFile)
-      const resp = await updateProfile(name, avatarFile || undefined);
+    try {
+      setLoading(true);
+      const resp = await updateProfile(undefined, avatarFile || undefined);
 
       // Update succeeded; clear transient preview file
       setAvatarFile(null);
 
       showToast({
         type: "success",
-        message: "Profile updated successfully!",
+        message: "Profile image updated successfully!",
         showClose: true,
       });
     } catch (error) {
-      if (error instanceof z.ZodError) {
-        showToast({
-          type: "error",
-          message: error.errors[0]?.message || "Invalid name",
-          showClose: true,
-        });
-      } else {
-        console.error(error);
-        showToast({
-          type: "error",
-          message: "Failed to update profile. Please try again.",
-          showClose: true,
-        });
-      }
+      console.error(error);
+      showToast({
+        type: "error",
+        message: "Failed to update profile. Please try again.",
+        showClose: true,
+      });
     } finally {
       setLoading(false);
     }
@@ -164,24 +124,8 @@ const UserSettingsForm = () => {
           </div>
         </div>
 
-        {/* Form Fields */}
+        {/* Info Fields */}
         <div className="md:col-span-10 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4 w-full">
-          <div>
-            <label className="text-sm font-medium text-gray-700">
-              Your Name
-            </label>
-            <input
-              className={`mt-1 w-full border ${
-                nameError ? "border-red-500" : "border-gray-300"
-              } rounded-md px-3 py-2`}
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-            />
-            {nameError && (
-              <p className="text-red-500 text-sm mt-1">{nameError}</p>
-            )}
-          </div>
-
           <div>
             <label className="text-sm font-medium text-gray-700">Mobile</label>
             <input
@@ -233,11 +177,11 @@ const UserSettingsForm = () => {
         <button
           type="submit"
           className={`bg-blue-600 text-white px-8 py-2 rounded-lg transition ${
-            loading || !isFormChanged || nameError
+            loading || !isImageChanged
               ? "opacity-50 cursor-not-allowed"
               : "hover:bg-blue-700"
           }`}
-          disabled={loading || !isFormChanged || !!nameError}
+          disabled={loading || !isImageChanged}
         >
           {loading ? "Saving..." : "Save"}
         </button>

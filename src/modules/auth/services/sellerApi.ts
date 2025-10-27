@@ -32,7 +32,7 @@ import {
 
 /* ---------- Auth DTOs ---------- */
 export interface RegisterPayload {
-  name: string;
+  // name: string;
   mobile: string;
   pass_hash: string;
   role: UserRoleName;

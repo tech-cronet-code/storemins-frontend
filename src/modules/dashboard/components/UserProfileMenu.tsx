@@ -84,7 +84,8 @@ const UserProfileMenu: React.FC<UserProfileMenuProps> = ({ onClose }) => {
         )}
         <div className="flex flex-col leading-tight">
           <span className="text-sm font-medium text-gray-900 truncate">
-            {userDetails?.name || "Unnamed User"}
+            {/* {userDetails?.name || "Seller"} */}
+            {"Seller"}
           </span>
           <span className="text-xs text-gray-500 break-words">
             {userDetails?.mobile || "No mobile number"}

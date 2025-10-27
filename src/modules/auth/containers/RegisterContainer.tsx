@@ -15,7 +15,7 @@ const RegisterContainer = () =>
       const hashedPassword = await hashPassword(data.pass_hash); // 👈 hash here
       try {
         const { needsOtp, quickLoginEnable } = await register({
-          name: data.name,
+          // name: data.name,
           mobile: data.mobile,
           pass_hash: hashedPassword,
           role: data.role, // Adjust as needed
