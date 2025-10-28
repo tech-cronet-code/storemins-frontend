@@ -1,12 +1,9 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { fetchBaseQuery, FetchArgs } from "@reduxjs/toolkit/query/react";
 import { RootState } from "../../../common/state/store";
 import { loginSuccess, logout } from "../slices/customerAuthSlice";
+import { getApiRoot } from "../../../common/config/runtime";
 
-const API_ROOT =
-  (import.meta.env.VITE_MODE === "development"
-    ? import.meta.env.VITE_PUBLIC_API_URL_RUNTIME_LOCAL
-    : import.meta.env.VITE_PUBLIC_API_URL_RUNTIME_LIVE) || "";
+const API_ROOT = getApiRoot();
 
 /* ---------- Helper to resolve businessId ---------- */
 function resolveBusinessId(): string | null {
@@ -35,7 +32,7 @@ function resolveBusinessId(): string | null {
 
 const rootBase = fetchBaseQuery({
   baseUrl: API_ROOT,
-  credentials: "include", // include customer_refresh_token__${businessId}
+  credentials: "include", // includes customer_refresh_token__${businessId}
   prepareHeaders: (h, api) => {
     const state = api.getState() as RootState;
     const token = state.customerAuth.token;
@@ -54,7 +51,7 @@ const shouldSkip = (url: string) => {
     "/customer/auth/confirm-mobile-otp",
     "/customer/auth/resend-mobile-otp",
     "/customer/auth/logout",
-    "/customer/auth/refresh-auth-token", // ✅ updated endpoint
+    "/customer/auth/refresh-auth-token",
   ]).has(path);
 };
 

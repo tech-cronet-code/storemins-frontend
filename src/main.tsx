@@ -15,8 +15,9 @@ if (import.meta.env.VITE_MODE === "production") {
   console.debug = () => {};
   console.info = () => {};
   // Optional: disable warnings and errors too
-  console.warn = () => {};
-  console.error = () => {};
+  // Keep errors & warnings visible in prod
+  // console.warn = () => {};
+  // console.error = () => {};
 }
 
 // Optional: global error handler for uncaught app-level errors

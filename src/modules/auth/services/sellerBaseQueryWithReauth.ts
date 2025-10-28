@@ -1,16 +1,13 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { fetchBaseQuery, FetchArgs } from "@reduxjs/toolkit/query/react";
 import { RootState } from "../../../common/state/store";
 import { loginSuccess, logout } from "../slices/sellerAuthSlice";
+import { getApiRoot } from "../../../common/config/runtime";
 
-const API_ROOT =
-  (import.meta.env.VITE_MODE === "development"
-    ? import.meta.env.VITE_PUBLIC_API_URL_RUNTIME_LOCAL
-    : import.meta.env.VITE_PUBLIC_API_URL_RUNTIME_LIVE) || "";
+const API_ROOT = getApiRoot();
 
 const authBase = fetchBaseQuery({
-  baseUrl: `${API_ROOT}`,
-  credentials: "include", // send seller_refresh_token cookie
+  baseUrl: API_ROOT,
+  credentials: "include", // includes seller_refresh_token cookie
   prepareHeaders: (h, api) => {
     const state = api.getState() as RootState;
     const token = state.sellerAuth.token;
