@@ -2,9 +2,9 @@ name: Frontend CI
 
 on:
   push:
-    branches: ["develop"] # runs when you push to develop
+    branches: ["master", "develop"] # runs when you push to develop or master
   pull_request:
-    branches: ["develop"] # runs when a PR targets develop
+    branches: ["master", "develop"] # runs when a PR targets develop or master
 
 jobs:
   ci:
@@ -27,9 +27,27 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # - name: Checkout code
+      #   uses: actions/checkout@v4
+      #   with:
+      #     fetch-depth: 0
+      # - name: Secret Scanning
+      #   uses: trufflesecurity/trufflehog@main
+      #   with:
+      #     extra_args: --results=verified,unknown
+
       - name: Lint
         run: npm run lint --if-present
         continue-on-error: true #  makes lint non-blocking
+
+      # - name: Checkout code
+      #   uses: actions/checkout@v4
+      #   with:
+      #     fetch-depth: 0
+      # - name: Secret Scanning
+      #   uses: trufflesecurity/trufflehog@main
+      #   with:
+      #     extra_args: --results=verified,unknown
 
       - name: Build
         run: npm run build

@@ -2,9 +2,13 @@
 import { useDispatch } from "react-redux";
 import { AppDispatch } from "../../../common/state/store";
 import { showToast } from "../../../common/utils/showToast";
-import { RegisterPayload, useRegisterMutation } from "../services/authApi";
-import { loginFailure, loginStart, registerSuccess } from "../slices/authSlice";
+import { RegisterPayload, useRegisterMutation } from "../services/sellerApi";
 import { UserRoleName } from "../constants/userRoles";
+import {
+  loginFailure,
+  loginStart,
+  registerSuccess,
+} from "../slices/sellerAuthSlice";
 
 export const useRegister = (
   onQuickLoginEnable?: (enabled: boolean) => void
@@ -43,14 +47,14 @@ export const useRegister = (
         // 👇 cast `role` properly
         const castedRoles = role as UserRoleName[];
 
-         dispatch(
+        dispatch(
           registerSuccess({
             user: {
               id,
               mobile,
               role: castedRoles || [],
               permissions: permissions || [],
-              name: payload.name, // Name comes from input
+              // name: payload.name, // Name comes from input
               mobile_confirmed: mobile_confirmed ?? false,
             },
             token: access_token,

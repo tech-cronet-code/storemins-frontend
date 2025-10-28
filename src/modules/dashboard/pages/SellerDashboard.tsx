@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { UserRoleName } from "../../auth/constants/userRoles";
-// import { useAuth } from "../../auth/contexts/AuthContext";
 import CreditsBanner from "../components/CreditsBanner";
 import FeatureCarouselInsideCard from "../components/FeatureCarouselInsideCard";
 import GetMoreCard from "../components/GetMoreCard";
@@ -11,11 +10,15 @@ import ShortcutModal from "../components/ShortcutModal";
 import StoreLinkCard from "../components/StoreLinkCard";
 import StoreSetupChecklist from "../components/StoreSetupChecklist";
 import WalletAlert from "../components/WalletAlert";
+import {
+  buildStoreUrl,
+  getSuggestedDomain,
+} from "../../../common/utils/buildStoreUrl";
+import { useSellerAuth } from "../../auth/contexts/SellerAuthContext";
 
 const SellerDashboard = () => {
+  const { userDetails } = useSellerAuth();
 
-    // const {  userDetails } = useAuth(); // ✅ from context
-  
   const initialShortcuts = [
     {
       label: "Facebook Pixel",
@@ -138,6 +141,28 @@ const SellerDashboard = () => {
     );
   };
 
+  /* ------------ helper to pick active link & card JSX ------------ */
+  const renderStoreLinkCard = () => {
+    if (!userDetails?.storeLinks?.length) return null;
+
+    const activeLink = userDetails.storeLinks.find((l) => l.domain?.isActive);
+    if (!activeLink?.domain) return null;
+
+    const storeUrl = buildStoreUrl(activeLink.domain);
+    const suggestedDomain = getSuggestedDomain(activeLink.domain);
+
+    // ⬇️ Do NOT pass custom copy/share using the raw URL.
+    // The card now normalizes & uses localhost:5173 automatically when on localhost.
+    return (
+      <StoreLinkCard
+        storeUrl={storeUrl}
+        suggestedDomain={suggestedDomain}
+        onClose={() => console.log("Closed")}
+        onGetNow={() => console.log("Get Now clicked:", suggestedDomain)}
+      />
+    );
+  };
+
   return (
     <Layout role={UserRoleName.SELLER}>
       <div className="w-full overflow-x-hidden">
@@ -237,16 +262,7 @@ const SellerDashboard = () => {
         </div>
 
         {/* Store Links Cards */}
-        <StoreLinkCard
-          storeUrl={"https://cakestore.storemins.com"}
-          suggestedDomain="cake-store.com"
-          onCopy={() =>
-            navigator.clipboard.writeText("https://cakestore.storemins.com")
-          }
-          onClose={() => console.log("Closed")}
-          onShare={(platform) => console.log("Shared to:", platform)}
-          onGetNow={() => console.log("Get Now Clicked")}
-        />
+        {renderStoreLinkCard()}
 
         {/* Feature + Checklist */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4 mb-6">
@@ -280,7 +296,6 @@ const SellerDashboard = () => {
           </h3>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 items-stretch">
-            {/* 🔶 Original Cards */}
             <GetMoreCard
               title="Setup payment details"
               subtitle="Connect bank account to receive payments directly"
@@ -357,11 +372,6 @@ const SellerDashboard = () => {
           onToggle={handleToggleShortcut}
           onSave={() => setShortcutModalOpen(false)}
         />
-
-        {/* <div className="m-6">
-        <h2 className="text-2xl font-bold mb-4">Seller Dashboard</h2>
-        <p>Manage your products and orders here.</p>
-      </div> */}
       </div>
     </Layout>
   );

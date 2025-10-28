@@ -1,59 +1,55 @@
 // src/routes/SellerRoute.tsx
 import { Navigate, Outlet, useLocation } from "react-router-dom";
-import { UserRoleName } from "../modules/auth/constants/userRoles";
-import { useAuth } from "../modules/auth/contexts/AuthContext";
+import { useSellerAuth } from "../modules/auth/contexts/SellerAuthContext";
 
 const SellerRoute = () => {
-  const { user, loading, userDetails } = useAuth();
+  const { loading, userDetails } = useSellerAuth();
   const location = useLocation();
 
-  // ✅ 1) wait for auth *and* profile to finish loading
-  if (loading || userDetails === undefined) {
-    return <div>Loading...</div>;
-  }
+  if (loading || userDetails === undefined) return <div>Loading...</div>;
 
-  // 2) enforce SELLER role
-  const isSeller =
-    user && Array.isArray(user.role) && user.role.includes(UserRoleName.SELLER);
-
-  if (!isSeller) {
-    return <Navigate to="/home" />;
-  }
-
-  // 3) unwrap envelope if needed
+  // Some APIs return { success, data }, others return the DTO directly
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const profile = (userDetails as any)?.data ?? userDetails;
-  const storeLinks = Array.isArray(profile.storeLinks)
+
+  const storeLinks = Array.isArray(profile?.storeLinks)
     ? profile.storeLinks
     : [];
   const hasStoreDetails = storeLinks.length > 0;
-  const isDomainLinked = profile.isDomainLinked === true;
+  const isDomainLinked = profile?.isDomainLinked === true;
 
-  console.log(hasStoreDetails, "hasStoreDetails");
-  console.log(userDetails, "userDetails");
-  console.log(location.pathname, "location.pathname");
+  const path = location.pathname;
 
-  // 4) only redirect *once* when everything is settled
-  if (!hasStoreDetails && location.pathname !== "/seller/store-details") {
+  // 1) If store details are missing → must stay on /seller/store-details
+  if (!hasStoreDetails && path !== "/seller/store-details") {
     return <Navigate to="/seller/store-details" replace />;
   }
 
-  if (hasStoreDetails && location.pathname === "/seller/store-details") {
-    return <Navigate to="/seller/store-unlock" replace />;
+  // 2) If store details exist:
+  if (hasStoreDetails) {
+    // 2a) Block the store-details page (user shouldn’t be able to go back)
+    if (path === "/seller/store-details") {
+      // if domain not linked yet, continue onboarding at unlock step; else go dashboard
+      return (
+        <Navigate
+          to={isDomainLinked ? "/seller" : "/seller/store-unlock"}
+          replace
+        />
+      );
+    }
+
+    // 2b) If domain is NOT linked, force user to /seller/store-unlock
+    if (!isDomainLinked && path !== "/seller/store-unlock") {
+      return <Navigate to="/seller/store-unlock" replace />;
+    }
+
+    // 2c) If domain IS linked and user tries to hit unlock page, send to dashboard
+    if (isDomainLinked && path === "/seller/store-unlock") {
+      return <Navigate to="/seller" replace />;
+    }
   }
 
-  if (
-    hasStoreDetails &&
-    !isDomainLinked &&
-    location.pathname !== "/seller/store-unlock"
-  ) {
-    return <Navigate to="/seller/store-unlock" replace />;
-  }
-
-  if (isDomainLinked && location.pathname === "/seller/store-unlock") {
-    return <Navigate to="/seller" replace />;
-  } 
-
+  // 3) Otherwise, allow nested seller routes
   return <Outlet />;
 };
 

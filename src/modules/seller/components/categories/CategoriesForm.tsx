@@ -1,54 +1,73 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import React, { useEffect } from "react";
-import { FormProvider, useForm } from "react-hook-form";
-import { z } from "zod";
-import CategoriesInfoSection from "./CategoriesInfoSection";
-import SEOCategorySection from "./SEOCategorySection";
-import { useSellerProduct } from "../../hooks/useSellerProduct";
-import { useAuth } from "../../../auth/contexts/AuthContext";
-import { showToast } from "../../../../common/utils/showToast";
-import { CategoriesSchema } from "../../Schemas/CategoriesSchema";
+import React, { useEffect, useRef, useState } from "react";
+import { FormProvider, useForm, useWatch } from "react-hook-form";
 import { useNavigate } from "react-router-dom";
+import { z } from "zod";
+import { showToast } from "../../../../common/utils/showToast";
+import { useSellerAuth } from "../../../auth/contexts/SellerAuthContext";
+import { useSellerProduct } from "../../hooks/useSellerProduct";
+import { CategoriesSchema } from "../../Schemas/CategoriesSchema";
+import CategoriesInfoSection from "./CategoriesInfoSection";
 import HeaderSubmitButton from "./HeaderButton";
+import SEOCategorySection from "./SEOCategorySection";
+import { buildCategoryFormData } from "../../../auth/utils/buildCategoryFormData";
+import { convertPath } from "../../../auth/utils/useImagePath";
 
 type CategoriesFormValues = z.infer<typeof CategoriesSchema>;
 
 interface CategoriesFormProps {
-  categoryId?: string; // 📝 For Edit Mode
-  type?: string;
-  onSuccess?: () => void; // ✅ On Save Success
+  categoryId?: string;
+  type?: "PARENT" | "SUB";
+  parentId?: string;
+  onSuccess?: () => void;
 }
 
 const CategoriesForm: React.FC<CategoriesFormProps> = ({
   categoryId,
   type,
+  parentId,
   onSuccess,
 }) => {
   const navigate = useNavigate();
-
-  const { createCategory, updateCategory, getCategory } = useSellerProduct(); // CRUD APIs
-  const { userDetails } = useAuth(); // User Info
+  const { createCategory, updateCategory, getCategory } = useSellerProduct();
+  const { userDetails } = useSellerAuth();
 
   const methods = useForm<CategoriesFormValues>({
     resolver: zodResolver(CategoriesSchema),
     mode: "onChange",
     defaultValues: {
       name: "",
-      isSubcategory: false,
+      isSubcategory: !!parentId,
+      category: parentId || "",
       image: undefined,
       bannerDesktop: undefined,
       bannerMobile: undefined,
       description: "",
       seoTitle: "",
       seoDescription: "",
+      seoKeywords: "",
       seoImage: undefined,
     },
   });
 
-  //   const { isValid, isSubmitting } = methods.formState;
   const { reset: resetForm } = methods;
 
-  // 👇 Lazy Query for Get Category (one-time)
+  // Main image: keep as File[] semantics (your existing component expects this)
+  const imageFileList = useWatch({
+    name: "image",
+    control: methods.control,
+  }) as File[] | undefined;
+  const imageFile: File | undefined = imageFileList?.[0];
+
+  // SEO image: treat as FileList (how RHF stores file inputs)
+  const seoFileList = useWatch({
+    name: "seoImage",
+    control: methods.control,
+  }) as FileList | undefined;
+  const seoFile: File | undefined = seoFileList?.[0];
+
+  const [previewUrl, setPreviewUrl] = useState<string | undefined>(undefined);
+
   const {
     getCategory: fetchCategory,
     data,
@@ -56,30 +75,46 @@ const CategoriesForm: React.FC<CategoriesFormProps> = ({
     error,
     isLoading,
   } = getCategory;
-  // 👇 Fetch Category on Mount
-  useEffect(() => {
-    if (categoryId && type) {
-      const categoryType = type === "PARENT" ? "PARENT" : "SUB";
-      fetchCategory(categoryId, categoryType);
-    }
-    // 👇 fetchCategory ko dependency se hatao
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [categoryId, type]);
 
-  // 👇 Reset form with fetched data
+  const didFetchRef = useRef(false);
+
   useEffect(() => {
-    if (data) {
+    if (!categoryId || didFetchRef.current) return;
+    didFetchRef.current = true;
+    const initialType = type === "PARENT" || type === "SUB" ? type : "PARENT";
+    fetchCategory(categoryId, initialType);
+  }, [categoryId, type, fetchCategory]);
+
+  useEffect(() => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const status = (error as any)?.status;
+    if (!type && isError && status === 404 && categoryId) {
+      fetchCategory(categoryId, "SUB");
+    }
+  }, [type, isError, error, categoryId, fetchCategory]);
+
+  // Fill form from fetched data
+  useEffect(() => {
+    if (categoryId && data?.id === categoryId) {
       resetForm({
         name: data.name || "",
         description: data.description || "",
         isSubcategory: data.categoryType === "SUB",
+        category: data.parentCategory?.id || "",
+        image: undefined,
+        bannerDesktop: undefined,
+        bannerMobile: undefined,
         seoTitle: data.seoMetaData?.title || "",
         seoDescription: data.seoMetaData?.description || "",
+        seoKeywords: data.seoMetaData?.keywords || "",
+        seoImage: undefined,
       });
+      methods.setValue("image", undefined);
+      methods.setValue("seoImage", undefined);
+      setPreviewUrl(undefined);
     }
-  }, [data, resetForm]);
+  }, [categoryId, data, methods, resetForm]);
 
-  // 👇 Show error toast
   useEffect(() => {
     if (isError && error) {
       showToast({
@@ -90,7 +125,29 @@ const CategoriesForm: React.FC<CategoriesFormProps> = ({
     }
   }, [isError, error]);
 
-  // 👇 Form Submit Handler
+  useEffect(() => {
+    if (parentId) methods.setValue("isSubcategory", true);
+  }, [methods, parentId]);
+
+  useEffect(() => {
+    return () => {
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+    };
+  }, [previewUrl]);
+
+  // Category display image (server) for edit
+  const serverImageDiskName = data?.imageUrl ?? undefined;
+  const serverThumbUrl = serverImageDiskName
+    ? convertPath(serverImageDiskName, "original/category")
+    : undefined;
+  const effectiveImageUrl = previewUrl ?? serverThumbUrl;
+
+  // SEO image (server) for edit
+  const serverSeoDiskName = data?.seoMetaData?.imageUrl ?? undefined;
+  const serverSeoUrl = serverSeoDiskName
+    ? convertPath(serverSeoDiskName, "original/category/seo")
+    : undefined;
+
   const onSubmit = async (formData: CategoriesFormValues) => {
     try {
       const businessId = userDetails?.storeLinks?.[0]?.businessId;
@@ -103,64 +160,75 @@ const CategoriesForm: React.FC<CategoriesFormProps> = ({
         return;
       }
 
-      const payload = {
+      const isEditMode = !!categoryId;
+      const categoryType: "PARENT" | "SUB" = isEditMode
+        ? (type as "PARENT" | "SUB")
+        : formData.isSubcategory || parentId
+        ? "SUB"
+        : "PARENT";
+
+      const effectiveParentId =
+        categoryType === "SUB" ? formData.category || parentId : undefined;
+
+      const fd = buildCategoryFormData({
+        id: isEditMode ? categoryId : undefined,
         name: formData.name,
         description: formData.description || undefined,
-        status: "ACTIVE" as const,
-        categoryType: formData.isSubcategory
-          ? ("SUB" as const)
-          : ("PARENT" as const),
+        status: "ACTIVE",
+        categoryType,
         businessId,
-        parentId: formData.isSubcategory ? formData.category : undefined,
+        parentId: effectiveParentId,
+        image: imageFile,
+        seoImage: seoFile, // <-- append SEO file
         seoMetaData:
-          formData.seoTitle || formData.seoDescription
+          formData.seoTitle || formData.seoDescription || formData.seoKeywords
             ? {
                 title: formData.seoTitle || "",
                 description: formData.seoDescription || "",
+                keywords: formData.seoKeywords || "",
               }
             : undefined,
-        imageId: undefined,
-      };
+      });
 
-      if (categoryId) {
-        // ✅ Update Mode
-        const response = await updateCategory.updateCategory({
-          ...payload,
-          id: categoryId,
-        });
+      if (isEditMode) {
+        const res = await updateCategory.updateCategory(fd);
         showToast({
           type: "success",
-          message: response.message || "Category updated successfully!",
+          message: res?.message || "Category updated successfully!",
           showClose: true,
         });
       } else {
-        // ➕ Create Mode
-        const response = await createCategory(payload);
+        const res = await createCategory(fd);
         showToast({
           type: "success",
-          message: response.data?.message || "Category created successfully!",
+          message:
+            res && "data" in res && res.data?.message
+              ? res.data.message
+              : "Category created successfully!",
           showClose: true,
         });
       }
 
-      resetForm(); // Reset Form
-      if (onSuccess) {
-        onSuccess();
-      }
-      navigate("/seller/catalogue/categories"); // 👈 redirects to main listing
-
+      resetForm();
+      if (onSuccess) onSuccess();
+      navigate("/seller/catalogue/categories");
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    } catch (error: any) {
-      const errorMessage =
-        error?.data?.message || "Something went wrong. Please try again.";
-      console.error("Failed to save category:", error);
-
+    } catch (err: any) {
+      console.error("Failed to save category:", err);
       showToast({
         type: "error",
-        message: errorMessage,
+        message:
+          err?.data?.message || "Something went wrong. Please try again.",
         showClose: true,
       });
     }
+  };
+
+  const handleImagePreview = (file: File) => {
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
+    const localUrl = URL.createObjectURL(file);
+    setPreviewUrl(localUrl);
+    methods.setValue("image", [file], { shouldValidate: true });
   };
 
   return (
@@ -179,11 +247,15 @@ const CategoriesForm: React.FC<CategoriesFormProps> = ({
             <CategoriesInfoSection
               categoryId={categoryId}
               type={type as "PARENT" | "SUB"}
+              imageUrl={effectiveImageUrl}
+              onImageFileChange={handleImagePreview}
+              imageId={undefined}
+              imageDiskName={data?.imageUrl}
             />
           </section>
 
           <section id="seo" className="scroll-mt-24">
-            <SEOCategorySection />
+            <SEOCategorySection serverSeoImageUrl={serverSeoUrl} />
           </section>
 
           <div className="flex justify-end mt-6 pb-15 pt-1">

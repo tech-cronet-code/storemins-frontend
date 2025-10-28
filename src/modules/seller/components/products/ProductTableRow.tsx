@@ -3,48 +3,127 @@ import { Eye, Share2 } from "lucide-react";
 import ShareModal from "./ShareModal";
 import ProductActionsMenu from "./ProductActionsMenu";
 import DeleteConfirmModal from "./DeleteConfirmModal";
+import {
+  useDeleteProductMutation,
+  useUpdateProductStatusMutation,
+} from "../../../auth/services/productApi";
+import { showToast } from "../../../../common/utils/showToast";
+import { useSellerAuth } from "../../../auth/contexts/SellerAuthContext";
 
 interface ProductRowProps {
-  id: string; // ✅ Add id prop properly
+  id: string;
+  /** Full image URL (already resolved in parent) */
   image: string;
   title: string;
   subtitle: string;
+  variant: string;
   price: number;
-  mrp: number; // ✅ Remove optional. Always pass `0` if missing.
+  discountedPrice: number;
+  mrp: number;
   inventory: number | string;
   isActive: boolean;
   checked: boolean;
   onCheckboxChange: (checked: boolean) => void;
   onEdit: (id: string) => void;
+  onDeleteComplete?: (
+    deletedId: string,
+    shouldGoToPreviousPage?: boolean
+  ) => void;
+  isLastItemOnPage?: boolean;
 }
 
 const ProductTableRow: React.FC<ProductRowProps> = ({
-  id, 
+  id,
   image,
   title,
   subtitle,
+  variant,
   price,
-  mrp,
+  discountedPrice,
+  // mrp,
   inventory,
   isActive,
   checked,
   onCheckboxChange,
   onEdit,
+  onDeleteComplete,
+  isLastItemOnPage = false,
 }) => {
+  const { userDetails } = useSellerAuth();
+
+  const businessId = userDetails?.storeLinks?.[0]?.businessId;
   const [active, setActive] = useState(isActive);
+  const [updateProductStatus] = useUpdateProductStatusMutation();
   const [isShareModalOpen, setShareModalOpen] = useState(false);
   const [isDeleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [isVisible, setIsVisible] = useState(true);
+  const [deleteProduct, { isLoading }] = useDeleteProductMutation();
 
-  const toggleStatus = () => {
-    const newStatus = !active;
-    setActive(newStatus);
+  const toggleStatus = async () => {
+    if (!businessId) {
+      showToast({
+        type: "error",
+        message: "Business ID not found",
+        showClose: true,
+      });
+      return;
+    }
+
+    const newStatus = active ? "INACTIVE" : "ACTIVE";
+    setActive(!active);
+
+    try {
+      await updateProductStatus({ id, status: newStatus, businessId }).unwrap();
+      showToast({
+        type: "success",
+        message: `Product marked as ${newStatus}`,
+        showClose: true,
+      });
+    } catch {
+      setActive(active);
+      showToast({
+        type: "error",
+        message: "Failed to update product status",
+        showClose: true,
+      });
+    }
   };
 
   const validatedTitle = title.length < 3 ? "-" : title.slice(0, 200);
 
+  const handleDelete = async () => {
+    try {
+      const res = await deleteProduct({ id }).unwrap();
+      showToast({
+        type: "success",
+        message: res.message || "Product deleted successfully",
+        showClose: true,
+      });
+
+      setIsVisible(false);
+
+      setTimeout(() => {
+        setDeleteModalOpen(false);
+        onDeleteComplete?.(id, isLastItemOnPage);
+      }, 300);
+    } catch (error) {
+      showToast({
+        type: "error",
+        message: "Failed to delete product",
+        showClose: true,
+      });
+      console.error("❌ Delete error:", error);
+    }
+  };
+
+  if (!isVisible) return null;
+
   return (
     <>
-      <div className="w-full grid grid-cols-[40px_2.5fr_1fr_1fr_1fr_1fr_1fr] gap-4 px-2 py-3 border-t text-sm border-gray-200 text-gray-700 bg-white hover:bg-gray-50">
+      <div
+        className="w-full grid grid-cols-[40px_2.5fr_1fr_1fr_1fr_1fr_1fr] gap-4 px-2 py-3 border-t text-sm border-gray-200 text-gray-700 bg-white hover:bg-gray-50 transition-opacity duration-300 ease-in-out"
+        style={{ opacity: isVisible ? 1 : 0 }}
+      >
         {/* Checkbox */}
         <div className="flex items-center justify-center">
           <input
@@ -62,6 +141,12 @@ const ProductTableRow: React.FC<ProductRowProps> = ({
               src={image}
               alt={title}
               className="w-10 h-10 object-cover rounded border border-gray-100 shrink-0"
+              loading="lazy"
+              draggable={false}
+              onError={(e) => {
+                // If the final URL fails, hide the broken thumbnail to avoid ugly icons.
+                (e.currentTarget as HTMLImageElement).style.display = "none";
+              }}
             />
           ) : (
             <div className="w-10 h-10 flex items-center justify-center bg-gray-100 text-gray-400 rounded border border-gray-100 shrink-0 text-xs">
@@ -80,21 +165,26 @@ const ProductTableRow: React.FC<ProductRowProps> = ({
         </div>
 
         {/* Price */}
-        {/* Price */}
         <div className="flex flex-col justify-center ml-2">
-          <p className="font-semibold text-black">₹{price.toLocaleString()}</p>
-          {/* Only show MRP if it’s greater than 0 */}
-          {mrp > 0 && mrp > price && (
-            <p className="line-through text-gray-400 text-xs">
-              ₹{mrp.toLocaleString()}
+          <div className="flex items-center gap-2">
+            <p className="font-semibold text-black">
+              ₹{discountedPrice.toLocaleString()}
+            </p>
+            {price > discountedPrice && (
+              <span className="text-[11px] font-semibold bg-orange-500 text-white px-2 py-0.5 rounded">
+                {Math.round(((price - discountedPrice) / price) * 100)}% OFF
+              </span>
+            )}
+          </div>
+          {price > discountedPrice && (
+            <p className="line-through text-gray-400 text-xs mt-0.5">
+              ₹{price.toLocaleString()}
             </p>
           )}
         </div>
 
-        {/* Category */}
-        <div className="flex items-center text-sm text-gray-600">
-          {subtitle}
-        </div>
+        {/* variant */}
+        <div className="flex items-center text-sm text-gray-600">{variant}</div>
 
         {/* Inventory */}
         <div className="flex items-center text-sm font-medium text-gray-700">
@@ -114,12 +204,12 @@ const ProductTableRow: React.FC<ProductRowProps> = ({
               className={`w-10 h-5 rounded-full transition-colors duration-300 ${
                 active ? "bg-blue-600" : "bg-gray-300"
               }`}
-            ></div>
+            />
             <div
               className={`absolute left-0.5 top-0.5 w-4 h-4 bg-white rounded-full shadow-md transform transition-transform duration-300 ${
                 active ? "translate-x-5" : ""
               }`}
-            ></div>
+            />
           </label>
           <span
             className={`text-sm font-medium ${
@@ -147,7 +237,6 @@ const ProductTableRow: React.FC<ProductRowProps> = ({
             <Share2 className="w-[18px] h-[18px]" />
           </button>
           <ProductActionsMenu
-            // onEdit={() => console.log("Edit product")}
             onEdit={() => onEdit(id)}
             onDuplicate={() => console.log("Duplicate product")}
             onDelete={() => setDeleteModalOpen(true)}
@@ -162,14 +251,11 @@ const ProductTableRow: React.FC<ProductRowProps> = ({
         title={title}
       />
 
-      {/* Delete Confirmation Modal */}
       <DeleteConfirmModal
         visible={isDeleteModalOpen}
         onClose={() => setDeleteModalOpen(false)}
-        onConfirm={() => {
-          setDeleteModalOpen(false);
-          console.log("Product deleted"); // Replace with real delete logic
-        }}
+        onConfirm={handleDelete}
+        loading={isLoading}
       />
     </>
   );

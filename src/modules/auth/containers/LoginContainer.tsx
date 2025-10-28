@@ -1,10 +1,12 @@
 import { useNavigate } from "react-router-dom";
 import { hashPassword } from "../../../common/utils/hashPassword";
-import { useAuth } from "../contexts/AuthContext";
 import LoginForm, { LoginFormData } from "../components/LoginForm";
+import { useSellerAuth } from "../contexts/SellerAuthContext";
 
 const LoginContainer = () => {
-  const { login, loading, error } = useAuth();
+  // const { login, loading, error } = useSellerAuth();
+  const { login, loading, error } = useSellerAuth();
+
   const navigate = useNavigate(); // ✅ Safe now
 
   const handleLogin = async (data: LoginFormData) => {

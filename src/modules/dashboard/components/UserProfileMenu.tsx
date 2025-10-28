@@ -5,9 +5,11 @@ import {
   FaBell,
   FaCog,
   FaChevronRight,
+  FaUserCircle,
 } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
-import { useAuth } from "../../auth/contexts/AuthContext"; // ✅ adjust path as needed
+import { convertPath } from "../../auth/utils/useImagePath";
+import { useSellerAuth } from "../../auth/contexts/SellerAuthContext";
 
 interface UserProfileMenuProps {
   onClose?: () => void;
@@ -15,7 +17,8 @@ interface UserProfileMenuProps {
 
 const UserProfileMenu: React.FC<UserProfileMenuProps> = ({ onClose }) => {
   const navigate = useNavigate();
-  const { logout, userDetails } = useAuth(); // ✅ from context
+  const { logout, userDetails } = useSellerAuth(); // ✅ from context
+  const [imageError, setImageError] = useState(false); // ✅ Track image load failure
 
   const [showNotificationOptions, setShowNotificationOptions] = useState(false);
   const [notificationSetting, setNotificationSetting] = useState<
@@ -42,24 +45,52 @@ const UserProfileMenu: React.FC<UserProfileMenuProps> = ({ onClose }) => {
     onClose?.(); // ✅ close the dropdown
   };
 
+  // const { imageUrl, imageDiskName } = useImageUpload();
+
+  // Safely get full image URLs if disk name is available
+  // Resolved preview disk name
+  // const resolvedDiskName = imageDiskName ?? userDetails?.image;
+
+  // Generate variant URLs only if we have a disk name
+  // const fullImageUrls = resolvedDiskName
+  //   ?  (resolvedDiskName)
+  //   : null;
+
+  const serverImageDiskName = userDetails?.image ?? undefined; // already has .webp
+  const serverThumbUrl = serverImageDiskName
+    ? convertPath(serverImageDiskName, "original/auth")
+    : undefined;
+
+  const currentImgSrc =
+    serverThumbUrl || "https://randomuser.me/api/portraits/men/32.jpg"; // fallback handled by onError UI
+
   return (
     <div className="w-72 bg-white rounded-2xl shadow-xl border border-gray-200 p-4 relative">
       {/* Profile Info */}
       <div className="flex items-center gap-3 mb-4">
-        <img
-          src="https://randomuser.me/api/portraits/men/32.jpg"
-          alt="Profile"
-          className="w-12 h-12 rounded-full object-cover"
-        />
+        {!imageError ? (
+          <img
+            src={currentImgSrc}
+            alt="Profile"
+            className="w-12 h-12 rounded-full object-cover cursor-pointer hover:ring-2 hover:ring-blue-400"
+            onClick={() => setShowNotificationOptions(false)}
+            onError={() => setImageError(true)}
+          />
+        ) : (
+          <FaUserCircle
+            className="w-12 h-12 text-gray-400 hover:text-blue-500 cursor-pointer"
+            onClick={() => setShowNotificationOptions(false)}
+          />
+        )}
         <div className="flex flex-col leading-tight">
           <span className="text-sm font-medium text-gray-900 truncate">
-            {userDetails?.name || "Unnamed User"}
+            {/* {userDetails?.name || "Seller"} */}
+            {"Seller"}
           </span>
           <span className="text-xs text-gray-500 break-words">
             {userDetails?.mobile || "No mobile number"}
           </span>
         </div>
-
       </div>
 
       {/* Menu */}
@@ -101,19 +132,21 @@ const UserProfileMenu: React.FC<UserProfileMenuProps> = ({ onClose }) => {
             <div className="absolute top-2 left-[180px] bg-white border border-gray-200 rounded-xl shadow-md py-1 w-24 z-50">
               <button
                 onClick={() => setNotificationSetting("allow")}
-                className={`block w-full text-left px-4 py-1 text-sm rounded hover:bg-gray-100 ${notificationSetting === "allow"
+                className={`block w-full text-left px-4 py-1 text-sm rounded hover:bg-gray-100 ${
+                  notificationSetting === "allow"
                     ? "text-green-600 font-semibold"
                     : "text-gray-700"
-                  }`}
+                }`}
               >
                 Allow
               </button>
               <button
                 onClick={() => setNotificationSetting("mute")}
-                className={`block w-full text-left px-4 py-1 text-sm rounded hover:bg-gray-100 ${notificationSetting === "mute"
+                className={`block w-full text-left px-4 py-1 text-sm rounded hover:bg-gray-100 ${
+                  notificationSetting === "mute"
                     ? "text-red-500 font-semibold"
                     : "text-gray-700"
-                  }`}
+                }`}
               >
                 Mute
               </button>

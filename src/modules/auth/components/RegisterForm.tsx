@@ -5,12 +5,13 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { IoEyeOutline, IoEyeOffOutline } from "react-icons/io5";
 import { FaGoogle, FaFacebookF, FaXTwitter, FaApple } from "react-icons/fa6";
 import { UserRoleName } from "../constants/userRoles";
+import { useNavigate } from "react-router-dom";
 // import RegisterLoginToggleBtn from "../../../components/UI/Toggles/RegisterLoginToggle";
 
 // eslint-disable-next-line react-refresh/only-export-components
 export const registerSchema = z
   .object({
-    name: z.string().min(1, "Name is required"),
+    // name: z.string().min(1, "Name is required"),
     mobile: z
       .string()
       .min(10, "Mobile number must be at least 10 digits")
@@ -41,6 +42,8 @@ const RegisterForm = ({ onSubmit }: RegisterFormProps) => {
   // const [isRegister, setIsRegister] = useState(false);
   const [showPasswords, setShowPasswords] = useState(false);
 
+  const Navigate = useNavigate();
+
   const {
     register,
     handleSubmit,
@@ -51,12 +54,11 @@ const RegisterForm = ({ onSubmit }: RegisterFormProps) => {
 
   return (
     <>
-
       {/* Form */}
-      <form className="space-y-4" onSubmit={handleSubmit(onSubmit)}>
+      <form className="space-y-4 w-full" onSubmit={handleSubmit(onSubmit)}>
         <input type="hidden" value="SELLER" {...register("role")} />
 
-        <div className="flex-1">
+        {/* <div className="flex-1">
           <input
             {...register("name")}
             placeholder="Name"
@@ -65,7 +67,7 @@ const RegisterForm = ({ onSubmit }: RegisterFormProps) => {
           {errors.name && (
             <p className="text-red-500 text-sm">{errors.name.message}</p>
           )}
-        </div>
+        </div> */}
 
         <div className="flex-1">
           <input
@@ -91,7 +93,11 @@ const RegisterForm = ({ onSubmit }: RegisterFormProps) => {
             onClick={() => setShowPasswords(!showPasswords)}
             className="absolute inset-y-0 right-3 flex items-center text-gray-500"
           >
-            {showPasswords ? <IoEyeOutline size={18} /> : <IoEyeOffOutline size={18} />}
+            {showPasswords ? (
+              <IoEyeOutline size={18} />
+            ) : (
+              <IoEyeOffOutline size={18} />
+            )}
           </button>
           {errors.pass_hash && (
             <p className="text-red-500 text-sm">{errors.pass_hash.message}</p>
@@ -111,7 +117,11 @@ const RegisterForm = ({ onSubmit }: RegisterFormProps) => {
             onClick={() => setShowPasswords(!showPasswords)}
             className="absolute inset-y-0 right-3 flex items-center text-gray-500"
           >
-            {showPasswords ? <IoEyeOutline size={18} /> : <IoEyeOffOutline size={18} />}
+            {showPasswords ? (
+              <IoEyeOutline size={18} />
+            ) : (
+              <IoEyeOffOutline size={18} />
+            )}
           </button>
           {errors.confirmPassword && (
             <p className="text-red-500 text-sm">
@@ -119,8 +129,6 @@ const RegisterForm = ({ onSubmit }: RegisterFormProps) => {
             </p>
           )}
         </div>
-
-
 
         <label className="flex items-start gap-2 text-sm text-gray-600">
           <input
@@ -153,38 +161,40 @@ const RegisterForm = ({ onSubmit }: RegisterFormProps) => {
 
       {/* FORM */}
 
-      <div className="flex gap-4">
-        {/* Social Login */}
-        <div className="flex items-center justify-center mt-6">
-          <hr className="border-t border-gray-200 w-full" />
-          <span className="px-3 text-sm text-gray-500">Or register with</span>
-          <hr className="border-t border-gray-200 w-full" />
-        </div>
-
-        <div className="flex justify-center gap-4 mt-4">
-          <button className="border border-gray-300 px-4 py-2 rounded-md text-sm hover:bg-gray-50 transition">
-            <FaGoogle className="text-[#EA4335] text-base" />
-          </button>
-          <button className="border border-gray-300 px-4 py-2 rounded-md text-sm hover:bg-gray-50 transition">
-            <FaFacebookF className="text-[#1877F2] text-base" />
-          </button>
-          <button className="border border-gray-300 px-4 py-2 rounded-md text-sm hover:bg-gray-50 transition">
-            <FaXTwitter className="text-base" />
-          </button>
-          <button className="border border-gray-300 px-4 py-2 rounded-md text-sm hover:bg-gray-50 transition">
-            <FaApple className="text-base" />
-          </button>
-        </div>
-
+      {/* Text Divider */}
+      <div className="flex items-center justify-center mt-6 w-full">
+        <hr className="border-t border-[#EAECF0] w-2/5" />
+        <span className="px-3 text-sm text-[#475467] whitespace-nowrap">
+          Or register with
+        </span>
+        <hr className="border-t border-[#EAECF0] w-2/5" />
       </div>
+
+      {/* Social Icons */}
+      <div className="flex justify-center gap-4 mt-4 w-full">
+        <button className="border border-[#D0D5DD] px-12 py-2.5 rounded-md text-sm hover:bg-gray-50 transition cursor-pointer">
+          <FaGoogle className="text-[#EA4335] text-xl" />
+        </button>
+        <button className="border border-[#D0D5DD] px-12 py-2.5 rounded-md text-sm hover:bg-gray-50 transition cursor-pointer">
+          <FaFacebookF className="text-[#1877F2] text-xl" />
+        </button>
+        <button className="border border-[#D0D5DD] px-12 py-2.5 rounded-md text-sm hover:bg-gray-50 transition cursor-pointer">
+          <FaXTwitter className="text-xl" />
+        </button>
+        <button className="border border-[#D0D5DD] px-12 py-2.5 rounded-md text-sm hover:bg-gray-50 transition cursor-pointer">
+          <FaApple className="text-xl" />
+        </button>
+      </div>
+
       {/* Already have an account */}
       <div>
-        <p className="text-center text-sm mt-6">
+        <p className="text-center text-sm mt-6 w-full">
           Already have an account?{" "}
           <button
             type="button"
             // onClick={() => setIsRegister(false)}
-            className="text-[#7F56D9] underline"
+            onClick={() => Navigate("/login")}
+            className="text-[#7F56D9] "
           >
             Login
           </button>

@@ -1,8 +1,8 @@
 // AuthForm.jsx
 import { useState } from "react";
 import AdFormContainer from "../containers/AdFormContainer";
-import RegisterPage from "./RegisterPage";
 import LoginPage from "./LoginPage";
+import RegisterPage from "./RegisterPage";
 const AuthFormPage = () => {
   const [isRegister, setIsRegister] = useState(false);
 

@@ -3,15 +3,16 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
 import SellerStoreDetailsForm from "../components/SellerStoreDetailsForm";
-import { useAuth } from "../contexts/AuthContext";
 import { SellerStoreDetailsFormValues } from "../schemas/sellerStoreDetailsSchema";
 import {
   useCreateOrUpdateBusinessCategoryMutation,
-  useListBusinessCategoriesQuery
-} from "../services/authApi";
+  useListBusinessCategoriesQuery,
+} from "../services/sellerApi";
+import { useSellerAuth } from "../contexts/SellerAuthContext";
 
 const SellerStoreDetailsContainer: React.FC = () => {
-  const { user, createOrUpdateBusinessDetails, refetchUserDetails, } = useAuth();
+  const { user, createOrUpdateBusinessDetails, refetchUserDetails } =
+    useSellerAuth();
   const navigate = useNavigate();
 
   // 1️⃣ Fetch the existing business‐type & category lists
@@ -65,11 +66,10 @@ const SellerStoreDetailsContainer: React.FC = () => {
 
       console.log(saved, "savedsavedsavedsaved");
 
-
       if (saved) {
         console.log("Navigating to /seller/store-unlock...");
         // 🔁 force refresh user profile from server
-        await refetchUserDetails(); 
+        await refetchUserDetails();
       } else {
         navigate("/home");
       }

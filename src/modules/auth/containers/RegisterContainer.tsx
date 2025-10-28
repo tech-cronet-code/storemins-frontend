@@ -2,20 +2,20 @@
 
 import { hashPassword } from "../../../common/utils/hashPassword";
 import { showToast } from "../../../common/utils/showToast";
-import { useAuth } from "../contexts/AuthContext";
 import RegisterForm, { RegisterFormData } from "../components/RegisterForm";
 import { useNavigate } from "react-router-dom";
+import { useSellerAuth } from "../contexts/SellerAuthContext";
 
 const RegisterContainer = () =>
   // { onSwitch }: { onSwitch: () => void }
   {
-    const { register, loading, error } = useAuth();
+    const { register, loading, error } = useSellerAuth();
     const navigate = useNavigate(); // ✅ Safe now
     const handleSubmit = async (data: RegisterFormData) => {
       const hashedPassword = await hashPassword(data.pass_hash); // 👈 hash here
       try {
         const { needsOtp, quickLoginEnable } = await register({
-          name: data.name,
+          // name: data.name,
           mobile: data.mobile,
           pass_hash: hashedPassword,
           role: data.role, // Adjust as needed
@@ -43,7 +43,7 @@ const RegisterContainer = () =>
     };
 
     return (
-      <div>
+      <div className="px-9 w-9/10 md:w-8/10 h-full flex flex-col justify-center items-center">
         <RegisterForm
           // onSwitch={onSwitch}
           onSubmit={handleSubmit}

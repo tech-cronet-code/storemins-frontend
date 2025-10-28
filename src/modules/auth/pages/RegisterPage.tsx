@@ -2,6 +2,7 @@
 
 // import RegisterContainer from "../components/containers/RegisterContainer";
 import RegisterContainer from "../containers/RegisterContainer";
+import "./Register.css";
 
 // interface RegisterPageProps {
 //   onSwitch: () => void;
@@ -10,7 +11,7 @@ import RegisterContainer from "../containers/RegisterContainer";
 const RegisterPage = () =>
   // { onSwitch }: RegisterPageProps
   {
-    // const { register, loading, error } = useAuth();
+    // const { register, loading, error } = useSellerAuth();
     // const navigate = useNavigate(); // ✅ Safe now
     // const handleSubmit = async (data: RegisterFormData) => {
     //   const hashedPassword = await hashPassword(data.pass_hash); // 👈 hash here
@@ -41,16 +42,23 @@ const RegisterPage = () =>
     // const [isRegister, setIsRegister] = useState(false);
 
     return (
+      // <div className="w-full h-full flex flex-col border-2 lg:flex-row lg:h-screen">
+      //   {/* Right: Register Part */}
+      //   <div className="min-h-screen flex flex-col lg:flex-row">
+      //     {/* Left: Ad Part */}
+      //     {/* <div className="w-full h-full flex">
+      //       <AdFormContainer />
+      //     </div> */}
+      //     <div className="w-full h-full flex justify-center items-center">
+      //       <RegisterContainer />
+      //     </div>
+      //     {/* <LoginContainer /> */}
+      //   </div>
+      // </div>
       <>
-        {/* Right: Register Part */}
-        {/* <div className="min-h-screen flex flex-col lg:flex-row">
-          {/* Left: Ad Part */}
-          {/* <div className="w-full lg:w-1/2 flex">
-            <AdFormContainer /> */}
-          {/* </div> */}
+        <div className="w-full h-full flex justify-center items-center">
           <RegisterContainer />
-          {/* <LoginContainer /> */}
-        {/* </div> */}
+        </div>
       </>
     );
   };

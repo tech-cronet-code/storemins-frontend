@@ -1,25 +1,54 @@
 import { Navigate, Outlet } from "react-router-dom";
-import { useAuth } from "../modules/auth/contexts/AuthContext";
+import { UserRoleName } from "../modules/auth/constants/userRoles";
+import RoleHomeRedirect from "./RoleHomeRedirect";
+import { useSellerAuth } from "../modules/auth/contexts/SellerAuthContext";
 
-const PrivateRoute = () => {
-  const { user, loading, quickLoginEnabledFlag } = useAuth();
+function resolveSlugFromPathname(pathname: string): string | null {
+  const first = pathname.split("/").filter(Boolean)[0];
+  const reserved = new Set([
+    "home",
+    "otp-verify",
+    "customer",
+    "seller",
+    "admin",
+    "api",
+    "profile",
+    "auth",
+    "login",
+    "signup",
+    "dashboard",
+  ]);
+  return first && !reserved.has(first) ? first : null;
+}
 
-  // Save the flag in localStorage on first render
-  if (quickLoginEnabledFlag) {
+type PrivateRouteProps = {
+  allowed?: UserRoleName[];
+  redirectTo?: string;
+};
+
+const PrivateRoute = ({ allowed, redirectTo = "/home" }: PrivateRouteProps) => {
+  const { user, loading, quickLoginEnabledFlag } = useSellerAuth();
+
+  if (quickLoginEnabledFlag)
     localStorage.setItem("quick_login_enabled", "true");
-  }
-
-  // Read from localStorage in case user is null (e.g., after refresh)
   const persistedQuickLogin =
     localStorage.getItem("quick_login_enabled") === "true";
 
   if (loading) return <div>Loading...</div>;
-  console.log("PrivateRoute loaded", user);
 
-  if (!user && !persistedQuickLogin) return <Navigate to="/home" replace />;
+  const isLoggedIn = !!user || persistedQuickLogin;
+  if (!isLoggedIn) {
+    const slug = resolveSlugFromPathname(window.location.pathname);
+    return <Navigate to={slug ? `/${slug}` : redirectTo} replace />;
+  }
 
-  if (user?.mobile_confirmed === false) {
+  if (allowed && !user) return <Navigate to={redirectTo} replace />;
+  if (user?.mobile_confirmed === false)
     return <Navigate to="/otp-verify" replace />;
+
+  if (allowed && user) {
+    const hasRole = allowed.some((r) => user.role?.includes(r));
+    if (!hasRole) return <RoleHomeRedirect />;
   }
 
   return <Outlet />;

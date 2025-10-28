@@ -1,17 +1,30 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useFormContext } from "react-hook-form";
-import { useAuth } from "../../../auth/contexts/AuthContext";
+import { FaImage } from "react-icons/fa6";
 import { useSellerProduct } from "../../hooks/useSellerProduct";
 import { CategoriesFormValues } from "../../Schemas/CategoriesSchema";
+import { useSellerAuth } from "../../../auth/contexts/SellerAuthContext";
 
 interface CategoriesInfoSectionProps {
   categoryId?: string;
   type?: "PARENT" | "SUB";
+  imageUrl?: string;
+  onImageFileChange?: (file: File) => void;
+  imageId?: string;
+  imageDiskName?: string;
 }
 
 const CategoriesInfoSection: React.FC<CategoriesInfoSectionProps> = ({
   categoryId,
   type,
+  imageUrl,
+  onImageFileChange,
 }) => {
   const {
     register,
@@ -20,104 +33,154 @@ const CategoriesInfoSection: React.FC<CategoriesInfoSectionProps> = ({
     formState: { errors },
   } = useFormContext<CategoriesFormValues>();
 
-  const isSubcategory = watch("isSubcategory");
+  const isSubcategory = watch("isSubcategory") || type === "SUB";
   const parentCategory = watch("category");
 
   const [showModal, setShowModal] = useState(false);
-  const [selectedCategoryId, setSelectedCategoryId] = useState<string>(
-    parentCategory || ""
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string>(() =>
+    parentCategory ? String(parentCategory) : ""
   );
+  const [imageError, setImageError] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [categories, setCategories] = useState<{ id: string; name: string }[]>(
     []
   );
-
   const modalRef = useRef<HTMLDivElement | null>(null);
-
-  const { userDetails } = useAuth();
+  const { userDetails } = useSellerAuth();
   const { listCategories } = useSellerProduct();
 
-  console.log(listCategories, "listCategories");
-
-  // 🛠️ Fetch Categories
   const fetchCategories = useCallback(async () => {
     const businessId = userDetails?.storeLinks?.[0]?.businessId;
-    console.log(businessId, "businessId");
-
-    if (businessId) {
-      try {
-        const result = await listCategories({ businessId }).unwrap();
-        console.log(result, "👉 API response");
-
-        // ✅ No categoryType, use a better condition
-        const parentCategories = result.filter(
-          (cat) =>
-            Array.isArray(cat.subCategories) && cat.subCategories.length >= 0
-        );
-        console.log(parentCategories, "👉 Filtered Parent Categories");
-
-        setCategories(
-          parentCategories.map((cat) => ({ id: cat.id, name: cat.name }))
-        );
-      } catch (error) {
-        console.error("Failed to fetch categories", error);
-      }
+    if (!businessId) return;
+    try {
+      const result = await listCategories({ businessId }).unwrap();
+      setCategories(
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        result.map((cat: any) => ({ id: String(cat.id), name: cat.name }))
+      );
+    } catch (err) {
+      console.error("Failed to fetch categories", err);
     }
   }, [userDetails?.storeLinks, listCategories]);
 
   useEffect(() => {
-    if (showModal) {
+    if ((type === "SUB" && categoryId) || showModal || parentCategory) {
       fetchCategories();
     }
-  }, [fetchCategories, showModal]);
+  }, [fetchCategories, type, categoryId, showModal, parentCategory]);
 
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (
-        modalRef.current &&
-        !modalRef.current.contains(event.target as Node)
-      ) {
+    if (showModal && parentCategory) {
+      setSelectedCategoryId(String(parentCategory));
+    }
+  }, [showModal, parentCategory]);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (modalRef.current && !modalRef.current.contains(e.target as Node)) {
         setShowModal(false);
       }
     };
-    if (showModal) {
-      document.addEventListener("mousedown", handleClickOutside);
-    }
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
+    if (showModal) document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
   }, [showModal]);
 
-  // 🧠 Filtered Search
-  const filteredCategories = categories.filter((cat) =>
-    cat.name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-  console.log(filteredCategories, "filteredCategories");
+  const filteredCategories = useMemo(() => {
+    return categories.filter((c) =>
+      c.name.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }, [categories, searchTerm]);
 
-  // const isEditParent = !!categoryId && type === "PARENT";
+  const parentName = useMemo(() => {
+    if (!parentCategory) return "";
+    return categories.find((c) => c.id === String(parentCategory))?.name || "";
+  }, [categories, parentCategory]);
+
+  const isEditParent = !!categoryId && type === "PARENT";
+  const creatingSub = !categoryId && !!parentCategory;
   const isEditSub = !!categoryId && type === "SUB";
+
+  // const resolvedDiskName = imageDiskName ?? null;
+  // const fullImageUrls = resolvedDiskName
+  //   ? getImageUrlsById(resolvedDiskName)
+  //   : null;
+  // const finalImageUrl = imageUrl || fullImageUrls?.thumbnail || null;
+  // console.log(finalImageUrl, "finalImageUrl");
+  // console.log(imageDiskName, "imageDiskName");
+  // console.log(imageError, "imageError");
+
+  // // AFTER
+  // const serverImageDiskName = imageDiskName ?? undefined; // e.g. "<fileId>.webp"
+  // const resolvedImageUrl = useMemo(() => {
+  //   if (!serverImageDiskName) return undefined;
+  //   try {
+  //     return convertPath(serverImageDiskName, "original/category");
+  //   } catch {
+  //     return undefined;
+  //   }
+  // }, [serverImageDiskName]);
+
+  // // If the computed URL changes, clear previous error
+  // useEffect(() => {
+  //   setImageError(false);
+  // }, [resolvedImageUrl]);
+
+  // final URL preference: local preview (imageUrl from parent) → server URL → nothing
+  const finalImageUrl = imageUrl;
+  // const finalImageUrl = imageUrl || resolvedImageUrl;
 
   return (
     <div className="bg-white border border-gray-200 rounded-md p-6 space-y-6">
       <h3 className="text-base font-semibold text-gray-900">Information</h3>
 
-      {/* Image Upload */}
+      {/* Image Upload with Preview */}
       <div className="space-y-2">
         <label className="block text-sm font-medium text-gray-700">
           {isSubcategory ? "Subcategory Image" : "Category Image"}
         </label>
         <label
           htmlFor="image-upload"
-          className="w-[100px] h-[100px] border-2 border-dashed border-blue-500 rounded-md flex items-center justify-center cursor-pointer hover:bg-blue-50 transition"
+          className="w-[100px] h-[100px] border-2 border-dashed border-blue-500 rounded-md flex items-center justify-center cursor-pointer hover:bg-blue-50 transition overflow-hidden"
         >
-          <span className="text-blue-500 text-2xl font-light">+</span>
+          {!imageError && finalImageUrl ? (
+            <img
+              src={finalImageUrl}
+              alt="Preview"
+              className="object-cover w-full h-full rounded-md"
+              onError={() => setImageError(true)}
+              loading="lazy"
+            />
+          ) : (
+            <FaImage className="text-blue-400 text-3xl" />
+          )}
         </label>
+
         <input
           id="image-upload"
           type="file"
-          {...register("image")}
           accept="image/*"
+          {...register("image")} // ✅ must be here
           className="hidden"
+          // onChange={(e) => {
+          //   const file = e.target.files?.[0];
+          //   console.log("📁 File selected:", file);
+
+          //   if (file) {
+          //     onImageFileChange?.(file); // your preview logic
+          //     // ⚠️ make sure this line exists:
+          //     setValue("image", [file], { shouldValidate: true }); // ensure RHF updates value and triggers validation
+          //   }
+          // }}
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (file) {
+              onImageFileChange?.(file);
+              setValue("image", [file], { shouldValidate: true }); // ✅ when file exists
+            } else {
+              // 🛠️ make sure empty input doesn't cause error
+              setValue("image", undefined, { shouldValidate: true });
+            }
+          }}
         />
       </div>
 
@@ -150,7 +213,7 @@ const CategoriesInfoSection: React.FC<CategoriesInfoSectionProps> = ({
         )}
       </div>
 
-      {/* Parent Category */}
+      {/* Parent Category Picker */}
       {isSubcategory && (
         <div className="space-y-1">
           <label
@@ -161,18 +224,20 @@ const CategoriesInfoSection: React.FC<CategoriesInfoSectionProps> = ({
           </label>
           <input
             id="category"
-            value={
-              categories.find((cat) => cat.id === parentCategory)?.name || ""
-            }
-            onClick={() => setShowModal(true)}
             readOnly
+            onClick={() => {
+              if (!creatingSub) setShowModal(true);
+            }}
+            value={parentName}
             placeholder="Select category"
-            className={`cursor-pointer w-full border ${
-              errors.category ? "border-red-500" : "border-gray-300"
-            } rounded-md px-3 py-2 text-sm focus:ring-1 focus:outline-none ${
+            className={`w-full rounded-md px-3 py-2 text-sm focus:ring-1 focus:outline-none ${
+              creatingSub
+                ? "bg-gray-100 cursor-not-allowed"
+                : "cursor-pointer bg-white"
+            } ${
               errors.category
-                ? "focus:ring-red-500 focus:border-red-500"
-                : "focus:ring-blue-500 focus:border-blue-500"
+                ? "border-red-500 focus:ring-red-500 focus:border-red-500"
+                : "border-gray-300 focus:ring-blue-500 focus:border-blue-500"
             }`}
           />
           {errors.category?.message && (
@@ -183,30 +248,37 @@ const CategoriesInfoSection: React.FC<CategoriesInfoSectionProps> = ({
         </div>
       )}
 
-      {/* Add as Subcategory */}
-      <div className="flex items-center space-x-2 pt-1">
-        <input
-          type="checkbox"
-          id="isSubcategory"
-          {...register("isSubcategory")}
-          className="rounded border-gray-300"
-          disabled={isEditSub}
-          checked={isSubcategory || !!parentCategory}
-        />
-        <label
-          htmlFor="isSubcategory"
-          className={`text-sm ${
-            isEditSub ? "text-gray-400 cursor-not-allowed" : "text-gray-700"
-          }`}
-          title={
-            isEditSub
-              ? "You are editing a subcategory, this cannot be changed."
-              : ""
-          }
-        >
-          Add as subcategory
-        </label>
-      </div>
+      {!isEditParent && (
+        <div className="flex items-center space-x-2 pt-1">
+          <input
+            type="checkbox"
+            id="isSubcategory"
+            {...register("isSubcategory")}
+            className="rounded border-gray-300"
+            disabled={isEditSub || creatingSub}
+            onChange={(e) => {
+              const checked = e.target.checked;
+              setValue("isSubcategory", checked, { shouldValidate: true });
+              if (!checked) {
+                setValue("category", "", { shouldValidate: true });
+              }
+            }}
+          />
+          <label
+            htmlFor="isSubcategory"
+            className={`text-sm ${
+              isEditSub ? "text-gray-400 cursor-not-allowed" : "text-gray-700"
+            }`}
+            title={
+              isEditSub
+                ? "You are editing a subcategory, this cannot be changed."
+                : ""
+            }
+          >
+            Add as subcategory
+          </label>
+        </div>
+      )}
 
       {/* Modal */}
       {showModal && (
@@ -215,20 +287,18 @@ const CategoriesInfoSection: React.FC<CategoriesInfoSectionProps> = ({
             ref={modalRef}
             className="bg-white rounded-lg w-[600px] shadow-xl ring-1 ring-black/5 overflow-hidden"
           >
-            {/* Header */}
             <div className="flex justify-between items-center px-6 py-5 border-b border-gray-100">
               <h3 className="text-lg font-semibold text-gray-900">
                 Select parent category
               </h3>
               <button
                 onClick={() => setShowModal(false)}
-                className="text-gray-400 hover:text-gray-600 text-xl leading-none"
+                className="text-gray-400 hover:text-gray-600 text-xl"
               >
                 ×
               </button>
             </div>
 
-            {/* Search */}
             <div className="px-6 py-4 border-b border-gray-100">
               <div className="relative">
                 <svg
@@ -255,9 +325,8 @@ const CategoriesInfoSection: React.FC<CategoriesInfoSectionProps> = ({
               </div>
             </div>
 
-            {/* List */}
             <div className="max-h-[300px] overflow-y-auto divide-y divide-gray-100">
-              {filteredCategories.length > 0 ? (
+              {filteredCategories.length ? (
                 filteredCategories.map((cat) => (
                   <label
                     key={cat.id}
@@ -296,7 +365,6 @@ const CategoriesInfoSection: React.FC<CategoriesInfoSectionProps> = ({
               )}
             </div>
 
-            {/* Footer */}
             <div className="px-6 py-4 border-t border-gray-100 flex justify-end">
               <button
                 onClick={() => {

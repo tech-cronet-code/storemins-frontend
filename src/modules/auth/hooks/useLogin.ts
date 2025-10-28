@@ -3,8 +3,12 @@ import { AppDispatch } from "../../../common/state/store";
 import { castToUserRoles } from "../../../common/utils/common";
 import { showToast } from "../../../common/utils/showToast";
 import { UserRoleName } from "../constants/userRoles";
-import { loginFailure, loginStart, loginSuccess } from "../slices/authSlice";
-import { LoginResponse, useLoginMutation } from "../services/authApi";
+import { LoginResponse, useLoginMutation } from "../services/sellerApi";
+import {
+  loginFailure,
+  loginStart,
+  loginSuccess,
+} from "../slices/sellerAuthSlice";
 
 export const useLogin = () => {
   const dispatch = useDispatch<AppDispatch>();
@@ -53,7 +57,7 @@ export const useLogin = () => {
         loginSuccess({
           user: {
             id: info.id,
-            name: info.name || "",
+            // name: info.name || "",
             mobile: info.mobile,
             role: castToUserRoles(info.role),
             permissions: info.permissions || [],

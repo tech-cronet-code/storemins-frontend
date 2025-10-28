@@ -1,0 +1,682 @@
+// src/modules/customer/pages/CustomerAddressesPage.tsx
+import React, { useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import BottomNav from "../../../shared/blocks/BottomNav";
+import {
+  useCreateCustomerAddressMutation,
+  useDeleteCustomerAddressMutation,
+  useGetCustomerAddressesQuery,
+  useUpdateCustomerAddressMutation,
+  type AddressKind,
+  type CustomerAddress as ApiAddress,
+} from "../services/customerApi";
+
+/* =================== Tiny inline icons =================== */
+const Icon = {
+  Back: (p: React.SVGProps<SVGSVGElement>) => (
+    <svg viewBox="0 0 24 24" {...p}>
+      <path
+        d="M15 18 9 12l6-6"
+        stroke="currentColor"
+        strokeWidth="2"
+        fill="none"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  ),
+  Home: (p: React.SVGProps<SVGSVGElement>) => (
+    <svg viewBox="0 0 24 24" {...p}>
+      <path
+        d="M3 10.5 12 4l9 6.5V20a2 2 0 0 1-2 2h-5v-6H10v6H5a2 2 0 0 1-2-2v-9.5Z"
+        fill="currentColor"
+      />
+    </svg>
+  ),
+  Work: (p: React.SVGProps<SVGSVGElement>) => (
+    <svg viewBox="0 0 24 24" {...p}>
+      <path
+        d="M9 4h6a2 2 0 0 1 2 2v2h3a2 2 0 0 1 2 2v7a3 3 0 0 1-3 3H5a3 3 0 0 1-3-3v-7a2 2 0 0 1 2-2h3V6a2 2 0 0 1 2-2Zm0 4h6V6H9v2Z"
+        fill="currentColor"
+      />
+    </svg>
+  ),
+  Pin: (p: React.SVGProps<SVGSVGElement>) => (
+    <svg viewBox="0 0 24 24" {...p}>
+      <path
+        d="M12 2a7 7 0 0 0-7 7c0 5.25 7 13 7 13s7-7.75 7-13a7 7 0 0 0-7-7Zm0 9.5A2.5 2.5 0 1 1 12 6a2.5 2.5 0 0 1 0 5.5Z"
+        fill="currentColor"
+      />
+    </svg>
+  ),
+  Edit: (p: React.SVGProps<SVGSVGElement>) => (
+    <svg viewBox="0 0 24 24" {...p}>
+      <path
+        d="m3 17.25 10.06-10.06a1.5 1.5 0 0 1 2.12 0l1.63 1.63a1.5 1.5 0 0 1 0 2.12L6.75 21H3v-3.75Z"
+        fill="currentColor"
+      />
+    </svg>
+  ),
+  Trash: (p: React.SVGProps<SVGSVGElement>) => (
+    <svg viewBox="0 0 24 24" {...p}>
+      <path
+        d="M6 7h12l-1 13a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L6 7Zm3-3h6l1 2H8l1-2Z"
+        fill="currentColor"
+      />
+    </svg>
+  ),
+  Check: (p: React.SVGProps<SVGSVGElement>) => (
+    <svg viewBox="0 0 24 24" {...p}>
+      <path
+        d="m20 6-11 11-5-5"
+        stroke="currentColor"
+        strokeWidth="2"
+        fill="none"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  ),
+  Plus: (p: React.SVGProps<SVGSVGElement>) => (
+    <svg viewBox="0 0 24 24" {...p}>
+      <path d="M11 5h2v14h-2zM5 11h14v2H5z" fill="currentColor" />
+    </svg>
+  ),
+};
+
+/* =================== Local view model =================== */
+type ViewAddress = {
+  id: string;
+  label: string;
+  line1: string;
+  line2?: string | null;
+  city: string;
+  state: string;
+  postalCode: string;
+  country: string;
+  kind: AddressKind;
+  isDefault?: boolean;
+  createdAt: number; // ms for sorting in UI
+};
+
+const toVM = (a: ApiAddress): ViewAddress => ({
+  ...a,
+  createdAt: new Date(a.createdAt ?? Date.now()).getTime() || Date.now(),
+});
+
+/* =================== Helpers =================== */
+const kindIcon = (k: AddressKind) =>
+  k === "home" ? (
+    <Icon.Home className="h-4 w-4 text-violet-600" />
+  ) : k === "work" ? (
+    <Icon.Work className="h-4 w-4 text-violet-600" />
+  ) : (
+    <Icon.Pin className="h-4 w-4 text-violet-600" />
+  );
+
+function chip(label: string, active = false) {
+  const classes = [
+    "px-3 py-1.5 text-xs font-semibold rounded-full transition",
+    active
+      ? "bg-violet-600 text-white shadow-[0_1px_0_0_rgba(0,0,0,0.15)]"
+      : "text-slate-700 hover:bg-white/70",
+  ].join(" ");
+  return <span className={classes}>{label}</span>;
+}
+
+function pill(text: string, tone: "emerald" | "slate" = "slate", extra = "") {
+  const tones =
+    tone === "emerald"
+      ? "bg-emerald-50 text-emerald-700 ring-emerald-200"
+      : "bg-slate-50 text-slate-700 ring-slate-200";
+  return (
+    <span
+      className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-semibold ring-1 ${tones} ${extra}`}
+    >
+      {text}
+    </span>
+  );
+}
+
+const cap = (s: string) => (s ? s[0].toUpperCase() + s.slice(1) : s);
+
+/** normalize, auto-fill label from kind, trim values */
+function normalizeDraft(d: ViewAddress) {
+  const label = (d.label ?? "").trim() || cap(d.kind);
+  return {
+    ...d,
+    label,
+    line1: (d.line1 ?? "").trim(),
+    line2: d.line2 ? d.line2.trim() : null,
+    city: (d.city ?? "").trim(),
+    state: (d.state ?? "").trim(),
+    postalCode: (d.postalCode ?? "").trim(),
+    country: (d.country ?? "").trim(),
+  };
+}
+
+function validateDraft(d: ReturnType<typeof normalizeDraft>) {
+  if (!d.label || !d.line1 || !d.city || !d.state || !d.postalCode) {
+    return "Please fill label, line1, city, state and PIN code.";
+  }
+  if (!/^\d{6}$/.test(d.postalCode)) return "PIN code must be 6 digits.";
+  if (d.state.length < 2) return "State looks too short.";
+  return null;
+}
+
+function emptyDraft(): ViewAddress {
+  return {
+    id: "tmp",
+    label: "",
+    line1: "",
+    line2: null,
+    city: "",
+    state: "",
+    postalCode: "",
+    country: "India",
+    kind: "home",
+    isDefault: false,
+    createdAt: Date.now(),
+  };
+}
+
+/* =================== Card =================== */
+function AddressCard({
+  a,
+  onSetDefault,
+  onEdit,
+  onDelete,
+  isBusy,
+}: {
+  a: ViewAddress;
+  onSetDefault: () => void;
+  onEdit: () => void;
+  onDelete: () => void;
+  isBusy?: boolean;
+}) {
+  return (
+    <div
+      className={[
+        "rounded-3xl bg-white/90 backdrop-blur ring-1 ring-black/10 shadow-sm hover:shadow transition",
+        a.isDefault ? "outline outline-1 outline-emerald-200" : "",
+        isBusy ? "opacity-60 pointer-events-none" : "",
+      ].join(" ")}
+    >
+      <div className="p-4 sm:p-5">
+        <div className="flex items-start gap-3">
+          <div className="mt-1">{kindIcon(a.kind)}</div>
+          <div className="flex-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="text-[15px] font-semibold text-slate-900 tracking-tight">
+                {a.label}
+              </div>
+              {a.isDefault && pill("Default", "emerald")}
+            </div>
+
+            <div className="mt-1 text-sm text-slate-600">
+              {a.line1}
+              {a.line2 ? `, ${a.line2}` : ""}, {a.city}, {a.state}{" "}
+              {a.postalCode}, {a.country}
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          {!a.isDefault && (
+            <button
+              onClick={onSetDefault}
+              className="inline-flex items-center gap-1 rounded-xl bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 ring-1 ring-emerald-200 hover:bg-emerald-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300"
+            >
+              <Icon.Check className="h-3.5 w-3.5" />
+              Set default
+            </button>
+          )}
+
+          <button
+            onClick={onEdit}
+            className="inline-flex items-center gap-1 rounded-xl bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-700 ring-1 ring-slate-200 hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-300"
+          >
+            <Icon.Edit className="h-3.5 w-3.5" />
+            Edit
+          </button>
+
+          <button
+            onClick={onDelete}
+            className="inline-flex items-center gap-1 rounded-xl bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-700 ring-1 ring-rose-200 hover:bg-rose-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-300"
+          >
+            <Icon.Trash className="h-3.5 w-3.5" />
+            Remove
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* =================== Field =================== */
+function Field({
+  label,
+  value,
+  onChange,
+  className = "",
+  ...rest
+}: React.InputHTMLAttributes<HTMLInputElement> & { label: string }) {
+  return (
+    <label className="space-y-1">
+      <span className="text-xs font-medium text-slate-600">{label}</span>
+      <input
+        {...rest}
+        value={value}
+        onChange={onChange}
+        className={[
+          "w-full rounded-xl border px-3 py-2 text-sm",
+          "border-slate-300 bg-white/90 focus:border-violet-400",
+          "focus:outline-none focus:ring-4 focus:ring-violet-100",
+          className,
+        ].join(" ")}
+      />
+    </label>
+  );
+}
+
+/* =================== Page =================== */
+export default function CustomerAddressesPage() {
+  const navigate = useNavigate();
+
+  const { data, isLoading, isFetching, error } = useGetCustomerAddressesQuery();
+  const [createAddress, { isLoading: creating }] =
+    useCreateCustomerAddressMutation();
+  const [updateAddress, { isLoading: updating }] =
+    useUpdateCustomerAddressMutation();
+  const [deleteAddress, { isLoading: deleting }] =
+    useDeleteCustomerAddressMutation();
+
+  const [kindFilter, setKindFilter] = useState<"all" | AddressKind>("all");
+  const [sheet, setSheet] = useState<
+    | { open: false }
+    | { open: true; mode: "create" | "edit"; draft: ViewAddress }
+  >({ open: false });
+
+  // map to local VM
+  const items: ViewAddress[] = useMemo(
+    () => (data ? data.map(toVM) : []),
+    [data]
+  );
+
+  // sort default first, then recency
+  const sorted = useMemo(() => {
+    const list = [...items];
+    list.sort((a, b) => {
+      if (a.isDefault && !b.isDefault) return -1;
+      if (!a.isDefault && b.isDefault) return 1;
+      return b.createdAt - a.createdAt;
+    });
+    return list;
+  }, [items]);
+
+  const filtered = useMemo(() => {
+    if (kindFilter === "all") return sorted;
+    return sorted.filter((x) => x.kind === kindFilter);
+  }, [sorted, kindFilter]);
+
+  const busy = isLoading || isFetching || creating || updating || deleting;
+
+  const startCreate = () =>
+    setSheet({ open: true, mode: "create", draft: emptyDraft() });
+  const startEdit = (a: ViewAddress) =>
+    setSheet({ open: true, mode: "edit", draft: { ...a } });
+
+  const onDelete = async (id: string) => {
+    if (!confirm("Remove this address?")) return;
+    try {
+      await deleteAddress(id).unwrap();
+    } catch (e: any) {
+      alert(e?.data?.message || "Failed to delete address.");
+    }
+  };
+
+  // Use update() with isDefault: true (BE already clears others)
+  const onSetDefault = async (id: string) => {
+    try {
+      await updateAddress({ id, isDefault: true }).unwrap();
+    } catch (e: any) {
+      alert(e?.data?.message || "Failed to set default address.");
+    }
+  };
+
+  const saveDraft = async () => {
+    if (!sheet.open) return;
+
+    const n = normalizeDraft(sheet.draft);
+    const msg = validateDraft(n);
+    if (msg) {
+      alert(msg);
+      return;
+    }
+
+    try {
+      if (sheet.mode === "create") {
+        await createAddress({
+          label: n.label,
+          line1: n.line1,
+          line2: n.line2,
+          city: n.city,
+          state: n.state,
+          postalCode: n.postalCode,
+          country: n.country,
+          kind: n.kind,
+          isDefault: !!n.isDefault,
+        }).unwrap();
+      } else {
+        await updateAddress({
+          id: n.id,
+          label: n.label,
+          line1: n.line1,
+          line2: n.line2,
+          city: n.city,
+          state: n.state,
+          postalCode: n.postalCode,
+          country: n.country,
+          kind: n.kind,
+          isDefault: !!n.isDefault,
+        }).unwrap();
+      }
+      setSheet({ open: false });
+    } catch (e: any) {
+      alert(e?.data?.message || "Failed to save address.");
+    }
+  };
+
+  return (
+    <div className="min-h-dvh bg-[color:rgb(247,248,250)]">
+      {/* ===== Edge-to-edge header (no gutters) ===== */}
+      <div className="-mx-4 -mt-4">
+        <header
+          className="
+            relative rounded-b-[28px]
+            bg-[linear-gradient(115deg,#7C3AED,55%,#C026D3_90%)]
+            text-white
+          "
+        >
+          <div className="max-w-3xl mx-auto px-4 pt-3 pb-5">
+            <div className="flex items-center justify-between">
+              <button
+                onClick={() => navigate(-1)}
+                className="h-10 w-10 rounded-full bg-white/15 grid place-items-center backdrop-blur hover:bg-white/25 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+                aria-label="Back"
+              >
+                <Icon.Back className="h-5 w-5" />
+              </button>
+
+              <button
+                onClick={startCreate}
+                className="inline-flex items-center gap-2 rounded-full bg-white/15 px-4 py-2 font-semibold backdrop-blur hover:bg-white/25 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 disabled:opacity-60"
+                disabled={busy}
+              >
+                <Icon.Plus className="h-4 w-4" />
+                Add New Address
+              </button>
+            </div>
+
+            <div className="mt-6">
+              <div className="text-[20px] font-semibold tracking-tight">
+                Saved addresses
+              </div>
+              <div className="text-[12px] opacity-90">
+                Manage delivery locations
+              </div>
+            </div>
+
+            {/* chips */}
+            <div className="mt-3 flex items-center justify-between">
+              <div className="rounded-full bg-white/20 backdrop-blur p-1 ring-1 ring-white/25 inline-flex">
+                <button onClick={() => setKindFilter("all")}>
+                  {chip("All", kindFilter === "all")}
+                </button>
+                <button onClick={() => setKindFilter("home")}>
+                  {chip("Home", kindFilter === "home")}
+                </button>
+                <button onClick={() => setKindFilter("work")}>
+                  {chip("Work", kindFilter === "work")}
+                </button>
+                <button onClick={() => setKindFilter("other")}>
+                  {chip("Other", kindFilter === "other")}
+                </button>
+              </div>
+
+              <div className="hidden sm:block text-[11px] text-white/90">
+                {filtered.length} of {items.length}
+              </div>
+            </div>
+          </div>
+        </header>
+      </div>
+
+      {/* ===== List ===== */}
+      <div className="max-w-3xl mx-auto px-4 pb-24 pt-4 space-y-4">
+        {isLoading ? (
+          <div className="text-sm text-slate-600">Loading addresses…</div>
+        ) : error ? (
+          <div className="text-sm text-rose-600">Failed to load addresses.</div>
+        ) : filtered.length === 0 ? (
+          <div className="text-sm text-slate-600">No addresses yet.</div>
+        ) : (
+          filtered.map((a) => (
+            <AddressCard
+              key={a.id}
+              a={a}
+              isBusy={busy}
+              onSetDefault={() => onSetDefault(a.id)}
+              onEdit={() => startEdit(a)}
+              onDelete={() => onDelete(a.id)}
+            />
+          ))
+        )}
+
+        {/* Secondary add button at bottom */}
+        <div className="pt-2">
+          <button
+            onClick={startCreate}
+            className="inline-flex items-center gap-2 rounded-2xl border border-violet-200 bg-white px-4 py-2 text-sm font-semibold text-violet-700 hover:bg-violet-50 disabled:opacity-60"
+            disabled={busy}
+          >
+            <span className="h-5 w-5 grid place-items-center rounded-xl bg-violet-50 ring-1 ring-violet-200">
+              <Icon.Plus className="h-4 w-4 text-violet-700" />
+            </span>
+            Add New Address
+          </button>
+        </div>
+      </div>
+
+      {/* ===== Slide-over sheet ===== */}
+      {sheet.open && (
+        <div className="fixed inset-0 z-[100]">
+          <div
+            className="absolute inset-0 bg-black/35"
+            onClick={() => setSheet({ open: false })}
+          />
+          <div className="absolute inset-x-0 bottom-0 sm:inset-y-0 sm:right-0 sm:left-auto sm:w-[520px]">
+            <div className="h-auto sm:h-full rounded-t-3xl sm:rounded-none sm:rounded-l-3xl bg-white shadow-2xl ring-1 ring-black/10 p-5">
+              <div className="flex items-center justify-between">
+                <div className="text-[15px] font-semibold">
+                  {sheet.mode === "create" ? "Add address" : "Edit address"}
+                </div>
+                <button
+                  onClick={() => setSheet({ open: false })}
+                  className="text-slate-600 hover:text-slate-900"
+                >
+                  Close
+                </button>
+              </div>
+
+              <div className="mt-4 grid grid-cols-2 gap-3">
+                <Field
+                  label="Label (Home, Work, …)"
+                  value={sheet.draft.label}
+                  onChange={(e) =>
+                    setSheet((s) =>
+                      s.open
+                        ? { ...s, draft: { ...s.draft, label: e.target.value } }
+                        : s
+                    )
+                  }
+                  className="col-span-2"
+                  placeholder="e.g., Home"
+                />
+
+                <label className="space-y-1">
+                  <span className="text-xs font-medium text-slate-600">
+                    Type
+                  </span>
+                  <select
+                    value={sheet.draft.kind}
+                    onChange={(e) =>
+                      setSheet((s) =>
+                        s.open
+                          ? {
+                              ...s,
+                              draft: {
+                                ...s.draft,
+                                kind: e.target.value as AddressKind,
+                              },
+                            }
+                          : s
+                      )
+                    }
+                    className="rounded-xl border border-slate-300 bg-white/90 px-3 py-2 text-sm focus:border-violet-400 focus:outline-none focus:ring-4 focus:ring-violet-100"
+                  >
+                    <option value="home">Home</option>
+                    <option value="work">Work</option>
+                    <option value="other">Other</option>
+                  </select>
+                </label>
+
+                <label className="mt-6 inline-flex items-center gap-2 text-xs text-slate-700">
+                  <input
+                    type="checkbox"
+                    checked={sheet.draft.isDefault ?? false}
+                    onChange={(e) =>
+                      setSheet((s) =>
+                        s.open
+                          ? {
+                              ...s,
+                              draft: {
+                                ...s.draft,
+                                isDefault: e.target.checked,
+                              },
+                            }
+                          : s
+                      )
+                    }
+                    className="h-4 w-4 rounded border-slate-300 text-violet-600 focus:ring-violet-400"
+                  />
+                  Make this my default address
+                </label>
+
+                <Field
+                  label="Address line 1"
+                  value={sheet.draft.line1}
+                  onChange={(e) =>
+                    setSheet((s) =>
+                      s.open
+                        ? { ...s, draft: { ...s.draft, line1: e.target.value } }
+                        : s
+                    )
+                  }
+                  className="col-span-2"
+                  placeholder="Street, area, landmark"
+                />
+                <Field
+                  label="Address line 2 (optional)"
+                  value={sheet.draft.line2 ?? ""}
+                  onChange={(e) =>
+                    setSheet((s) =>
+                      s.open
+                        ? { ...s, draft: { ...s.draft, line2: e.target.value } }
+                        : s
+                    )
+                  }
+                  className="col-span-2"
+                  placeholder="Apartment, floor, etc."
+                />
+                <Field
+                  label="City"
+                  value={sheet.draft.city}
+                  onChange={(e) =>
+                    setSheet((s) =>
+                      s.open
+                        ? { ...s, draft: { ...s.draft, city: e.target.value } }
+                        : s
+                    )
+                  }
+                  placeholder="City"
+                />
+                <Field
+                  label="State"
+                  value={sheet.draft.state}
+                  onChange={(e) =>
+                    setSheet((s) =>
+                      s.open
+                        ? { ...s, draft: { ...s.draft, state: e.target.value } }
+                        : s
+                    )
+                  }
+                  placeholder="State"
+                />
+                <Field
+                  label="PIN code"
+                  value={sheet.draft.postalCode}
+                  onChange={(e) =>
+                    setSheet((s) =>
+                      s.open
+                        ? {
+                            ...s,
+                            draft: { ...s.draft, postalCode: e.target.value },
+                          }
+                        : s
+                    )
+                  }
+                  placeholder="6-digit PIN"
+                />
+                <Field
+                  label="Country"
+                  value={sheet.draft.country}
+                  onChange={(e) =>
+                    setSheet((s) =>
+                      s.open
+                        ? {
+                            ...s,
+                            draft: { ...s.draft, country: e.target.value },
+                          }
+                        : s
+                    )
+                  }
+                  placeholder="Country"
+                />
+              </div>
+
+              <div className="mt-5 flex items-center gap-3">
+                <button
+                  onClick={saveDraft}
+                  disabled={busy}
+                  className="rounded-xl bg-violet-600 px-4 py-2 text-sm font-semibold text-white hover:bg-violet-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-violet-200 disabled:opacity-60"
+                >
+                  Save address
+                </button>
+                <button
+                  onClick={() => setSheet({ open: false })}
+                  className="rounded-xl px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bottom navigation */}
+      <BottomNav />
+    </div>
+  );
+}

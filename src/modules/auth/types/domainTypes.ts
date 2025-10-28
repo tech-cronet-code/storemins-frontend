@@ -29,3 +29,26 @@ export interface ListDomainsParams {
   // limit?: number;
   search?: string;
 }
+
+// ➕ SSL Certificate DTO
+export interface SSLCertificateDto {
+  id: string;
+  issuer: string;
+  expiryDate: string; // ISO date string
+}
+
+// ➕ Full response for /seller/business/domains/me
+export interface DomainWithSSLResponseDto {
+  id: string;
+  businessId: string;
+  domainName?: string | null;
+  domain: string;
+  domainType: "SUBDOMAIN" | "CUSTOM";
+  verificationStatus: "PENDING" | "VERIFIED" | "FAILED" | "EXPIRED";
+  verificationCode?: string | null;
+  isActive: boolean;
+  verificationDate?: string | null;
+  sslCertificate?: SSLCertificateDto | null;
+  createdAt: string;
+  updatedAt: string;
+}

@@ -1,27 +1,113 @@
-import React, { useState, useRef } from "react";
 import {
-  Settings,
-  Plus,
   ChevronDown,
   ChevronUp,
-  Upload,
   FolderDown,
   Pencil,
+  Plus,
+  Settings,
+  Upload,
 } from "lucide-react";
-import { useNavigate } from "react-router-dom";
-import ProductSettingsDrawer from "./ProductSettingsDrawer";
+import React, { useEffect, useRef, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
+import { useSellerAuth } from "../../auth/contexts/SellerAuthContext";
+import { useListProductsQuery } from "../../auth/services/productApi";
 import BulkActionsDropdown from "./BulkActionsDropdown";
+import PaginationControls from "./products/PaginationControls";
 import ProductFilterBar from "./products/ProductFilterBar";
 import ProductTableHeader from "./products/ProductTableHeader";
 import ProductTableRow from "./products/ProductTableRow";
+import ProductSettingsDrawer from "./ProductSettingsDrawer";
 import UpgradeToBusinessPlanModal from "./UpgradeToBusinessPlanModal";
-import PaginationControls from "./products/PaginationControls";
-import { useListProductsQuery } from "../../auth/services/productApi";
+import { convertPath } from "../../auth/utils/useImagePath";
 
 type SortableKey = "name" | "price" | "status";
 
+// eslint-disable-next-line react-refresh/only-export-components
+export enum ProductType {
+  PHYSICAL = "PHYSICAL",
+  DIGITAL = "DIGITAL",
+  MEETING = "MEETING",
+  WORKSHOP = "WORKSHOP",
+}
+
+/* ---------------- helpers ---------------- */
+
+const looksLikeUrl = (s: string) =>
+  /^https?:\/\//i.test(s) || s.startsWith("/");
+
+/** Convert diskName -> full URL with convertPath; fall back to /image/original/product/<disk> */
+function toProductImageUrl(diskName?: string): string {
+  if (!diskName) return "";
+  try {
+    const u = convertPath(diskName, "original/product") as string | undefined;
+    if (u) return u;
+  } catch {
+    // ignore and fall through
+  }
+  const base =
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (import.meta as any).env?.VITE_IMAGE_BASE_URL ||
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (import.meta as any).env?.VITE_API_BASE_URL ||
+    "";
+  const root = String(base || "").replace(/\/+$/, "");
+  return root
+    ? `${root}/image/original/product/${diskName}`
+    : `/image/original/product/${diskName}`;
+}
+
+/** Get media diskName with order===0 (or first) */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function getPrimaryMediaDiskName(product: any): string | undefined {
+  const arr: Array<{ url?: string; order?: number }> | undefined =
+    product?.media;
+  if (!Array.isArray(arr) || arr.length === 0) return undefined;
+  return (arr.find((m) => m?.order === 0)?.url ?? arr[0]?.url) || undefined;
+}
+
+/** Robust primary image URL resolver (handles media OR images) */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function getPrimaryImageUrl(product: any): string {
+  // 1) media (diskName)
+  const disk = getPrimaryMediaDiskName(product);
+  if (disk) return toProductImageUrl(disk);
+
+  // 2) images (already a url or diskName)
+  const imgs: unknown = product?.images;
+  if (Array.isArray(imgs) && imgs.length > 0) {
+    const first = imgs[0];
+    if (typeof first === "string") {
+      return looksLikeUrl(first) ? first : toProductImageUrl(first);
+    }
+  }
+
+  return "";
+}
+
+/* --------------- component --------------- */
+
 const SellerProductsForm: React.FC = () => {
-  const { data: products = [], isLoading } = useListProductsQuery(); // ✅ API
+  const { userDetails } = useSellerAuth();
+  const businessId = userDetails?.storeLinks?.[0]?.businessId;
+
+  const {
+    data: products = [],
+    isLoading,
+    refetch,
+  } = useListProductsQuery(
+    { businessId: businessId || "", type: ProductType.PHYSICAL },
+    { skip: !businessId }
+  );
+
+  const location = useLocation();
+
+  useEffect(() => {
+    if (location.state?.refresh) {
+      refetch();
+      window.history.replaceState({}, document.title);
+    }
+  }, [location.state, refetch]);
+
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -30,8 +116,7 @@ const SellerProductsForm: React.FC = () => {
 
   const [sortKey, setSortKey] = useState<SortableKey>("price");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
-  const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]); // 🟢 Make it string[], since your id is string from API
-
+  const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(10);
 
@@ -99,11 +184,21 @@ const SellerProductsForm: React.FC = () => {
     }
   };
 
-  const handleAddProduct = () => navigate("/seller/catalogue/products/create");
+  const handleAddProduct = () =>
+    navigate("/seller/catalogue/products/physical/create");
+
+  if (!businessId) {
+    return (
+      <div className="text-center text-red-500 font-semibold">
+        Business ID not found. Please login again.
+      </div>
+    );
+  }
 
   if (isLoading) {
     return <div className="text-center text-gray-500">Loading products...</div>;
   }
+
   return (
     <>
       <div className="w-full min-h-screen bg-[#F9FAFB] px-3 lg:px-0 py-5 md:py-2">
@@ -203,15 +298,29 @@ const SellerProductsForm: React.FC = () => {
                 {paginatedProducts.length > 0 ? (
                   <>
                     {paginatedProducts.map((product) => {
-                      const firstImage =
-                        Array.isArray(product.images) &&
-                        product.images.length > 0
-                          ? product.images[0]
-                          : ""; // Fallback if no image
+                      const imageUrl = getPrimaryImageUrl(product);
 
-                      const discountPrice = product.discountPrice || 0;
-                      const inventory = product.stock ?? "N/A";
+                      const inventory =
+                        product.stock ?? product.quantity ?? "N/A";
+
                       const isActive = product.status === "ACTIVE";
+                      const isLastItemOnPage = paginatedProducts.length === 1;
+
+                      const subtitle =
+                        Array.isArray(product.categoryLinks) &&
+                        product.categoryLinks.length
+                          ? product.categoryLinks
+                              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                              .map((c: any) => c.parentCategoryName)
+                              .filter(Boolean)
+                              .join(", ")
+                          : product.category ?? "";
+
+                      const variantCount = Array.isArray(product.variant)
+                        ? product.variant.length
+                        : Array.isArray(product.variant)
+                        ? product.variant.length
+                        : 0;
 
                       return (
                         <div
@@ -220,11 +329,15 @@ const SellerProductsForm: React.FC = () => {
                         >
                           <ProductTableRow
                             id={product.id}
-                            image={firstImage}
+                            image={imageUrl}
                             title={product.name}
-                            subtitle={product.category}
+                            subtitle={subtitle}
+                            variant={`${variantCount}`}
                             price={product.price}
-                            mrp={discountPrice}
+                            discountedPrice={
+                              product.discountedPrice ?? product.price
+                            }
+                            mrp={product.discountedPrice ?? product.price}
                             inventory={inventory}
                             isActive={isActive}
                             checked={selectedProductIds.includes(product.id)}
@@ -232,14 +345,23 @@ const SellerProductsForm: React.FC = () => {
                               handleProductCheckboxChange(product.id, checked)
                             }
                             onEdit={(id) =>
-                              navigate(`/seller/catalogue/products/edit/${id}`)
+                              navigate(
+                                `/seller/catalogue/products/physical/edit/${id}`
+                              )
                             }
+                            isLastItemOnPage={isLastItemOnPage}
+                            onDeleteComplete={(_, shouldGoToPrevPage) => {
+                              if (shouldGoToPrevPage && currentPage > 1) {
+                                setCurrentPage((prev) => prev - 1);
+                              }
+                              refetch();
+                            }}
                           />
                         </div>
                       );
                     })}
 
-                    {/* Pagination only if there are products */}
+                    {/* Pagination */}
                     <div className="px-4 bg-white border-t border-gray-200 flex flex-col sm:flex-row items-center justify-between gap-4 relative z-10">
                       <PaginationControls
                         currentPage={currentPage}
@@ -248,13 +370,13 @@ const SellerProductsForm: React.FC = () => {
                         rowsPerPage={rowsPerPage}
                         onRowsPerPageChange={(val) => {
                           setRowsPerPage(val);
-                          setCurrentPage(1); // reset to page 1
+                          setCurrentPage(1);
                         }}
                         onPageChange={(page) => setCurrentPage(page)}
                       />
                     </div>
 
-                    {/* Sticky Bottom Scrollbar only if there are products */}
+                    {/* Sticky Bottom Scrollbar */}
                     <div className="sticky bottom-0 left-0 z-10 border-t border-gray-100">
                       <div
                         ref={scrollShadowRef}

@@ -1,9 +1,12 @@
+// src/components/orders/PaginationOrdersControls.tsx
 import React, { useEffect, useRef, useState } from "react";
 import {
   ChevronLeft,
   ChevronRight,
   ChevronUp,
   ChevronDown,
+  ChevronsLeft,
+  ChevronsRight,
 } from "lucide-react";
 
 interface Props {
@@ -16,6 +19,7 @@ interface Props {
 }
 
 const ROW_OPTIONS = [2, 10, 25, 50, 100];
+const MAX_PAGE_BUTTONS = 10; // jitne bhi numbered buttons dikhane hain
 
 const PaginationOrdersControls: React.FC<Props> = ({
   currentPage,
@@ -28,22 +32,48 @@ const PaginationOrdersControls: React.FC<Props> = ({
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
+  // close dropdown jab bahar click ho
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (
-        dropdownRef.current &&
-        !dropdownRef.current.contains(event.target as Node)
-      ) {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node))
         setDropdownOpen(false);
-      }
     };
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  // numbered page buttons (1 … n)
+  const renderPageButtons = () => {
+    if (totalPages <= 1) return null;
+    const startPage = Math.max(
+      1,
+      Math.min(currentPage - 4, totalPages - MAX_PAGE_BUTTONS + 1)
+    );
+    const endPage = Math.min(totalPages, startPage + MAX_PAGE_BUTTONS - 1);
+
+    const buttons = [];
+    for (let i = startPage; i <= endPage; i++) {
+      const isCurrent = i === currentPage;
+      buttons.push(
+        <button
+          key={i}
+          onClick={() => onPageChange(i)}
+          className={`px-3 py-1.5 text-sm rounded-md font-medium border shadow-sm transition ${
+            isCurrent
+              ? "text-white bg-blue-600 border-blue-600 hover:bg-blue-700"
+              : "text-gray-700 border-gray-200 hover:bg-gray-100"
+          }`}
+        >
+          {i}
+        </button>
+      );
+    }
+    return buttons;
+  };
+
   return (
     <div className="w-full flex flex-wrap items-center justify-between gap-y-3 gap-x-6 px-4 sm:px-6 py-5 bg-white rounded-md">
-      {/* Rows Dropdown */}
+      {/* Rows-per-page dropdown */}
       <div className="relative" ref={dropdownRef}>
         <button
           className="flex items-center gap-1 text-sm text-blue-700 font-semibold hover:underline"
@@ -75,36 +105,48 @@ const PaginationOrdersControls: React.FC<Props> = ({
         )}
       </div>
 
-      {/* Page Info */}
+      {/* Page info */}
       <div className="text-sm text-gray-600 font-medium">
-        Page <span className="text-blue-700 font-semibold">{currentPage}</span>{" "}
+        Page{" "}
+        <span className="text-blue-700 font-semibold">
+          {totalPages === 0 ? 0 : currentPage}
+        </span>{" "}
         of {totalPages} — <span className="font-semibold">{totalItems}</span>{" "}
         items
       </div>
 
-      {/* Pagination Buttons */}
-      <div className="flex gap-2">
+      {/* Navigation buttons */}
+      <div className="flex gap-1 flex-wrap">
+        <button
+          onClick={() => onPageChange(1)}
+          disabled={currentPage === 1}
+          className="px-2 py-2 rounded border text-sm disabled:opacity-50"
+        >
+          <ChevronsLeft className="w-4 h-4" />
+        </button>
         <button
           onClick={() => onPageChange(currentPage - 1)}
           disabled={currentPage === 1}
-          className={`px-3 py-2 text-sm flex items-center gap-1 rounded-md transition font-medium shadow-sm border ${
-            currentPage === 1
-              ? "text-gray-400 border-gray-300 cursor-not-allowed bg-gray-100"
-              : "text-white bg-blue-600 border-blue-600 hover:bg-blue-700"
-          }`}
+          className="px-2 py-2 rounded border text-sm disabled:opacity-50"
         >
-          <ChevronLeft className="w-4 h-4" /> Prev
+          <ChevronLeft className="w-4 h-4" />
         </button>
+
+        {renderPageButtons()}
+
         <button
           onClick={() => onPageChange(currentPage + 1)}
-          disabled={currentPage === totalPages}
-          className={`px-3 py-2 text-sm flex items-center gap-1 rounded-md transition font-medium shadow-sm border ${
-            currentPage === totalPages
-              ? "text-gray-400 border-gray-300 cursor-not-allowed bg-gray-100"
-              : "text-white bg-blue-600 border-blue-600 hover:bg-blue-700"
-          }`}
+          disabled={currentPage >= totalPages}
+          className="px-2 py-2 rounded border text-sm disabled:opacity-50"
         >
-          Next <ChevronRight className="w-4 h-4" />
+          <ChevronRight className="w-4 h-4" />
+        </button>
+        <button
+          onClick={() => onPageChange(totalPages)}
+          disabled={currentPage >= totalPages}
+          className="px-2 py-2 rounded border text-sm disabled:opacity-50"
+        >
+          <ChevronsRight className="w-4 h-4" />
         </button>
       </div>
     </div>

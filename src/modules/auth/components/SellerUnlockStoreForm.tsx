@@ -129,8 +129,9 @@ const SellerUnlockStoreForm: React.FC<Props> = ({
 
             <div className="absolute right-3 flex items-center gap-2">
               <span className="text-[#7F56D9] font-semibold text-sm">
-                {`storemins.com/${businessName}`}
+                storemins.com{businessName ? `/${businessName}` : "/"}
               </span>
+
               <span
                 className={`w-6 h-6 rounded-full flex items-center justify-center ${
                   availability === "available"

@@ -1,125 +1,290 @@
-import React, { useEffect, useState } from "react";
-import { useFormContext } from "react-hook-form";
-import { Image, Video } from "lucide-react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { useFormContext, useWatch } from "react-hook-form";
+import { Image as ImageIcon } from "lucide-react";
+import { convertPath } from "../../../auth/utils/useImagePath";
+
+// const LOG = "[ProductMediaSection]";
+const MAX_IMAGES = 6;
+
+type FileTile = { id: string; kind: "file"; url: string; file: File };
+type UrlTile = { id: string; kind: "url"; url: string; token: string };
+type Tile = FileTile | UrlTile;
 
 const ProductMediaSection: React.FC = () => {
   const {
     register,
-    watch,
+    setValue,
+    setError,
+    clearErrors,
     formState: { errors },
+    control,
   } = useFormContext();
 
-  // 🟢 Watch current images and video
-  const images = watch("images");
-  const video = watch("video");
+  // watch values so we see reset() updates
+  const media =
+    (useWatch({ control, name: "media" }) as Array<{
+      url: string;
+      order?: number;
+    }>) ?? [];
+  const mediaUrls =
+    (useWatch({ control, name: "mediaUrls" }) as string[]) ?? [];
 
-  const [imagePreviews, setImagePreviews] = useState<string[]>([]);
-  const [videoName, setVideoName] = useState<string | null>(null);
+  const mediaTokensFromMedia = (Array.isArray(media) ? media : [])
+    .slice()
+    .sort((a, b) => (a?.order ?? 0) - (b?.order ?? 0))
+    .map((m) => m?.url)
+    .filter(Boolean) as string[];
 
-  useEffect(() => {
-    if (images && images.length > 0) {
-      // If it's a FileList (new uploads)
-      if (images instanceof FileList) {
-        const urls = Array.from(images).map((file) =>
-          URL.createObjectURL(file)
-        );
-        setImagePreviews(urls);
-      } else if (Array.isArray(images)) {
-        // If it's already uploaded URLs (edit mode)
-        setImagePreviews(images);
-      }
-    } else {
-      setImagePreviews([]);
+  const initialTokens: string[] = (
+    mediaTokensFromMedia.length ? mediaTokensFromMedia : mediaUrls
+  ).filter(Boolean);
+
+  const [tiles, setTiles] = useState<Tile[]>([]);
+  const { ref: rhfRef, ...imgReg } = register("images");
+  const fileInput = useRef<HTMLInputElement | null>(null);
+
+  // seed only once to avoid flicker / loops
+  const didSeed = useRef(false);
+  const hydrated = useRef(false); // avoid writing [] back before hydration
+
+  const tokenToUrl = (token: string): string => {
+    if (!token) return "";
+    if (/^https?:\/\//i.test(token) || token.startsWith("/")) return token;
+    try {
+      const u = convertPath(token, "original/product") as string | undefined;
+      if (u) return u;
+    } catch {
+      /* empty */
     }
-  }, [images]);
+    return `/image/original/product/${token}`;
+  };
 
+  // seed previews when tokens land
   useEffect(() => {
-    if (video) {
-      if (video instanceof File) {
-        setVideoName(video.name);
-      } else if (typeof video === "string") {
-        setVideoName(video.split("/").pop() || null);
-      }
+    if (didSeed.current) return;
+    if (!initialTokens.length) return;
+    didSeed.current = true;
+    hydrated.current = true;
+
+    const seeded: Tile[] = initialTokens.map((token) => ({
+      id: crypto.randomUUID(),
+      kind: "url",
+      token,
+      url: tokenToUrl(token),
+    }));
+    setTiles(seeded);
+  }, [initialTokens]);
+
+  // keep RHF in sync (FileList + kept tokens in current order)
+  useEffect(() => {
+    if (!hydrated.current && tiles.length === 0) return;
+
+    const files = tiles.filter((t): t is FileTile => t.kind === "file");
+    const keptTokens = tiles
+      .filter((t): t is UrlTile => t.kind === "url")
+      .map((t) => t.token);
+
+    const dt = new DataTransfer();
+    files.forEach((t) => dt.items.add(t.file));
+    setValue("images", dt.files, { shouldDirty: true, shouldValidate: true });
+
+    // 👇 critical: send these back on submit so BE keeps old ones
+    setValue("mediaUrls", keptTokens, {
+      shouldDirty: true,
+      shouldValidate: true,
+    });
+
+    if (tiles.length > MAX_IMAGES) {
+      setError("images", {
+        type: "max",
+        message: `You can upload up to ${MAX_IMAGES} images.`,
+      });
     } else {
-      setVideoName(null);
+      clearErrors("images");
     }
-  }, [video]);
+  }, [tiles, setValue, setError, clearErrors]);
+
+  // cleanup blob URLs
+  useEffect(
+    () => () => {
+      tiles.forEach((t) => t.kind === "file" && URL.revokeObjectURL(t.url));
+    },
+    [tiles]
+  );
+
+  const addFiles = (files: File[]) => {
+    if (!files.length) return;
+    hydrated.current = true;
+    setTiles((cur) => {
+      const next: Tile[] = [...cur];
+      for (const f of files) {
+        if (!f.type.startsWith("image/")) continue;
+        if (next.length >= MAX_IMAGES) break;
+        next.push({
+          id: crypto.randomUUID(),
+          kind: "file",
+          file: f,
+          url: URL.createObjectURL(f),
+        });
+      }
+      return next;
+    });
+  };
+
+  const onPick: React.ChangeEventHandler<HTMLInputElement> = (e) => {
+    addFiles(Array.from(e.target.files ?? []));
+    if (fileInput.current) fileInput.current.value = "";
+  };
+
+  const onDrop: React.DragEventHandler<HTMLLabelElement> = (e) => {
+    e.preventDefault();
+    addFiles(Array.from(e.dataTransfer.files ?? []));
+  };
+
+  // drag-sort
+  const dragFrom = useRef<number | null>(null);
+  const onTileDragStart = (i: number) => (dragFrom.current = i);
+  const onTileDrop = (to: number) => {
+    const from = dragFrom.current;
+    dragFrom.current = null;
+    if (from == null || from === to) return;
+    setTiles((cur) => {
+      const copy = [...cur];
+      const [m] = copy.splice(from, 1);
+      copy.splice(to, 0, m);
+      return copy;
+    });
+  };
+
+  const removeAt = (i: number) => {
+    hydrated.current = true;
+    setTiles((cur) => {
+      const copy = [...cur];
+      const [rm] = copy.splice(i, 1);
+      if (rm && rm.kind === "file") URL.revokeObjectURL(rm.url);
+      return copy;
+    });
+  };
+
+  const remaining = useMemo(
+    () => Math.max(0, MAX_IMAGES - tiles.length),
+    [tiles.length]
+  );
 
   return (
-    <div className="bg-white border border-gray-100 rounded-lg p-6">
-      {/* Section Title */}
+    <div className="bg-white border border-gray-100 rounded-lg p-4 sm:p-6">
       <h3 className="text-base font-semibold text-gray-900">Product Media</h3>
-      <p className="text-sm text-gray-500 mt-1 mb-6">
-        Upload captivating images and videos to make your product stand out.
+      <p className="text-sm text-gray-500 mt-1 mb-4">
+        Upload up to {MAX_IMAGES} images. Drag tiles to change their order.
       </p>
 
-      <div className="flex flex-col sm:flex-row items-stretch gap-6">
-        {/* Image Upload Box */}
-        <label
-          htmlFor="images"
-          className="flex-1 flex flex-col justify-center items-center border border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-blue-500 hover:bg-blue-50 transition p-6 text-center relative"
-        >
-          <Image className="w-8 h-8 text-gray-500 mb-3" />
-          <span className="text-sm font-medium text-gray-700">
-            Upload images
-          </span>
+      {/* compact uploader tile */}
+      <label
+        htmlFor="images"
+        onDrop={onDrop}
+        onDragOver={(e) => e.preventDefault()}
+        className={[
+          "inline-flex items-center justify-center",
+          "rounded-md cursor-pointer transition",
+          "border border-dashed border-gray-300 hover:border-blue-500 hover:bg-blue-50",
+          "w-28 sm:w-32 md:w-36 lg:w-40", // smaller widths than before
+          "aspect-[4/5]", // keep proportion consistent
+        ].join(" ")}
+      >
+        <div className="flex flex-col items-center text-gray-600 px-3 text-center">
+          <ImageIcon className="w-7 h-7 mb-2" />
+          <span className="text-sm">Upload images</span>
           <input
+            id="images"
             type="file"
             multiple
-            {...register("images")}
-            id="images"
+            accept="image/*"
+            {...imgReg}
+            ref={(el) => {
+              rhfRef(el);
+              fileInput.current = el;
+            }}
+            onChange={onPick}
             className="hidden"
           />
-          {typeof errors.images?.message === "string" && (
-            <p className="text-xs text-red-500 mt-2">{errors.images.message}</p>
-          )}
-
-          {/* 🟢 Preview images */}
-          {imagePreviews.length > 0 && (
-            <div className="mt-4 grid grid-cols-3 gap-2">
-              {imagePreviews.map((src, idx) => (
-                <img
-                  key={idx}
-                  src={src}
-                  alt={`preview-${idx}`}
-                  className="w-20 h-20 object-cover rounded border"
-                />
-              ))}
-            </div>
-          )}
-        </label>
-
-        {/* Divider */}
-        <div className="flex items-center justify-center text-gray-400 font-semibold">
-          Or
         </div>
+      </label>
 
-        {/* Video Upload Box */}
-        <label
-          htmlFor="video"
-          className="flex-1 flex flex-col justify-center items-center border border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-blue-500 hover:bg-blue-50 transition p-6 text-center relative"
-        >
-          <Video className="w-8 h-8 text-gray-500 mb-3" />
-          <span className="text-sm font-medium text-gray-700">Add video</span>
-          <input
-            type="file"
-            {...register("video")}
-            id="video"
-            className="hidden"
+      {typeof errors.images?.message === "string" && (
+        <p className="text-xs text-red-500 mt-2">{errors.images.message}</p>
+      )}
+
+      {/* responsive grid of thumbnails */}
+      <div
+        className={[
+          "mt-4 grid gap-3",
+          // Fluid columns: tile min width increases with screen size
+          "[grid-template-columns:repeat(auto-fill,minmax(6.25rem,1fr))]", // ~100px
+          "sm:[grid-template-columns:repeat(auto-fill,minmax(7.5rem,1fr))]", // ~120px
+          "md:[grid-template-columns:repeat(auto-fill,minmax(8.75rem,1fr))]", // ~140px
+          "lg:[grid-template-columns:repeat(auto-fill,minmax(10rem,1fr))]", // ~160px
+        ].join(" ")}
+      >
+        {tiles.map((t, i) => (
+          <div
+            key={t.id}
+            className="relative group rounded-lg overflow-hidden border bg-gray-50 w-full aspect-[4/5] flex-none"
+            draggable
+            onDragStart={() => onTileDragStart(i)}
+            onDragOver={(e) => e.preventDefault()}
+            onDrop={() => onTileDrop(i)}
+            title="Drag to sort"
+          >
+            {t.url ? (
+              <img
+                src={t.url}
+                alt={`preview-${i}`}
+                className="w-full h-full object-cover select-none pointer-events-none"
+                draggable={false}
+                onError={(e) => {
+                  if (t.kind === "url") {
+                    const el = e.currentTarget as HTMLImageElement;
+                    const fallback = `/image/original/product/${t.token}`;
+                    if (el.src !== fallback) el.src = fallback;
+                  }
+                }}
+              />
+            ) : (
+              <div className="w-full h-full grid place-items-center bg-white">
+                <div className="h-6 w-6 rounded-full animate-pulse bg-gray-300" />
+              </div>
+            )}
+
+            <button
+              type="button"
+              onMouseDown={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+              }}
+              onClick={() => removeAt(i)}
+              className="absolute top-1 right-1 z-10 inline-flex items-center justify-center w-6 h-6 rounded-full bg-white/95 text-gray-700 shadow hover:bg-red-50"
+              title="Remove"
+              aria-label="Remove"
+            >
+              ×
+            </button>
+
+            <div className="pointer-events-none absolute inset-0 hidden group-hover:flex items-center justify-center bg-black/30 text-white text-[11px] font-medium">
+              Drag to sort
+            </div>
+          </div>
+        ))}
+
+        {/* placeholders keep grid shape and stay responsive */}
+        {Array.from({ length: remaining }).map((_, k) => (
+          <div
+            key={`ph-${k}`}
+            className="rounded-lg border border-dashed border-gray-300 bg-gray-50 w-full aspect-[4/5]"
           />
-          {typeof errors.video?.message === "string" && (
-            <p className="text-xs text-red-500 mt-2">{errors.video.message}</p>
-          )}
-
-          {/* 🟢 Show video filename */}
-          {videoName && (
-            <p className="mt-4 text-sm text-gray-600">{videoName}</p>
-          )}
-        </label>
+        ))}
       </div>
 
-      {/* Helper Text */}
-      <p className="text-xs text-gray-400 mt-4 text-center sm:text-left">
+      <p className="text-xs text-gray-400 mt-3">
         Recommended size:{" "}
         <span className="font-medium text-gray-600">1000px × 1248px</span>
       </p>

@@ -1,81 +1,86 @@
 import { Pencil } from "lucide-react";
-import { useAuth } from "../../auth/contexts/AuthContext";
-import { useState, useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
+import { FaUserCircle } from "react-icons/fa";
 import { showToast } from "../../../common/utils/showToast";
-import * as z from "zod"; // ✅ import Zod
-
-// ✅ Updated Zod Schema (Only Letters and Spaces Allowed)
-const nameSchema = z
-  .string()
-  .min(3, "Name must be at least 3 characters long.")
-  .max(50, "Name cannot be more than 50 characters.")
-  .regex(/^[A-Za-z\s]+$/, "Name must contain only letters and spaces."); // ✅ Strong regex
+import { useSellerAuth } from "../../auth/contexts/SellerAuthContext";
+import { convertPath } from "../../auth/utils/useImagePath"; // keep your existing util
 
 const UserSettingsForm = () => {
-  const { userDetails, updateProfile } = useAuth();
-  const [name, setName] = useState(userDetails?.name || "");
-  const [nameError, setNameError] = useState<string | null>(null);
+  const { userDetails } = useSellerAuth();
   const [loading, setLoading] = useState(false);
+  const [imageError, setImageError] = useState(false);
 
-  // ✅ Validate name on change — no condition, always at top
+  // 🔻 Track picked file + preview URL
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // cleanup preview object URL
   useEffect(() => {
-    if (userDetails) {
-      setName(userDetails.name); // set initial name
+    return () => {
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+    };
+  }, [previewUrl]);
+
+  if (!userDetails) return <div>Loading...</div>;
+
+  // Form change checks
+  const isImageChanged = !!avatarFile;
+
+  const onFileButtonClick = () => fileInputRef.current?.click();
+
+  // Resolve current image URL (preview takes priority)
+  const serverImageDiskName = userDetails?.image ?? undefined; // already has .webp
+  const serverThumbUrl = serverImageDiskName
+    ? convertPath(serverImageDiskName, "original/auth")
+    : undefined;
+
+  const currentImgSrc = previewUrl || serverThumbUrl || undefined; // fallback handled by onError UI
+
+  const handleFileChange: React.ChangeEventHandler<HTMLInputElement> = (e) => {
+    const file = e.target.files?.[0] || null;
+    setAvatarFile(file);
+    setImageError(false);
+    // local preview for instant UX
+    if (file) {
+      const url = URL.createObjectURL(file);
+      setPreviewUrl(url);
+    } else {
+      setPreviewUrl(null);
     }
-  }, [userDetails]);
-
-  useEffect(() => {
-    try {
-      nameSchema.parse(name);
-      setNameError(null); // No error
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        setNameError(error.errors[0]?.message || "Invalid name");
-      }
-    }
-  }, [name]);
-
-  // ✅ Now safe to return
-  if (!userDetails) {
-    return <div>Loading...</div>;
-  }
-
-  const isNameChanged = name.trim() !== (userDetails?.name || "").trim();
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!isImageChanged) {
+      showToast({
+        type: "error",
+        message: "Nothing to update.",
+        showClose: true,
+      });
+      return;
+    }
+
     try {
-      nameSchema.parse(name); // validate before submit
-      if (!isNameChanged) {
-        showToast({
-          type: "error",
-          message: "Name is unchanged.",
-          showClose: true,
-        });
-        return;
-      }
       setLoading(true);
-      await updateProfile(name);
+      // const resp = await updateProfile("", avatarFile || undefined);
+
+      // Update succeeded; clear transient preview file
+      setAvatarFile(null);
+
       showToast({
         type: "success",
-        message: "Profile updated successfully!",
+        message: "Profile image updated successfully!",
         showClose: true,
       });
     } catch (error) {
-      if (error instanceof z.ZodError) {
-        showToast({
-          type: "error",
-          message: error.errors[0]?.message || "Invalid name",
-          showClose: true,
-        });
-      } else {
-        console.error(error);
-        showToast({
-          type: "error",
-          message: "Failed to update profile. Please try again.",
-          showClose: true,
-        });
-      }
+      console.error(error);
+      showToast({
+        type: "error",
+        message: "Failed to update profile. Please try again.",
+        showClose: true,
+      });
     } finally {
       setLoading(false);
     }
@@ -90,13 +95,28 @@ const UserSettingsForm = () => {
         {/* Profile Image */}
         <div className="md:col-span-2 flex flex-col items-center justify-start">
           <div className="relative w-24 h-24">
-            <img
-              src="https://randomuser.me/api/portraits/women/44.jpg"
-              alt="User"
-              className="w-full h-full rounded-full object-cover border shadow"
+            {!imageError && currentImgSrc ? (
+              <img
+                src={currentImgSrc}
+                alt="User"
+                className="w-full h-full rounded-full object-cover shadow"
+                onError={() => setImageError(true)}
+              />
+            ) : (
+              <FaUserCircle className="w-full h-full text-gray-400 rounded-full shadow" />
+            )}
+
+            <input
+              type="file"
+              accept="image/*"
+              ref={fileInputRef}
+              className="hidden"
+              onChange={handleFileChange}
             />
+
             <button
               type="button"
+              onClick={onFileButtonClick}
               className="absolute bottom-0 right-0 w-6 h-6 rounded-full bg-blue-600 flex items-center justify-center shadow hover:bg-blue-700"
             >
               <Pencil className="text-white w-3 h-3" />
@@ -104,26 +124,8 @@ const UserSettingsForm = () => {
           </div>
         </div>
 
-        {/* Form Fields */}
+        {/* Info Fields */}
         <div className="md:col-span-10 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4 w-full">
-          {/* Editable Name Field */}
-          <div>
-            <label className="text-sm font-medium text-gray-700">
-              Your Name
-            </label>
-            <input
-              className={`mt-1 w-full border ${
-                nameError ? "border-red-500" : "border-gray-300"
-              } rounded-md px-3 py-2`}
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-            />
-            {nameError && (
-              <p className="text-red-500 text-sm mt-1">{nameError}</p>
-            )}
-          </div>
-
-          {/* Readonly Fields */}
           <div>
             <label className="text-sm font-medium text-gray-700">Mobile</label>
             <input
@@ -170,16 +172,16 @@ const UserSettingsForm = () => {
         </div>
       </div>
 
-      {/* Submit Button */}
+      {/* Submit */}
       <div className="text-right mt-8">
         <button
           type="submit"
           className={`bg-blue-600 text-white px-8 py-2 rounded-lg transition ${
-            loading || !isNameChanged || nameError
+            loading || !isImageChanged
               ? "opacity-50 cursor-not-allowed"
               : "hover:bg-blue-700"
           }`}
-          disabled={loading || !isNameChanged || !!nameError}
+          disabled={loading || !isImageChanged}
         >
           {loading ? "Saving..." : "Save"}
         </button>

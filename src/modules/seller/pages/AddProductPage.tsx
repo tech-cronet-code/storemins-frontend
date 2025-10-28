@@ -1,37 +1,34 @@
-import { useEffect, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+// src/modules/seller/pages/AddProductPage.tsx
+import { useRef } from "react";
+import { useNavigate, useParams } from "react-router-dom";
 import SidebarNavigation from "../components/products/SidebarNavigation";
 import ProductForm from "../components/products/ProductForm";
 import { ArrowLeft } from "lucide-react";
 import Layout from "../../dashboard/components/Layout";
 import { UserRoleName } from "../../auth/constants/userRoles";
-import { useParams } from "react-router-dom";
 
 const AddProductPage = () => {
   const navigate = useNavigate();
-  const { id } = useParams<{ id: string }>(); // 👈 catch product id (undefined if creating)
-
+  const { id } = useParams<{ id: string }>();
   const formContainerRef = useRef<HTMLDivElement>(null!);
 
-  useEffect(() => {
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = "auto";
-    };
-  }, []);
-
   return (
-    <Layout role={UserRoleName.SELLER}>
-      <div className="flex h-screen w-full bg-[#f9fafb] overflow-hidden">
+    <Layout role={UserRoleName.SELLER} hideFooter>
+      {" "}
+      {/* 👈 ONLY THIS PAGE */}
+      <div className="flex min-h-screen w-full bg-[#f9fafb] overflow-hidden">
         {/* Sidebar */}
         <aside className="hidden lg:block w-[260px] flex-shrink-0 bg-white border-r border-gray-200">
           <div className="sticky top-0 h-screen p-4">
-            <SidebarNavigation scrollContainerRef={formContainerRef} />
+            <SidebarNavigation
+              scrollContainerRef={formContainerRef}
+              productType="PHYSICAL"
+            />
           </div>
         </aside>
 
-        {/* Main Content */}
-        <div className="flex flex-col flex-1 h-screen overflow-hidden">
+        {/* Main */}
+        <div className="flex flex-col flex-1 min-h-screen overflow-hidden">
           {/* Header */}
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 px-4 sm:px-6 py-4 border-b border-gray-200 bg-white sticky top-0 z-10">
             <div className="flex items-center gap-3">
@@ -43,17 +40,9 @@ const AddProductPage = () => {
                 <ArrowLeft size={24} strokeWidth={2} />
               </button>
               <h1 className="text-base sm:text-lg font-semibold text-gray-900 leading-none">
-                {id ? "Edit Product" : "Add new product"}
+                {id ? "Edit product" : "Add new product"}
               </h1>
             </div>
-
-            {/* Right - CTA Button */}
-            <button
-              disabled
-              className="w-full sm:w-auto px-5 py-2.5 rounded-md bg-blue-600 text-white text-sm font-medium shadow-sm transition hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Add Product
-            </button>
           </div>
 
           {/* Scrollable Form */}

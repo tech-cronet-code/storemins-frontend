@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Eye,
   Pencil,
@@ -12,6 +12,9 @@ import classNames from "classnames";
 import ShareModal from "../products/ShareModal";
 import { Category } from "../../types/category";
 import { useSellerProduct } from "../../hooks/useSellerProduct";
+import { useNavigate } from "react-router-dom";
+import { FaImage } from "react-icons/fa6";
+import { convertPath } from "../../../auth/utils/useImagePath";
 
 interface Props {
   category: Category;
@@ -21,7 +24,7 @@ interface Props {
   onCheckboxChange: (checked: boolean) => void;
   onToggleExpand?: () => void;
   onEdit: (category: Category, type: "PARENT" | "SUB") => void;
-  onRefresh: () => void; // ✅ new
+  onRefresh: () => void;
 }
 
 const SellerCategoryTableRow: React.FC<Props> = ({
@@ -34,6 +37,8 @@ const SellerCategoryTableRow: React.FC<Props> = ({
   onEdit,
   onRefresh,
 }) => {
+  const navigate = useNavigate();
+
   const [active, setActive] = useState(category.status);
   const [isShareModalOpen, setShareModalOpen] = useState(false);
   const [isDeleteModalOpen, setDeleteModalOpen] = useState(false);
@@ -42,6 +47,7 @@ const SellerCategoryTableRow: React.FC<Props> = ({
 
   const { deleteCategories } = useSellerProduct();
   const [deleting, setDeleting] = useState(false);
+  const [imageError, setImageError] = useState(false);
 
   const menuRef = useRef<HTMLDivElement>(null);
   const deleteModalRef = useRef<HTMLDivElement>(null);
@@ -76,6 +82,22 @@ const SellerCategoryTableRow: React.FC<Props> = ({
   }, [isDeleteModalOpen]);
 
   const toggleStatus = () => setActive((prev) => !prev);
+
+  //  Resolve server image (diskName like "<fileId>.webp") → auth URL
+  const serverImageDiskName = category.imageUrl ?? undefined; // already .webp from API
+  const resolvedImageUrl = useMemo(() => {
+    if (!serverImageDiskName) return undefined;
+    try {
+      return convertPath(serverImageDiskName, "original/category");
+    } catch {
+      return undefined;
+    }
+  }, [serverImageDiskName]);
+
+  // Reset error if URL changes
+  useEffect(() => {
+    setImageError(false);
+  }, [resolvedImageUrl]);
 
   return (
     <>
@@ -124,15 +146,27 @@ const SellerCategoryTableRow: React.FC<Props> = ({
               )}
             </button>
           )}
+
           {/* Category Image + Name */}
-          <img
-            src={category.image}
-            alt={category.name}
+          <div
             className={classNames(
               isSub ? "w-8 h-8" : "w-10 h-10",
-              "object-cover rounded border border-gray-200"
+              "flex items-center justify-center rounded border border-gray-200 bg-gray-50"
             )}
-          />
+          >
+            {imageError || !resolvedImageUrl ? (
+              <FaImage className="text-blue-400 w-5 h-5" />
+            ) : (
+              <img
+                src={resolvedImageUrl}
+                alt={category.name}
+                className="w-full h-full object-cover rounded"
+                onError={() => setImageError(true)}
+                loading="lazy"
+              />
+            )}
+          </div>
+
           <span className="text-blue-600 font-medium truncate">
             {category.name}
           </span>
@@ -143,7 +177,7 @@ const SellerCategoryTableRow: React.FC<Props> = ({
           {category.products}
         </div>
 
-        {/* Status Toggle */}
+        {/* Status Toggle (local only) */}
         <div className="flex items-center justify-center gap-2">
           <label className="relative inline-flex items-center cursor-pointer">
             <input
@@ -176,7 +210,7 @@ const SellerCategoryTableRow: React.FC<Props> = ({
         <div className="flex items-center gap-1.5 justify-end">
           <button
             className="group w-8 h-8 rounded-full flex items-center justify-center text-gray-500 hover:text-blue-600 hover:bg-gray-100 transition"
-            onClick={() => onEdit(category, isSub ? "PARENT" : "SUB")} // ✅ fire the edit action
+            onClick={() => onEdit(category, isSub ? "SUB" : "PARENT")} // ✅ correct type
           >
             <Pencil className="w-[18px] h-[18px]" />
           </button>
@@ -184,6 +218,7 @@ const SellerCategoryTableRow: React.FC<Props> = ({
           <button className="group w-8 h-8 rounded-full flex items-center justify-center text-gray-500 hover:text-blue-600 hover:bg-gray-100 transition">
             <Eye className="w-[18px] h-[18px]" />
           </button>
+
           <button
             onClick={() => setShareModalOpen(true)}
             title="Share"
@@ -191,6 +226,7 @@ const SellerCategoryTableRow: React.FC<Props> = ({
           >
             <Share2 className="w-[18px] h-[18px]" />
           </button>
+
           <div className="relative" ref={menuRef}>
             <button
               onClick={() => setIsMenuOpen((prev) => !prev)}
@@ -204,10 +240,12 @@ const SellerCategoryTableRow: React.FC<Props> = ({
                 {!isSub && (
                   <button
                     className="w-full px-4 py-2 text-left hover:bg-gray-100 text-gray-700"
-                    // onClick={() => {
-                    //   setIsMenuOpen(false);
-                    //   alert("Add subcategory clicked");
-                    // }}
+                    onClick={() => {
+                      setIsMenuOpen(false);
+                      navigate(
+                        `/seller/catalogue/categories/create?parentId=${category.id}&type=SUB`
+                      );
+                    }}
                   >
                     Add subcategory
                   </button>

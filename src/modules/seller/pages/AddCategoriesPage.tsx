@@ -8,12 +8,12 @@ const AddCategoriesPage = () => {
   const [searchParams] = useSearchParams();
 
   const type = searchParams.get("type") || undefined; // ✅ Fix null to undefined
-
+  const parentId  = searchParams.get("parentId")  || undefined; // for create mode
   console.log({ id, type });
 
   return (
     <Layout role={UserRoleName.SELLER}>
-      <AddCategoriesContainer categoryId={id} type={type} />
+      <AddCategoriesContainer categoryId={id} type={type} parentId={parentId} />
     </Layout>
   );
 };

@@ -1,4 +1,4 @@
-// Layout.tsx
+// src/modules/dashboard/components/Layout.tsx
 import { ReactNode, useEffect, useState } from "react";
 import { Outlet } from "react-router-dom";
 import { UserRoleName } from "../../auth/constants/userRoles";
@@ -10,16 +10,15 @@ import ProductSettingsDrawer from "../../seller/components/ProductSettingsDrawer
 interface LayoutProps {
   role: UserRoleName;
   children?: ReactNode;
+  hideFooter?: boolean; // 👈 NEW
 }
 
-const Layout = ({ role, children }: LayoutProps) => {
+const Layout = ({ role, children, hideFooter = false }: LayoutProps) => {
   const [collapsed, setCollapsed] = useState(false);
-  const [drawerOpen, setDrawerOpen] = useState(false); // 👈 Manage drawer state here
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
   useEffect(() => {
-    const handleResize = () => {
-      setCollapsed(window.innerWidth < 768);
-    };
+    const handleResize = () => setCollapsed(window.innerWidth < 768);
     handleResize();
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
@@ -38,10 +37,11 @@ const Layout = ({ role, children }: LayoutProps) => {
         <main className="flex-1 p-4">
           {children || <Outlet context={{ setDrawerOpen }} />}
         </main>
-        <Footer />
+
+        {/* 👇 Footer now optional */}
+        {!hideFooter && <Footer />}
       </div>
 
-      {/* Drawer rendered here, OUTSIDE header/footer/main */}
       <ProductSettingsDrawer
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}

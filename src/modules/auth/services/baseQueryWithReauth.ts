@@ -1,122 +1,150 @@
-// src/common/services/baseQueryWithReauth.ts
+// // src/modules/auth/services/baseQueryWithReauth.ts
+// /* eslint-disable @typescript-eslint/no-explicit-any */
+// import { fetchBaseQuery, FetchArgs } from "@reduxjs/toolkit/query/react";
+// import { RootState } from "../../../common/state/store";
+// import { loginSuccess, logout } from "../slices/authSlice";
+// import { UserRoleName } from "../constants/userRoles";
+// import { castToUserRoles } from "../../../common/utils/common";
 
-import { fetchBaseQuery, FetchArgs } from "@reduxjs/toolkit/query/react";
-import { RootState } from "../../../common/state/store";
-import { loginSuccess, logout } from "../slices/authSlice";
-import { UserRoleName } from "../constants/userRoles";
-import { castToUserRoles } from "../../../common/utils/common";
+// const isDev = import.meta.env.VITE_MODE === "development";
 
-const isDev = import.meta.env.VITE_MODE === "development";
+// const API_ROOT = isDev
+//   ? import.meta.env.VITE_PUBLIC_API_URL_RUNTIME_LOCAL
+//   : import.meta.env.VITE_PUBLIC_API_URL_RUNTIME_LIVE;
 
-const API_ROOT = isDev
-  ? import.meta.env.VITE_PUBLIC_API_URL_RUNTIME_LOCAL
-  : import.meta.env.VITE_PUBLIC_API_URL_RUNTIME_LIVE;
+// export const IMAGE_URL = isDev
+//   ? import.meta.env.VITE_PUBLIC_IMAGE_URL_LOCAL
+//   : import.meta.env.VITE_PUBLIC_IMAGE_URL_LIVE;
 
-export const IMAGE_URL = isDev
-  ? import.meta.env.VITE_PUBLIC_IMAGE_URL_LOCAL
-  : import.meta.env.VITE_PUBLIC_IMAGE_URL_LIVE;
+// const withAuthHeaders = (headers: Headers, getState: () => unknown) => {
+//   const state = getState() as RootState;
+//   const token = state.auth.token;
+//   if (token) headers.set("Authorization", `Bearer ${token}`);
+//   // DO NOT set 'x-business-id' header; use query params instead.
+//   return headers;
+// };
 
-// ➊ “Auth” base (prefixes `/auth`, adds headers)
-const authBase = fetchBaseQuery({
-  baseUrl: `${API_ROOT}/auth`,
-  credentials: "include",
-  prepareHeaders: (headers, { getState }) => {
-    const token = (getState() as RootState).auth.token;
-    if (token) headers.set("Authorization", `Bearer ${token}`);
-    return headers;
-  },
-});
+// /** Base that hits `${API_ROOT}/auth` */
+// const authBase = fetchBaseQuery({
+//   baseUrl: `${API_ROOT}/auth`,
+//   credentials: "omit", // avoid cookies to simplify CORS
+//   prepareHeaders: (h, api) => withAuthHeaders(h, api.getState),
+// });
 
-// ➋ “Admin” base (no `/auth` prefix, but still adds headers)
-const adminBase = fetchBaseQuery({
-  baseUrl: API_ROOT,
-  credentials: "include",
-  prepareHeaders: (headers, { getState }) => {
-    const token = (getState() as RootState).auth.token;
-    if (token) headers.set("Authorization", `Bearer ${token}`);
-    return headers;
-  },
-});
+// /** Base that hits `${API_ROOT}` (no /auth prefix) */
+// const rootBase = fetchBaseQuery({
+//   baseUrl: API_ROOT,
+//   credentials: "omit",
+//   prepareHeaders: (h, api) => withAuthHeaders(h, api.getState),
+// });
 
-// ➌ Which paths should use the “adminBase” instead of authBase?
-const isAdminEndpoint = (url: string) =>
-  url.startsWith("/super-admin/") ||
-  url.startsWith("/seller/business") ||
-  url.startsWith("/seller/product");
+// /* Routing rules:
+//    - Everything under /customer/** and other app routes → ROOT (no /auth)
+//    - Only seller/admin auth endpoints stay on /auth
+// */
+// const routeViaRoot = (url: string) =>
+//   url.startsWith("/customer/") ||
+//   url.startsWith("/super-admin/") ||
+//   url.startsWith("/seller/business") ||
+//   url.startsWith("/seller/product") ||
+//   url.startsWith("/seller/coupons") ||
+//   url.startsWith("/seller/orders") ||
+//   url.startsWith("/files");
 
-// ➍ The wrapper
-export const baseQueryWithReauth: typeof authBase = async (
-  args,
-  api,
-  extraOptions
-) => {
-  const url = typeof args === "string" ? args : args.url;
+// /** Endpoints where refresh should NOT be attempted */
+// const shouldSkipRefresh = (url: string) => {
+//   const path = url.split("?")[0];
+//   const skip = new Set<string>([
+//     "/login",
+//     "/register",
+//     "/customer/auth/login-init",
+//     "/customer/auth/register",
+//     "/customer/auth/confirm-mobile-otp",
+//     "/customer/auth/resend-mobile-otp",
+//     "/customer/auth/logout",
+//     "/refresh-auth-token",
+//   ]);
+//   return skip.has(path);
+// };
 
-  // 1️⃣ If it’s an admin endpoint, use adminBase
-  if (isAdminEndpoint(url)) {
-    return adminBase(args as FetchArgs, api, extraOptions);
-  }
+// type ExtraOptionsWithRetry = Parameters<typeof authBase>[2] & {
+//   __isRetryAttempt?: boolean;
+// };
 
-  // 2️⃣ Otherwise use authBase + refresh logic
-  let result = await authBase(args, api, extraOptions);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const err = result.error as any;
-  const statusCode: number | undefined = err?.data?.statusCode;
+// export const baseQueryWithReauth: typeof authBase = async (
+//   args,
+//   api,
+//   extraOptions
+// ) => {
+//   const url = typeof args === "string" ? args : args.url;
+//   const base = routeViaRoot(url) ? rootBase : authBase;
 
-  const requestUrl = typeof args === "string" ? args : args.url;
-  const skipRefresh = ["/login", "/register"].includes(requestUrl);
+//   // 1) Original request
+//   let result = await base(args as FetchArgs, api, extraOptions);
 
-  if (result.error && statusCode === 401 && !skipRefresh) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const alreadyRetried = (extraOptions as any)?.__isRetryAttempt;
-    if (alreadyRetried) {
-      api.dispatch(logout());
-      return result;
-    }
+//   // 2) If 401, try refresh then retry once
+//   const err = (result as any)?.error as
+//     | { status?: number; data?: any }
+//     | undefined;
 
-    // attempt token refresh
-    const refreshRes = await authBase(
-      { url: "/refresh-auth-token", method: "POST" },
-      api,
-      extraOptions
-    );
+//   const statusFromRtk = err?.status;
+//   const statusFromBody = err?.data?.statusCode;
+//   const statusCode = (statusFromRtk ?? statusFromBody) as number | undefined;
 
-    if (refreshRes.data) {
-      const data = refreshRes.data as {
-        access_token: string;
-        refresh_token: string;
-        id: string;
-        name?: string;
-        mobile: string;
-        role: UserRoleName[];
-        permissions: string[];
-        mobile_confirmed?: boolean;
-      };
+//   const requestUrl = (typeof args === "string" ? args : args.url).split("?")[0];
+//   const skipRefresh = shouldSkipRefresh(requestUrl);
 
-      api.dispatch(
-        loginSuccess({
-          user: {
-            id: data.id,
-            name: data.name || "",
-            mobile: data.mobile,
-            role: castToUserRoles(data.role),
-            permissions: data.permissions,
-            mobile_confirmed: data.mobile_confirmed ?? false,
-          },
-          token: data.access_token,
-          refreshToken: data.refresh_token,
-        })
-      );
+//   if (err && statusCode === 401 && !skipRefresh) {
+//     const alreadyRetried = (extraOptions as ExtraOptionsWithRetry)
+//       ?.__isRetryAttempt;
+//     if (alreadyRetried) {
+//       api.dispatch(logout());
+//       return result;
+//     }
 
-      // retry original
-      result = await authBase(args, api, {
-        ...extraOptions,
-        __isRetryAttempt: true,
-      });
-    } else {
-      api.dispatch(logout());
-    }
-  }
+//     // Refresh token request always under /auth
+//     const refreshRes = await authBase(
+//       { url: "/refresh-auth-token", method: "POST" },
+//       api,
+//       extraOptions
+//     );
 
-  return result;
-};
+//     if ((refreshRes as any).data) {
+//       const data = (refreshRes as any).data as {
+//         access_token: string;
+//         refresh_token: string;
+//         id: string;
+//         name?: string;
+//         mobile: string;
+//         role: UserRoleName[] | string[];
+//         permissions: string[];
+//         mobile_confirmed?: boolean;
+//       };
+
+//       api.dispatch(
+//         loginSuccess({
+//           user: {
+//             id: data.id,
+//             name: data.name || "",
+//             mobile: data.mobile,
+//             role: castToUserRoles(data.role),
+//             permissions: data.permissions,
+//             mobile_confirmed: data.mobile_confirmed ?? false,
+//           },
+//           token: data.access_token,
+//           refreshToken: data.refresh_token,
+//         })
+//       );
+
+//       // Retry original once
+//       result = await base(args as FetchArgs, api, {
+//         ...(extraOptions as ExtraOptionsWithRetry),
+//         __isRetryAttempt: true,
+//       });
+//     } else {
+//       api.dispatch(logout());
+//     }
+//   }
+
+//   return result;
+// };

@@ -1,13 +1,17 @@
+//vite.config.ts
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
+
+// Set your repo name here:
+const repo = "storemins-frontend  ";
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
   const isDev = mode === "development";
 
   return {
-    base: "/", // ✅ for Railway root hosting; change if using subfolder hosting
+    base: isDev ? "/" : `/${repo}/`,
     plugins: [
       react(),
       tailwindcss(),
@@ -21,14 +25,18 @@ export default defineConfig(({ mode }) => {
       host: true,
       proxy: isDev
         ? {
-            // ✅ Only used in local dev to avoid CORS issues
             "/auth": {
               target: "http://localhost:3000",
               changeOrigin: true,
               secure: false,
             },
+            "/storefront": {
+              target: "http://localhost:3000",
+              changeOrigin: true,
+              secure: false,
+            },
           }
-        : undefined, // ❌ Disable proxy in production!
+        : undefined, // never proxy in prod
     },
 
     build: {

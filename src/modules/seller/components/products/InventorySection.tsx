@@ -1,11 +1,10 @@
+import { ChevronDown, ChevronUp } from "lucide-react";
 import React, { useState } from "react";
 import { useFormContext } from "react-hook-form";
-import { ChevronUp, ChevronDown } from "lucide-react";
-import InventoryModal from "./InventoryModal"; // ✅ import your modal
+import InventoryModal from "./InventoryModal";
 
 const InventorySection: React.FC = () => {
   const {
-    register,
     setValue,
     watch,
     formState: { errors },
@@ -14,24 +13,32 @@ const InventorySection: React.FC = () => {
   const [isOpen, setIsOpen] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
 
-  // 🟢 Watch stock and sku
-  const quantity = watch("stock");
-  const sku = watch("sku");
+  // ✅ Always-controlled values
+  const rawQty = watch("stock");
+  const quantity = rawQty == null ? "" : String(rawQty); // "" when undefined/null
+  const sku = (watch("sku") ?? "") as string;
 
   return (
     <>
-      {/* Modal */}
       <InventoryModal
         open={modalOpen}
         onClose={() => setModalOpen(false)}
-        onSave={(qty) => setValue("stock", qty)}
+        initialQuantity={quantity}
+        onSave={(qty) => {
+          // qty aapke modal se string aayega; form me jo chahiye waisa set karo
+          // number chahiye to:
+          const parsed = qty === "" ? "" : Number(qty);
+          setValue("stock", parsed, {
+            shouldDirty: true,
+            shouldValidate: true,
+          });
+        }}
       />
 
       <div className="bg-white border border-gray-200 rounded-xl shadow-sm transition-all">
-        {/* Header Toggle */}
         <button
           type="button"
-          onClick={() => setIsOpen((prev) => !prev)}
+          onClick={() => setIsOpen((p) => !p)}
           className="w-full flex items-center justify-between px-6 py-5 text-left"
         >
           <div>
@@ -46,21 +53,19 @@ const InventorySection: React.FC = () => {
           </div>
         </button>
 
-        {/* Divider */}
         {isOpen && <hr className="border-t border-gray-200" />}
 
-        {/* Body */}
         {isOpen && (
           <div className="px-6 pb-6 pt-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Quantity Input (Modal Trigger) */}
+              {/* Quantity (readOnly, opens modal) */}
               <div className="flex flex-col gap-1">
                 <label className="text-sm font-medium text-gray-800">
                   Quantity
                 </label>
                 <input
                   type="text"
-                  value={quantity}
+                  value={quantity ?? ""} // ✅ always string -> controlled
                   placeholder="Unlimited"
                   readOnly
                   onClick={() => setModalOpen(true)}
@@ -70,20 +75,25 @@ const InventorySection: React.FC = () => {
                 />
                 {errors.stock?.message && (
                   <p className="text-xs text-red-500 mt-1">
-                    {errors.stock.message.toString()}
+                    {String(errors.stock.message)}
                   </p>
                 )}
               </div>
 
-              {/* SKU ID Input */}
+              {/* SKU */}
               <div className="flex flex-col gap-1">
                 <label className="text-sm font-medium text-gray-800">
                   SKU ID
                 </label>
                 <input
                   type="text"
-                  {...register("sku")}
-                  defaultValue={sku || ""}
+                  value={sku ?? ""} // ✅ normalize to ""
+                  onChange={(e) =>
+                    setValue("sku", e.target.value, {
+                      shouldDirty: true,
+                      shouldValidate: true,
+                    })
+                  }
                   placeholder="Eg. 1000000001"
                   className="w-full h-[48px] px-4 py-2 text-sm rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder-gray-400"
                 />

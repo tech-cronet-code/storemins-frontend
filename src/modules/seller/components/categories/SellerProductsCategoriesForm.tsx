@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { showToast } from "../../../../common/utils/showToast";
-import { useAuth } from "../../../auth/contexts/AuthContext";
+import { useSellerAuth } from "../../../auth/contexts/SellerAuthContext";
 import { useSellerProduct } from "../../hooks/useSellerProduct";
 import { Category } from "../../types/category";
 import CategoryFilterBar from "./CategoryFilterBar";
@@ -32,7 +32,7 @@ const SellerProductsCategoriesForm: React.FC = () => {
   };
   // const [isEditModalOpen, setEditModalOpen] = useState(false);
 
-  const { userDetails } = useAuth();
+  const { userDetails } = useSellerAuth();
   const { listCategories, deleteCategories } = useSellerProduct();
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

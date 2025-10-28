@@ -7,6 +7,10 @@ interface OrderTablHeaderProps {
   onSortChange: (key: "name" | "price" | "status") => void;
   allSelected: boolean;
   onSelectAll: (checked: boolean) => void;
+  /** Optional small action element aligned to the right */
+  extraRightNode?: React.ReactNode;
+  /** Label for the inventory/items column (default: "Inventory") */
+  inventoryLabel?: string;
 }
 
 const OrderTableHeader: React.FC<OrderTablHeaderProps> = ({
@@ -15,6 +19,8 @@ const OrderTableHeader: React.FC<OrderTablHeaderProps> = ({
   onSortChange,
   allSelected,
   onSelectAll,
+  extraRightNode,
+  inventoryLabel = "Inventory",
 }) => {
   const renderSortIcon = (key: string) => {
     if (sortKey !== key) return <ChevronDown className="w-4 h-4 opacity-40" />;
@@ -37,7 +43,7 @@ const OrderTableHeader: React.FC<OrderTablHeaderProps> = ({
         />
       </div>
 
-      {/* Product */}
+      {/* Product / Title */}
       <div className="flex items-center gap-1">
         <button
           onClick={() => onSortChange("name")}
@@ -60,8 +66,8 @@ const OrderTableHeader: React.FC<OrderTablHeaderProps> = ({
       {/* Category */}
       <div className="flex items-center">Category</div>
 
-      {/* Inventory */}
-      <div className="flex items-center">Inventory</div>
+      {/* Inventory / Items */}
+      <div className="flex items-center">{inventoryLabel}</div>
 
       {/* Status */}
       <div className="flex items-center gap-1">
@@ -73,9 +79,10 @@ const OrderTableHeader: React.FC<OrderTablHeaderProps> = ({
         </button>
       </div>
 
-      {/* Action */}
+      {/* Action + slot */}
       <div className="flex items-center justify-end text-right w-[60px]">
-        Action
+        <span className="mr-2">Action</span>
+        {extraRightNode}
       </div>
     </div>
   );
