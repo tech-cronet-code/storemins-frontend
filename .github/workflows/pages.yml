@@ -1,0 +1,58 @@
+name: Deploy Vite app to GitHub Pages
+
+on:
+  push:
+    branches: [ "master", "develop" ]   # change if you deploy from another branch
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install deps
+        run: npm ci
+
+      - name: Build (production)
+        env:
+          VITE_MODE: production
+          VITE_PUBLIC_API_URL_RUNTIME_LIVE: ${{ secrets.VITE_PUBLIC_API_URL_RUNTIME_LIVE }}
+          VITE_PUBLIC_IMAGE_URL_LIVE: ${{ secrets.VITE_PUBLIC_IMAGE_URL_LIVE }}
+          VITE_PUBLIC_WS_PATH: /push
+        run: npm run build
+
+      - name: SPA 404 (support deep links on Pages)
+        run: cp dist/index.html dist/404.html
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
