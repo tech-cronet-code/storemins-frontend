@@ -40,8 +40,10 @@ import PublicStorefrontPage from "./modules/storefront/pages/PublicStorefrontPag
 import OrderDetailsPage from "./modules/seller/components/orders/OrderDetailsPage";
 
 const App = () => {
+  const basename = import.meta.env.DEV ? "/" : "/storemins-frontend";
+
   return (
-    <BrowserRouter>
+    <BrowserRouter basename={basename}>
       <ScrollToTop />
       <Routes>
         {/* Public storefront (e.g. /tech-cronet/*) */}
