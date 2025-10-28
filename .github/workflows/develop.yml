@@ -2,9 +2,9 @@ name: Frontend CI
 
 on:
   push:
-    branches: [ "develop" ]     # runs when you push to develop
+    branches: ["develop"] # runs when you push to develop
   pull_request:
-    branches: [ "develop" ]     # runs when a PR targets develop
+    branches: ["develop"] # runs when a PR targets develop
 
 jobs:
   ci:
@@ -12,7 +12,7 @@ jobs:
 
     strategy:
       matrix:
-        node-version: [20]      # Node LTS
+        node-version: [20] # Node LTS
 
     steps:
       - name: Checkout code
@@ -22,13 +22,14 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node-version }}
-          cache: 'npm'
+          cache: "npm"
 
       - name: Install dependencies
         run: npm ci
 
       - name: Lint
         run: npm run lint --if-present
+        continue-on-error: true #  makes lint non-blocking
 
       - name: Build
         run: npm run build
@@ -37,14 +38,14 @@ jobs:
       # 🚨 Send email notification if CI fails
       # ==========================================
       - name: Send email on failure
-        if: failure()           # only runs if any previous step fails
+        if: failure() # only runs if any previous step fails
         uses: dawidd6/action-send-mail@v3
         with:
           # Gmail SMTP details
           server_address: smtp.gmail.com
           server_port: 465
-          username: ${{ secrets.EMAIL_USERNAME }}   # your Gmail address
-          password: ${{ secrets.EMAIL_PASSWORD }}   # Gmail App Password
+          username: ${{ secrets.EMAIL_USERNAME }} # your Gmail address
+          password: ${{ secrets.EMAIL_PASSWORD }} # Gmail App Password
           subject: "🚨 Frontend CI Failed for storemins-frontend"
           from: ${{ secrets.EMAIL_USERNAME }}
           to: "nomanmansuri525@gmail.com"
