@@ -38,8 +38,12 @@ jobs:
           VITE_PUBLIC_WS_PATH: /push
         run: npm run build
 
-      - name: SPA 404 (support deep links on Pages)
+      - name: SPA 404 (support deep links)
         run: cp dist/index.html dist/404.html
+
+      # NEW: configure Pages
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
