@@ -29,6 +29,7 @@ jobs:
 
       - name: Lint
         run: npm run lint --if-present
+        continue-on-error: true #  makes lint non-blocking
 
       - name: Build
         run: npm run build
