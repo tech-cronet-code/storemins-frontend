@@ -17,7 +17,7 @@ const SignInUpModal: React.FC<SignInUpModalProps> = ({ open, onClose }) => {
   const [mode, setMode] = useState<"signup" | "signin">("signup");
   const [name, setName] = useState("");
   const [mobile, setMobile] = useState("");
-  const [otpRequested, setOtpRequested] = useState(false);
+  const [, setOtpRequested] = useState(false);
   const [loading, setLoading] = useState(false);
   const [otpSent, setOtpSent] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -79,7 +79,9 @@ const SignInUpModal: React.FC<SignInUpModalProps> = ({ open, onClose }) => {
       {open && (
         <div className="fixed inset-0 z-60 flex items-center justify-center bg-black/40 px-4">
           <div
-            ref={(el) => (modalRef.current = el)}
+            ref={(el) => {
+              modalRef.current = el;
+            }}
             className="relative w-full max-w-sm rounded-xl bg-white shadow-2xl overflow-hidden animate-fade-in"
           >
             {/* Header */}

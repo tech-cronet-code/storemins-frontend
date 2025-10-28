@@ -2,14 +2,14 @@
 import React, { useEffect, useState } from "react";
 import { useImageUpload } from "../hooks/useImageUpload";
 import { ImageWithFallback } from "./ImageWithFallback";
-import { convertPath } from "../utils/useImagePath";
+import { convertPath, ImageVariant } from "../utils/useImagePath";
 
 export const UploadImage = () => {
   const { imageDiskName, handleImageUpload, imageId } = useImageUpload();
 
-  const [selectedVariant, setSelectedVariant] = useState<
-    "generated/thumbnail" | "generated/medium" | "generated/large" | "original"
-  >("generated/thumbnail");
+  const [selectedVariant, setSelectedVariant] = useState<ImageVariant>(
+    "generated/thumbnail"
+  );
 
   const [delayedImageUrl, setDelayedImageUrl] = useState<string | undefined>();
 

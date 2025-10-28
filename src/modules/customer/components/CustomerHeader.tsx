@@ -1,5 +1,5 @@
 // src/components/CustomerHeader.tsx
-import React, { useState } from "react";
+import React, { useState, ReactNode } from "react";
 import { FiSearch, FiMail } from "react-icons/fi";
 import { FaRegUserCircle, FaWhatsapp } from "react-icons/fa";
 import { HiOutlineMenu, HiOutlineLocationMarker } from "react-icons/hi";
@@ -7,10 +7,14 @@ import { useNavigate, useLocation } from "react-router-dom";
 import CustomerSidebar from "./CustomerSidebar";
 import SignInUpModal from "./SignInUpModal";
 
-const IconBtn: React.FC<{
+// ✅ FIX: Added `children` prop type
+interface IconBtnProps {
+  children: ReactNode;
   onClick?: () => void;
   ariaLabel?: string;
-}> = ({ children, onClick, ariaLabel }) => (
+}
+
+const IconBtn: React.FC<IconBtnProps> = ({ children, onClick, ariaLabel }) => (
   <button
     aria-label={ariaLabel}
     onClick={onClick}

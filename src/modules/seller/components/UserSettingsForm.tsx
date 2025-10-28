@@ -6,7 +6,7 @@ import { useSellerAuth } from "../../auth/contexts/SellerAuthContext";
 import { convertPath } from "../../auth/utils/useImagePath"; // keep your existing util
 
 const UserSettingsForm = () => {
-  const { userDetails, updateProfile } = useSellerAuth();
+  const { userDetails } = useSellerAuth();
   const [loading, setLoading] = useState(false);
   const [imageError, setImageError] = useState(false);
 
@@ -64,7 +64,7 @@ const UserSettingsForm = () => {
 
     try {
       setLoading(true);
-      const resp = await updateProfile(undefined, avatarFile || undefined);
+      // const resp = await updateProfile("", avatarFile || undefined);
 
       // Update succeeded; clear transient preview file
       setAvatarFile(null);

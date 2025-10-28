@@ -501,7 +501,9 @@ const VerifyOtpPage: React.FC<{
         {chars.map((d, i) => (
           <input
             key={i}
-            ref={(el) => (inputs.current[i] = el)}
+            ref={(el) => {
+              inputs.current[i] = el;
+            }}
             type="text"
             inputMode="text"
             pattern="[A-Za-z0-9]*"

@@ -213,12 +213,38 @@ export const meetingProductSchema = z
 
     // Channel + link
     meetingChannel: z.string().optional(),
+    meetingChannelUrl: z.string().optional(), // ✅ add this line
     meetingLink: z.string().url().optional().or(z.literal("")).optional(),
 
     // Extras
     capacity: z.coerce.number().int().min(1).optional(),
     hostName: z.string().optional(),
     instructions: z.string().optional(),
+
+    // Digital asset fields
+    digitalAssetFile: z
+      .any()
+      .optional()
+      .refine(
+        (files) => {
+          if (!files) return true;
+          if (Array.isArray(files) && files.every((f) => typeof f === "string"))
+            return true;
+          return (
+            files instanceof FileList &&
+            Array.from(files).every(
+              (file) => file instanceof File && file.size <= maxFileSize
+            )
+          );
+        },
+        { message: "Each digital asset must be a valid file under 5MB" }
+      ),
+    digitalAssetMode: z.enum(["upload", "link"]).optional(),
+    digitalAssetUrls: z.array(z.string().url()).optional(),
+    digitalAssetUrl: z.string().url().optional(),
+    digitalAssetExisting: z.array(z.any()).optional(),
+    digitalAssetExistingOrder: z.array(z.string()).optional(),
+    digitalAssetRemovedIds: z.array(z.string()).optional(),
   })
   .refine(
     (d) => {

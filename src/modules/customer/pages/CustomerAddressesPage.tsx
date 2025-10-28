@@ -1,15 +1,15 @@
 // src/modules/customer/pages/CustomerAddressesPage.tsx
 import React, { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import {
-  useGetCustomerAddressesQuery,
-  useCreateCustomerAddressMutation,
-  useUpdateCustomerAddressMutation,
-  useDeleteCustomerAddressMutation,
-  type CustomerAddress as ApiAddress,
-  type AddressKind,
-} from "../services/customerApi";
 import BottomNav from "../../../shared/blocks/BottomNav";
+import {
+  useCreateCustomerAddressMutation,
+  useDeleteCustomerAddressMutation,
+  useGetCustomerAddressesQuery,
+  useUpdateCustomerAddressMutation,
+  type AddressKind,
+  type CustomerAddress as ApiAddress,
+} from "../services/customerApi";
 
 /* =================== Tiny inline icons =================== */
 const Icon = {
@@ -115,12 +115,13 @@ const kindIcon = (k: AddressKind) =>
   );
 
 function chip(label: string, active = false) {
-  return [
+  const classes = [
     "px-3 py-1.5 text-xs font-semibold rounded-full transition",
     active
       ? "bg-violet-600 text-white shadow-[0_1px_0_0_rgba(0,0,0,0.15)]"
       : "text-slate-700 hover:bg-white/70",
   ].join(" ");
+  return <span className={classes}>{label}</span>;
 }
 
 function pill(text: string, tone: "emerald" | "slate" = "slate", extra = "") {
@@ -128,7 +129,13 @@ function pill(text: string, tone: "emerald" | "slate" = "slate", extra = "") {
     tone === "emerald"
       ? "bg-emerald-50 text-emerald-700 ring-emerald-200"
       : "bg-slate-50 text-slate-700 ring-slate-200";
-  return `inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-semibold ring-1 ${tones} ${extra}`;
+  return (
+    <span
+      className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-semibold ring-1 ${tones} ${extra}`}
+    >
+      {text}
+    </span>
+  );
 }
 
 const cap = (s: string) => (s ? s[0].toUpperCase() + s.slice(1) : s);
@@ -203,7 +210,7 @@ function AddressCard({
               <div className="text-[15px] font-semibold text-slate-900 tracking-tight">
                 {a.label}
               </div>
-              {a.isDefault && <span className={pill("Default", "emerald")} />}
+              {a.isDefault && pill("Default", "emerald")}
             </div>
 
             <div className="mt-1 text-sm text-slate-600">
@@ -423,31 +430,20 @@ export default function CustomerAddressesPage() {
             {/* chips */}
             <div className="mt-3 flex items-center justify-between">
               <div className="rounded-full bg-white/20 backdrop-blur p-1 ring-1 ring-white/25 inline-flex">
-                <button
-                  className={chip("All", kindFilter === "all")}
-                  onClick={() => setKindFilter("all")}
-                >
-                  All
+                <button onClick={() => setKindFilter("all")}>
+                  {chip("All", kindFilter === "all")}
                 </button>
-                <button
-                  className={chip("Home", kindFilter === "home")}
-                  onClick={() => setKindFilter("home")}
-                >
-                  Home
+                <button onClick={() => setKindFilter("home")}>
+                  {chip("Home", kindFilter === "home")}
                 </button>
-                <button
-                  className={chip("Work", kindFilter === "work")}
-                  onClick={() => setKindFilter("work")}
-                >
-                  Work
+                <button onClick={() => setKindFilter("work")}>
+                  {chip("Work", kindFilter === "work")}
                 </button>
-                <button
-                  className={chip("Other", kindFilter === "other")}
-                  onClick={() => setKindFilter("other")}
-                >
-                  Other
+                <button onClick={() => setKindFilter("other")}>
+                  {chip("Other", kindFilter === "other")}
                 </button>
               </div>
+
               <div className="hidden sm:block text-[11px] text-white/90">
                 {filtered.length} of {items.length}
               </div>

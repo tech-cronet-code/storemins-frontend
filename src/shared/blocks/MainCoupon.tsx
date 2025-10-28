@@ -84,12 +84,12 @@ export default function MainCoupon({
 
   const align =
     s.align === "center" ? "center" : s.align === "right" ? "right" : "left";
-  const alignClass =
-    align === "center"
-      ? "text-center"
-      : align === "right"
-      ? "text-right"
-      : "text-left";
+  // const alignClass =
+  //   align === "center"
+  //     ? "text-center"
+  //     : align === "right"
+  //     ? "text-right"
+  //     : "text-left";
 
   const wrapRef = useRef<HTMLDivElement>(null);
   const railRef = useRef<HTMLDivElement>(null);

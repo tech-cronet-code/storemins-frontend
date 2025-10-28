@@ -18,6 +18,19 @@ const AddCategoriesContainer: React.FC<Props> = ({
   const navigate = useNavigate();
   const formContainerRef = useRef<HTMLDivElement>(null!);
 
+  // ✅ normalize and validate type before use
+  const normalizedType =
+    type === "PARENT" || type === "SUB"
+      ? (type as "PARENT" | "SUB")
+      : undefined;
+
+  useEffect(() => {
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = "auto";
+    };
+  }, []);
+
   useEffect(() => {
     document.body.style.overflow = "hidden";
     return () => {
@@ -72,7 +85,7 @@ const AddCategoriesContainer: React.FC<Props> = ({
             <CategoriesForm
               key={`${categoryId ?? "new"}--${parentId ?? "none"}`} // 👈 ensures fresh mount
               categoryId={categoryId}
-              type={type}
+              type={normalizedType}
               parentId={parentId}
             />
           </div>

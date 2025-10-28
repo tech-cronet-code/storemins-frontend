@@ -265,7 +265,9 @@ const WorkShopDurationSection: React.FC = () => {
                     <button
                       key={u.key}
                       id={`unit-opt-${idx}`}
-                      ref={(el) => (optionRefs.current[idx] = el)}
+                      ref={(el) => {
+                        optionRefs.current[idx] = el;
+                      }}
                       type="button"
                       role="option"
                       aria-selected={active}

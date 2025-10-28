@@ -437,7 +437,7 @@ const AddToCart: React.FC = () => {
     try {
       const guestCartId = preAuthCartIdRef.current;
       if (guestCartId) {
-        await mergeCart({ businessId, cartId: guestCartId }).unwrap();
+        await mergeCart({ businessId }).unwrap();
       }
     } catch (err) {
       // Not fatal for UX; we still refetch and allow user to continue.

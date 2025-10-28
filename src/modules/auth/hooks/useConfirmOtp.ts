@@ -1,9 +1,9 @@
 import { useDispatch, useSelector } from "react-redux";
-import { confirmOtpSuccess } from "../slices/authSlice";
 import { RootState } from "../../../common/state/store";
 import toast from "react-hot-toast";
 import { useConfirmOtpMutation } from "../services/sellerApi";
 import { useCallback } from "react";
+import { confirmOtpSuccess } from "../slices/sellerAuthSlice";
 
 export const useConfirmOtp = () => {
   const dispatch = useDispatch();
@@ -29,7 +29,9 @@ export const useConfirmOtp = () => {
         }).unwrap();
 
         dispatch(confirmOtpSuccess({ mobile_confirmed: true }));
-        toast.success(response.message || "OTP verified successfully!");
+        toast.success(
+          response.mobile_confirmed ? "OTP verified successfully!" : "Failed!"
+        );
         sessionStorage.removeItem("otpExpiresAt");
         //  Update localStorage
         const updatedUser = {

@@ -54,7 +54,7 @@ const slice = createSlice({
         "seller_auth_user",
         JSON.stringify({
           id: action.payload.user.id,
-          name: action.payload.user.name,
+          // name: action.payload.user.name,
           role: action.payload.user.role,
           permissions: action.payload.user.permissions,
           mobile_confirmed: action.payload.user.mobile_confirmed,
@@ -91,7 +91,7 @@ const slice = createSlice({
         "seller_auth_user",
         JSON.stringify({
           id: action.payload.id,
-          name: action.payload.name,
+          // name: action.payload.name,
           role: action.payload.role,
           permissions: action.payload.permissions,
           mobile_confirmed: action.payload.mobile_confirmed,
@@ -125,7 +125,7 @@ const slice = createSlice({
         "seller_auth_user",
         JSON.stringify({
           id: action.payload.user.id,
-          name: action.payload.user.name,
+          // name: action.payload.user.name,
           role: action.payload.user.role,
           permissions: action.payload.user.permissions,
           mobile_confirmed: action.payload.user.mobile_confirmed,

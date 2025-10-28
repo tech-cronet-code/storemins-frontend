@@ -4,7 +4,7 @@ import { StoreLinkDto } from "./profileTypes";
 // src/common/types/user.ts
 export type User = {
   id: string;
-  name: string;
+  // name: string;
   mobile: string;
   pwd_hash?: string;
   imageId?: string | null;

@@ -1,11 +1,11 @@
 import React, { useState } from "react";
 import { UserRoleName } from "../../auth/constants/userRoles";
 import CustomerLayout from "../../customer/components/CustomerLayout";
+import { CartProduct } from "../components/CartItem";
 import Breadcrumbs from "../components/FilterSidebar/Breadcrumbs";
 import FilterSidebar from "../components/FilterSidebar/FilterSidebar";
 import ProductGrid from "../components/ProductGrid";
 import SortSelect from "../components/SortSelect";
-import { CartProduct } from "../components/CartItem";
 
 const sampleProducts: CartProduct[] = [
   {
@@ -93,7 +93,7 @@ const CategoryPage: React.FC = () => {
   const [sort, setSort] = useState("featured");
 
   // ─── Cart ──────────────────────────────────
-  const [cart, setCart] = useState<CartProduct[]>([]);
+  const [, setCart] = useState<CartProduct[]>([]);
 
   // ─── Handlers ──────────────────────────────
   const applyPrice = (min: number, max: number) => setPriceRange({ min, max });

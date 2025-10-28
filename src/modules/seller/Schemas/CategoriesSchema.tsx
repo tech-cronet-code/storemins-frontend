@@ -2,16 +2,22 @@ import { z } from "zod";
 
 const ImageSchema = z
   .union([
-    z.instanceof(FileList).transform(fl => (fl && fl.length ? fl : undefined)),
-    z.array(z.instanceof(File)).max(1).transform(arr => (arr && arr.length ? arr : undefined)),
-    z.literal(""),          // some browsers/RHF edge cases
+    z
+      .instanceof(FileList)
+      .transform((fl) => (fl && fl.length ? fl : undefined)),
+    z
+      .array(z.instanceof(File))
+      .max(1)
+      .transform((arr) => (arr && arr.length ? arr : undefined)),
+    z.literal(""), // handle empty string edge cases
     z.undefined(),
     z.null(),
   ])
   .optional()
-  .transform(v => {
+  .transform((v) => {
     // normalize "", null, undefined to undefined so it doesn't affect validity
-    return v && v !== "" ? v : undefined;
+    if (v === "" || v === null || v === undefined) return undefined;
+    return v;
   });
 
 export const CategoriesSchema = z
@@ -34,9 +40,9 @@ export const CategoriesSchema = z
     seoKeywords: z.string().optional(),
     seoImage: z.any().optional(),
   })
-  .refine(
-    (data) => (data.isSubcategory ? !!data.category?.trim() : true),
-    { path: ["category"], message: "Please select a parent category" }
-  );
+  .refine((data) => (data.isSubcategory ? !!data.category?.trim() : true), {
+    path: ["category"],
+    message: "Please select a parent category",
+  });
 
 export type CategoriesFormValues = z.infer<typeof CategoriesSchema>;

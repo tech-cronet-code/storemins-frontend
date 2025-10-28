@@ -1,13 +1,13 @@
 // src/pages/CartDetail.tsx
-import React, { useState, useMemo, useRef } from "react";
+import { useMemo, useRef, useState } from "react";
 import { UserRoleName } from "../../auth/constants/userRoles";
 import CustomerLayout from "../../customer/components/CustomerLayout";
-import Stepper from "../components/Stepper";
+import { CartProduct } from "../components/CartItem";
 import CartItemsSection from "../components/CartItemsSection";
 import CartSummary from "../components/CartSummary";
-import ShippingForm from "../components/ShippingForm";
 import PaymentMethods, { PaymentMethod } from "../components/PaymentMethods";
-import { CartProduct } from "../components/CartItem";
+import ShippingForm from "../components/ShippingForm";
+import Stepper from "../components/Stepper";
 
 const initialCart: CartProduct[] = [
   {

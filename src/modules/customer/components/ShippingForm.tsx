@@ -1,5 +1,5 @@
 // src/components/ShippingForm.tsx
-import React, { useState } from "react";
+import { useState } from "react";
 
 export default function ShippingForm() {
   const [name, setName] = useState("");
@@ -21,7 +21,7 @@ export default function ShippingForm() {
           <input
             type="text"
             value={name}
-            onChange={e => setName(e.target.value)}
+            onChange={(e) => setName(e.target.value)}
             required
             placeholder="Enter name"
             className="w-full border rounded px-3 py-2 focus:ring-1 focus:ring-blue-300"
@@ -30,7 +30,9 @@ export default function ShippingForm() {
 
         {/* Mobile */}
         <div>
-          <label className="block text-sm font-medium mb-1">Mobile Number *</label>
+          <label className="block text-sm font-medium mb-1">
+            Mobile Number *
+          </label>
           <div className="flex">
             <span className="inline-flex items-center px-3 border border-r-0 border-gray-300 bg-gray-50 text-sm">
               +91
@@ -38,7 +40,7 @@ export default function ShippingForm() {
             <input
               type="tel"
               value={mobile}
-              onChange={e => setMobile(e.target.value.replace(/\D/g, ""))}
+              onChange={(e) => setMobile(e.target.value.replace(/\D/g, ""))}
               required
               placeholder="Enter mobile number"
               className="flex-1 border border-gray-300 rounded-r px-3 py-2 focus:ring-1 focus:ring-blue-300"
@@ -54,7 +56,7 @@ export default function ShippingForm() {
           <input
             type="email"
             value={email}
-            onChange={e => setEmail(e.target.value)}
+            onChange={(e) => setEmail(e.target.value)}
             placeholder="Enter email address"
             className="w-full border rounded px-3 py-2 focus:ring-1 focus:ring-blue-300"
           />
@@ -66,7 +68,7 @@ export default function ShippingForm() {
           <input
             type="text"
             value={address}
-            onChange={e => setAddress(e.target.value)}
+            onChange={(e) => setAddress(e.target.value)}
             required
             placeholder="House No, Building, Colony"
             className="w-full border rounded px-3 py-2 focus:ring-1 focus:ring-blue-300"
@@ -81,17 +83,19 @@ export default function ShippingForm() {
           <input
             type="text"
             value={locality}
-            onChange={e => setLocality(e.target.value)}
+            onChange={(e) => setLocality(e.target.value)}
             placeholder="E.g. MG Road"
             className="w-full border rounded px-3 py-2 focus:ring-1 focus:ring-blue-300"
           />
         </div>
         <div>
-          <label className="block text-sm font-medium mb-1">Landmark (optional)</label>
+          <label className="block text-sm font-medium mb-1">
+            Landmark (optional)
+          </label>
           <input
             type="text"
             value={landmark}
-            onChange={e => setLandmark(e.target.value)}
+            onChange={(e) => setLandmark(e.target.value)}
             placeholder="E.g. Near Bank"
             className="w-full border rounded px-3 py-2 focus:ring-1 focus:ring-blue-300"
           />
@@ -103,7 +107,7 @@ export default function ShippingForm() {
           <input
             type="text"
             value={pin}
-            onChange={e => setPin(e.target.value.replace(/\D/g, ""))}
+            onChange={(e) => setPin(e.target.value.replace(/\D/g, ""))}
             required
             placeholder="Enter pin code"
             className="w-full border rounded px-3 py-2 focus:ring-1 focus:ring-blue-300"
@@ -114,7 +118,7 @@ export default function ShippingForm() {
           <input
             type="text"
             value={city}
-            onChange={e => setCity(e.target.value)}
+            onChange={(e) => setCity(e.target.value)}
             required
             placeholder="Enter city"
             className="w-full border rounded px-3 py-2 focus:ring-1 focus:ring-blue-300"
@@ -126,7 +130,7 @@ export default function ShippingForm() {
           <label className="block text-sm font-medium mb-1">State *</label>
           <select
             value={state}
-            onChange={e => setState(e.target.value)}
+            onChange={(e) => setState(e.target.value)}
             required
             className="w-full border rounded px-3 py-2 focus:ring-1 focus:ring-blue-300"
           >

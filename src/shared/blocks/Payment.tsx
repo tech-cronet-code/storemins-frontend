@@ -22,7 +22,7 @@ import {
    - COD flow: upsert draft with selected address -> place order
    ===================================================================================== */
 
-type AddressKind = "home" | "work" | "other";
+// type AddressKind = "home" | "work" | "other";
 
 const currencyINR = (v: number) =>
   "₹" + new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 }).format(v);

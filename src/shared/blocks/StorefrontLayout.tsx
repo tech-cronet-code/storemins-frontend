@@ -1,8 +1,7 @@
-import React from "react";
 import cn from "classnames";
-import { TopNavBlock, type TopNavSettings } from "./topNav";
+import React from "react";
 import BottomNav from "./BottomNav";
-import { useSellerAuth } from "../../modules/auth/contexts/SellerAuthContext";
+import { TopNavBlock, type TopNavSettings } from "./topNav";
 
 type Props = {
   children: React.ReactNode;
@@ -24,15 +23,15 @@ const StorefrontLayout: React.FC<Props> = ({
   children,
   headerSettings,
   footerSettings,
-  businessId: businessIdProp,
+  // businessId: businessIdProp,
   className,
 }) => {
   // fallback businessId from auth if not provided
-  type AuthDetails = { storeLinks?: Array<{ businessId?: string | null }> };
-  type AuthCtx = { userDetails?: AuthDetails };
-  const { userDetails } = (useSellerAuth() as AuthCtx) ?? {};
-  const businessId =
-    businessIdProp ?? userDetails?.storeLinks?.[0]?.businessId?.trim?.() ?? "";
+  // type AuthDetails = { storeLinks?: Array<{ businessId?: string | null }> };
+  // type AuthCtx = { userDetails?: AuthDetails };
+  // const { userDetails } = (useSellerAuth() as AuthCtx) ?? {};
+  // const businessId =
+  //   businessIdProp ?? userDetails?.storeLinks?.[0]?.businessId?.trim?.() ?? "";
 
   return (
     <div className={cn("min-h-dvh flex flex-col bg-[#fafafa]", className)}>
@@ -43,7 +42,7 @@ const StorefrontLayout: React.FC<Props> = ({
       <main className="flex-1">{children}</main>
 
       {/* Footer */}
-      <BottomNav settings={footerSettings || {}} businessId={businessId} />
+      <BottomNav settings={footerSettings || {}} />
     </div>
   );
 };

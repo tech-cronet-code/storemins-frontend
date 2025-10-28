@@ -91,13 +91,13 @@ const CartDock: React.FC<Props> = ({
     return first ? `/${first}/checkout` : "/checkout";
   }, [checkoutPath, loc.pathname]);
 
-  const hide = () => {
-    setVisible(false);
-    if (timer.current) {
-      window.clearTimeout(timer.current);
-      timer.current = null;
-    }
-  };
+  // const hide = () => {
+  //   setVisible(false);
+  //   if (timer.current) {
+  //     window.clearTimeout(timer.current);
+  //     timer.current = null;
+  //   }
+  // };
 
   const showFor = (ms = showMs) => {
     setVisible(true);

@@ -89,10 +89,7 @@ const SwitchRow: React.FC<{
   );
 };
 
-const ProductFlagsSection: React.FC<Props> = ({
-  isEdit,
-  defaultOpen = true,
-}) => {
+const ProductFlagsSection: React.FC<Props> = ({ defaultOpen = true }) => {
   const { control } = useFormContext<ProductFormValues>();
   const [open, setOpen] = React.useState(defaultOpen);
   const contentId = React.useId();

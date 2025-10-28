@@ -3,7 +3,6 @@
 import React, { useState } from "react";
 import { UserRoleName } from "../../auth/constants/userRoles";
 import CustomerLayout from "../components/CustomerLayout";
-import QuickLinksSidebar from "../components/QuickLinksSidebar";
 import SignInUpModal from "../components/SignInUpModal";
 
 const AccountEmptyState: React.FC<{ onAuthClick: () => void }> = ({

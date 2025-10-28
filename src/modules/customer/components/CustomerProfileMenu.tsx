@@ -4,9 +4,7 @@ interface CustomerProfileMenuProps {
   onClose?: () => void;
 }
 
-const CustomerProfileMenu: React.FC<CustomerProfileMenuProps> = ({
-  onClose,
-}) => {
+const CustomerProfileMenu: React.FC<CustomerProfileMenuProps> = () => {
   return (
     <>
       <div></div>

@@ -11,13 +11,13 @@ interface CustomerLayoutProps {
   children?: ReactNode;
 }
 
-const CustomerLayout = ({ role, children }: CustomerLayoutProps) => {
+const CustomerLayout = ({ children }: CustomerLayoutProps) => {
   return (
     <>
       <div>
         {/* Render Header and other components here */}
         <CustomerHeader />
-        <main className="">{children || <Outlet/>}</main>
+        <main className="">{children || <Outlet />}</main>
         <CustomerFooter />
       </div>
     </>

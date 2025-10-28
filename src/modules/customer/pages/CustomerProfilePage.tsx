@@ -481,9 +481,9 @@ export default function CustomerProfilePage() {
     [apiOrders]
   );
 
-  const rewards = "—";
-  const coupons = "—";
-  const wallet = "—";
+  // const rewards = "—";
+  // const coupons = "—";
+  // const wallet = "—";
 
   return (
     <div className="min-h-dvh bg-gradient-to-b from-slate-50 to-slate-100">

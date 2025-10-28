@@ -731,6 +731,7 @@ export const TopNavBlock: React.FC<{ settings?: Partial<TopNavSettings> }> = ({
 };
 
 /* ============================== Mapping helpers ============================== */
+// eslint-disable-next-line react-refresh/only-export-components
 export function mapTopNavToUI(s?: Partial<TopNavSettings>) {
   const v = s || {};
   return {
@@ -761,12 +762,16 @@ export function mapTopNavToUI(s?: Partial<TopNavSettings>) {
       TopNavSettings["visibility"]
     >,
     border: v.desktop_search_bar_border ?? true,
-    borderSize: (v.desktop_search_bar_border_size ?? "2px") as NonNullable<
+    borderSize: (v.desktop_search_bar_border_size ?? "1px") as NonNullable<
       TopNavSettings["desktop_search_bar_border_size"]
     >,
     borderColor: v.desktop_search_bar_border_color ?? "#111827",
     forceMenu: !!v.forceMenu,
     hideMenuOnDetail: !!v.hideMenuOnDetail,
+    customCss: v.custom_css ?? "",
+    iconSizeSm: v.icon_size_sm ?? 18,
+    iconSizeMd: v.icon_size_md ?? 22,
+    iconSizeLg: v.icon_size_lg ?? 24,
   };
 }
 

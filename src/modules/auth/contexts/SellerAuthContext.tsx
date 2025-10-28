@@ -205,7 +205,7 @@ export const SellerAuthProvider = ({ children }: { children: ReactNode }) => {
 
   // register
   const register = async (payload: {
-    name: string;
+    // name: string;
     mobile: string;
     pass_hash: string;
     role: UserRoleName;

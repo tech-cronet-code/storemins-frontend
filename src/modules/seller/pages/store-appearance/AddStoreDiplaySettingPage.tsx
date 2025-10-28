@@ -1207,10 +1207,10 @@ const AddStoreDiplaySettingPage: React.FC<
   }, [footerFromRuntime?.settings, footerFromTheme]);
 
   useEffect(() => {
-    const activeFlag =
-      (typeof footerFromRuntime?.is_active === "number"
-        ? footerFromRuntime.is_active
-        : footerFromTheme?.is_active) ?? 1;
+    // const activeFlag =
+    //   (typeof footerFromRuntime?.is_active === "number"
+    //     ? footerFromRuntime.is_active
+    //     : footerFromTheme?.is_active) ?? 1;
 
     setFooterUi({
       ...defaultFooterUI,
@@ -1862,7 +1862,9 @@ const AddStoreDiplaySettingPage: React.FC<
             />
             <SocialProofStripSettingsCard
               ui={socialProofUi}
-              onChange={setSocialProofUi}
+              onChange={(next) =>
+                setSocialProofUi((prev) => ({ ...prev, ...next }))
+              }
             />
           </>
         );
@@ -1881,7 +1883,12 @@ const AddStoreDiplaySettingPage: React.FC<
           />
         );
       case "about":
-        return <AboutUsSettingsCard ui={aboutUsUi} onChange={setAboutUsUi} />;
+        return (
+          <AboutUsSettingsCard
+            ui={aboutUsUi}
+            onChange={(next) => setAboutUsUi((prev) => ({ ...prev, ...next }))}
+          />
+        );
       case "footer":
         return <BottomNavSettingsCard ui={footerUi} onChange={setFooterUi} />;
       case "terms":
@@ -1906,7 +1913,7 @@ const AddStoreDiplaySettingPage: React.FC<
             <ScrollableTabs
               tabs={TABS}
               value={selectedTab}
-              onChange={(k) => setSelectedTab(k)}
+              onChange={(k) => setSelectedTab(k as typeof selectedTab)}
             />
           </div>
 

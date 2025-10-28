@@ -111,7 +111,7 @@ export const TopNavSettingsCard: React.FC<{
   onChange: (ui: TopNavUI) => void;
 }> = ({ ui, onChange }) => {
   // treat undefined as enabled by default
-  const enabled = ui.enabled ?? true;
+  const enabled = (ui as any).enabled ?? true;
 
   const headerRight = (
     <div className="flex items-center gap-3">
@@ -294,8 +294,9 @@ export const TopNavSettingsCard: React.FC<{
                   onChange={(e) =>
                     onChange({
                       ...ui,
-                      borderSize: e.target
-                        .value as TopNavSettings["desktop_search_bar_border_size"],
+                      borderSize: e.target.value as NonNullable<
+                        TopNavSettings["desktop_search_bar_border_size"]
+                      >,
                     })
                   }
                 >

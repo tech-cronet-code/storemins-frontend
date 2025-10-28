@@ -1,9 +1,9 @@
 import React from "react";
 import { useFormContext, useWatch } from "react-hook-form";
 import { showToast } from "../../../../common/utils/showToast";
-import DigitalAssetDocsGrid from "./DigitalAssetDocsGrid";
-import type { DigitalProductFormValues } from "../../Schemas/meetingProductSchema";
 import { convertPath } from "../../../auth/utils/useImagePath";
+import type { MeetingProductFormValues as DigitalProductFormValues } from "../../Schemas/meetingProductSchema";
+import DigitalAssetDocsGrid from "./DigitalAssetDocsGrid";
 import DigitalAssetImagesGrid from "./DigitalAssetImagesGrid";
 
 /** Debug flag: toggle logs */

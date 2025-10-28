@@ -192,7 +192,9 @@ const CartItem: React.FC<CartItemProps> = ({
           {/* color with dropdown */}
           <div
             className="flex items-center gap-2 relative"
-            ref={(el) => (colorRef.current = el)}
+            ref={(el) => {
+              colorRef.current = el;
+            }}
           >
             <span className="font-medium">color:</span>
             <div className="relative">

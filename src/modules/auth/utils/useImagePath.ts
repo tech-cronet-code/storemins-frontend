@@ -14,6 +14,7 @@ export type KnownImageVariantExamples =
   | "original/product"
   | "original/product/digital" /// isko use kr
   | "original/banners"
+  | "generated/thumbnail"
   | "original/brands";
 
 /**

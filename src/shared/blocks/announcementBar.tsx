@@ -1,5 +1,5 @@
 // shared/blocks/announcementBar.tsx
-import React, { useEffect, useRef, useState, CSSProperties } from "react";
+import { CSSProperties, useEffect, useRef, useState } from "react";
 
 /* ---------- Types ---------- */
 export type AnnBarSettings = {

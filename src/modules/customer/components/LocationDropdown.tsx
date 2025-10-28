@@ -59,7 +59,9 @@ const LocationDropdown: React.FC = () => {
   return (
     <div className="relative">
       <button
-        ref={(el) => (buttonRef.current = el)}
+        ref={(el) => {
+          buttonRef.current = el;
+        }}
         aria-label="Location"
         className="p-2 hover:bg-gray-100 rounded-full flex items-center justify-center"
         onClick={() => setOpen((o) => !o)}
@@ -69,7 +71,9 @@ const LocationDropdown: React.FC = () => {
 
       {open && (
         <div
-          ref={(el) => (dropdownRef.current = el)}
+          ref={(el) => {
+            dropdownRef.current = el;
+          }}
           className="absolute top-full left-1/2 -translate-x-1/2 mt-2 w-[320px] bg-white border border-gray-200 rounded-md shadow-lg overflow-hidden text-sm z-50"
         >
           {/* Arrow caret */}
