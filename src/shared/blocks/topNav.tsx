@@ -5,6 +5,7 @@ import React, {
   useMemo,
   useRef,
   useState,
+  useRef as useReactRef,
 } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCustomerAuth } from "../../modules/customer/context/CustomerAuthContext";
@@ -49,9 +50,7 @@ export type TopNavSettings = {
   icon_size_sm?: number | string;
   icon_size_md?: number | string;
   icon_size_lg?: number | string;
-  /** Force show Menu regardless of left_button */
   forceMenu?: boolean;
-  /** Hide Menu on /p/:productSlug routes (ignored when forceMenu=true) */
   hideMenuOnDetail?: boolean;
 };
 
@@ -143,7 +142,6 @@ function buildRoute(path: string, slug?: string | null) {
 export function redirectToHomeWithSlug() {
   const base = getBase();
   const slug = getPreferredSlug();
-  // Fallback to base/ (no slug) if we truly don't know it.
   const href = `${base}${slug ? `/${slug}` : ""}/`;
   window.location.href = href;
 }
@@ -184,9 +182,7 @@ function useIsMdUp() {
       return () => mq.removeEventListener("change", onChange);
     }
     mq.addListener?.(onChange);
-    return () => {
-      mq.removeListener?.(onChange);
-    };
+    return () => mq.removeListener?.(onChange);
   }, []);
   return mdUp;
 }
@@ -521,14 +517,28 @@ export const TopNavBlock: React.FC<{ settings?: Partial<TopNavSettings> }> = ({
     ]) || "";
   const isLoggedIn = Boolean(auth?.user?.id || tokenFromLS);
 
+  // Track prev login state to catch logout anywhere
+  const prevLoggedRef = useReactRef(isLoggedIn);
+  useEffect(() => {
+    prevLoggedRef.current = isLoggedIn;
+  }, [isLoggedIn]);
+
   const [authOpen, setAuthOpen] = useState(false);
+
+  // ✅ Login redirect → slugged /profile
   useEffect(() => {
     if (authOpen && isLoggedIn) {
       setAuthOpen(false);
-      // ✅ ensure slug-aware profile route
       navigate(buildRoute("profile"));
     }
   }, [authOpen, isLoggedIn, navigate]);
+
+  // ✅ Logout redirect → slugged home (hard reload so everything resets)
+  useEffect(() => {
+    if (prevLoggedRef.current && !isLoggedIn) {
+      redirectToHomeWithSlug();
+    }
+  }, [isLoggedIn]);
 
   const sizes = useMemo(() => {
     const sm = Number(s.icon_size_sm ?? 18) || 18;
@@ -537,14 +547,14 @@ export const TopNavBlock: React.FC<{ settings?: Partial<TopNavSettings> }> = ({
     return { sm, md, lg };
   }, [s.icon_size_sm, s.icon_size_md, s.icon_size_lg]);
 
-  const iconSize = mdUp ? sizes.md : sizes.sm;
-  const bigIconSize = mdUp ? sizes.lg : sizes.md;
+  // const iconSize = mdUp ? sizes.md : sizes.sm;
+  // const bigIconSize = mdUp ? sizes.lg : sizes.md;
 
   const [menuOpen, setMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
 
-  const showOnMobile = s.visibility !== "desktop";
-  const showOnDesktop = s.visibility !== "mobile";
+  // const showOnMobile = s.visibility !== "desktop";
+  // const showOnDesktop = s.visibility !== "mobile";
 
   const desktopStickyOn = !!s.sticky_header;
   const desktopFixedOn = desktopStickyOn && isEditor;
@@ -565,13 +575,13 @@ export const TopNavBlock: React.FC<{ settings?: Partial<TopNavSettings> }> = ({
     };
   }, []);
 
-  const waHref = (() => {
-    const raw = (s.whatsapp_number || "").trim();
-    if (!raw) return "https://wa.me/";
-    if (/^https?:\/\//i.test(raw)) return raw;
-    const digits = raw.replace(/[^\d]/g, "");
-    return digits ? `https://wa.me/${digits}` : "https://wa.me/";
-  })();
+  // const waHref = (() => {
+  //   const raw = (s.whatsapp_number || "").trim();
+  //   if (!raw) return "https://wa.me/";
+  //   if (/^https?:\/\//i.test(raw)) return raw;
+  //   const digits = raw.replace(/[^\d]/g, "");
+  //   return digits ? `https://wa.me/${digits}` : "https://wa.me/";
+  // })();
 
   const textColor = s.text_color || "#111827";
   const showSearch = s.show_search !== false;
@@ -595,11 +605,10 @@ export const TopNavBlock: React.FC<{ settings?: Partial<TopNavSettings> }> = ({
   const effectiveRight: NonNullable<TopNavSettings["right_button"]> =
     s.right_button ?? "NONE";
 
-  // ---- positioning classes
+  // positioning
   const classes = cn(
     "w-full",
     visibilityClass(s.visibility),
-    // fixed on mobile, sticky/fixed on desktop depending on settings/editor
     "fixed top-0 left-0 right-0 z-[200] md:static md:top-auto md:left-auto md:right-auto md:z-auto",
     desktopStickyOn && !desktopFixedOn && "md:sticky md:top-0 md:z-[200]",
     desktopFixedOn && "md:fixed md:top-0 md:left-0 md:right-0 md:z-[200]"
@@ -666,9 +675,9 @@ export const TopNavBlock: React.FC<{ settings?: Partial<TopNavSettings> }> = ({
                 aria-label={effectiveLeft === "MENU" ? "Menu" : "Search"}
               >
                 {effectiveLeft === "MENU" ? (
-                  <Icon.menu size={iconSize} />
+                  <Icon.menu size={22} />
                 ) : effectiveLeft === "SEARCH" ? (
-                  <Icon.search size={iconSize} />
+                  <Icon.search size={22} />
                 ) : null}
                 <span className="hidden sm:inline opacity-80">
                   {effectiveLeft[0] + effectiveLeft.slice(1).toLowerCase()}
@@ -687,7 +696,7 @@ export const TopNavBlock: React.FC<{ settings?: Partial<TopNavSettings> }> = ({
           <div className="flex items-center gap-1.5 md:gap-3">
             {showSearch && !mdUp && (
               <IconTap color={textColor} label="Search" onClick={openSearch}>
-                <Icon.search size={iconSize} />
+                <Icon.search size={sizes.md} />
               </IconTap>
             )}
 
@@ -696,23 +705,31 @@ export const TopNavBlock: React.FC<{ settings?: Partial<TopNavSettings> }> = ({
                 color={textColor}
                 label="Cart/Wishlist"
                 onClick={() => {
-                  // basename-safe client route
                   navigate(buildRoute("checkout"));
                 }}
               >
-                <Icon.bagHeart size={bigIconSize} />
+                <Icon.bagHeart size={sizes.lg} />
               </IconTap>
             )}
 
             {showWhatsApp && (
               <a
-                href={waHref}
+                href={
+                  (s.whatsapp_number || "").trim()
+                    ? /^https?:\/\//i.test((s.whatsapp_number || "").trim())
+                      ? (s.whatsapp_number || "").trim()
+                      : `https://wa.me/${(s.whatsapp_number || "").replace(
+                          /[^\d]/g,
+                          ""
+                        )}`
+                    : "https://wa.me/"
+                }
                 target="_blank"
                 rel="noreferrer"
                 className="no-underline"
               >
                 <IconTap color={textColor} label="WhatsApp">
-                  <Icon.whatsapp size={iconSize} />
+                  <Icon.whatsapp size={sizes.md} />
                 </IconTap>
               </a>
             )}
@@ -729,7 +746,7 @@ export const TopNavBlock: React.FC<{ settings?: Partial<TopNavSettings> }> = ({
                   }
                 }}
               >
-                <Icon.user size={iconSize} />
+                <Icon.user size={sizes.md} />
               </IconTap>
             )}
 
@@ -745,9 +762,9 @@ export const TopNavBlock: React.FC<{ settings?: Partial<TopNavSettings> }> = ({
                 }}
               >
                 {effectiveRight === "MENU" ? (
-                  <Icon.menu size={iconSize} />
+                  <Icon.menu size={sizes.md} />
                 ) : effectiveRight === "SEARCH" ? (
-                  <Icon.search size={iconSize} />
+                  <Icon.search size={sizes.md} />
                 ) : null}
               </IconTap>
             )}
@@ -756,14 +773,14 @@ export const TopNavBlock: React.FC<{ settings?: Partial<TopNavSettings> }> = ({
       </header>
 
       {/* Spacers for fixed header */}
-      {showOnMobile && (
+      {s.visibility !== "desktop" && (
         <div
           className="block md:hidden"
           style={{ height: headerH }}
           aria-hidden
         />
       )}
-      {showOnDesktop && desktopFixedOn && (
+      {s.visibility !== "mobile" && desktopFixedOn && (
         <div
           className="hidden md:block"
           style={{ height: headerH }}
@@ -812,7 +829,6 @@ export const TopNavBlock: React.FC<{ settings?: Partial<TopNavSettings> }> = ({
 };
 
 /* ============================== Mapping helpers ============================== */
-// eslint-disable-next-line react-refresh/only-export-components
 export function mapTopNavToUI(s?: Partial<TopNavSettings>) {
   const v = s || {};
   return {
