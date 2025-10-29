@@ -4,7 +4,7 @@ import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 
 // Set your repo name here:
-const repo = "storemins-frontend  ";
+const repo = "storemins-frontend";
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
