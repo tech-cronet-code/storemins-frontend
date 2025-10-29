@@ -44,7 +44,9 @@ function rememberSlug() {
     try {
       sessionStorage.setItem(LS_SLUG_KEY, s);
       localStorage.setItem(LS_SLUG_KEY, s);
-    } catch {}
+    } catch {
+      /* empty */
+    }
   }
 }
 function buildUrl(path: string, slug?: string | null) {
@@ -371,19 +373,27 @@ export default function BottomNav({
       },
       {
         key: "search" as const,
-        onClick: (): void => setSearchOpen(true),
+        onClick: (): void => {
+          setSearchOpen(true);
+        },
         isActive: (): boolean => false,
       },
       {
         key: "cart" as const,
-        onClick: (): void => navigate(buildUrl("checkout")),
+        onClick: (): void => {
+          navigate(buildUrl("checkout")); // <-- wrapped so it returns void
+          // or: void navigate(buildUrl("checkout"));
+        },
         isActive: (): boolean => false,
       },
       {
         key: "account" as const,
         onClick: (): void => {
-          if (isLoggedIn) navigate(buildUrl("profile"));
-          else setAuthOpen(true);
+          if (isLoggedIn) {
+            navigate(buildUrl("profile")); // <-- same fix here
+          } else {
+            setAuthOpen(true);
+          }
         },
         isActive: (): boolean => isRouteActive("profile", true),
       },
