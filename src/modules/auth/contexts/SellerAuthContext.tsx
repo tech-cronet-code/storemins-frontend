@@ -1,3 +1,4 @@
+// src/modules/auth/contexts/SellerAuthContext.tsx
 import { jwtDecode } from "jwt-decode";
 import {
   createContext,
@@ -13,6 +14,7 @@ import { UserRoleName } from "../constants/userRoles";
 import { useBusinessDetails } from "../hooks/useBusinessStoreDetails";
 import { useDomain } from "../hooks/useDomainOperations";
 import {
+  useConfirmOtpMutation, // ✅ added
   useGetUserDetailsQuery,
   useLoginMutation,
   useRegisterMutation,
@@ -88,6 +90,7 @@ export const SellerAuthProvider = ({ children }: { children: ReactNode }) => {
   const [updateUserProfileApi] = useUpdateUserProfileMutation();
   const [loginApi] = useLoginMutation();
   const [registerApi] = useRegisterMutation();
+  const [confirmOtpApi] = useConfirmOtpMutation(); // ✅ added
 
   const { data: userDetails, refetch } = useGetUserDetailsQuery(undefined, {
     skip: !token,
@@ -205,7 +208,6 @@ export const SellerAuthProvider = ({ children }: { children: ReactNode }) => {
 
   // register
   const register = async (payload: {
-    // name: string;
     mobile: string;
     pass_hash: string;
     role: UserRoleName;
@@ -232,10 +234,10 @@ export const SellerAuthProvider = ({ children }: { children: ReactNode }) => {
       mobile?: string;
       role?: UserRoleName[] | UserRoleName;
       permissions?: string[];
-      mobile_confirmed?: boolean;
       access_token?: string | null;
       refresh_token?: string | null;
       otpExpiresAt?: string | null;
+      mobile_confirmed?: boolean;
     } | null;
 
     // Always persist pending mobile/userId for OTP page (even if BE doesn't return qi)
@@ -268,23 +270,16 @@ export const SellerAuthProvider = ({ children }: { children: ReactNode }) => {
     return { needsOtp, quickLoginEnable };
   };
 
-  // confirm OTP (uses pending fallback)
+  // ✅ confirm OTP via RTK Query (uses baseUrl + credentials for you)
   const confirmOtp = async (code: string) => {
     const pendingMobile = sessionStorage.getItem("seller_pending_mobile") ?? "";
     const mobile = user?.mobile || pendingMobile;
     if (!mobile) throw new Error("No mobile number available for OTP confirm.");
 
-    const resp = await fetch(`/auth/confirm-mobile-otp`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ mobile, confirm_mobile_otp_code: code }),
-      credentials: "include",
-    });
-
-    if (!resp.ok) {
-      const err = await resp.text().catch(() => "OTP confirmation failed");
-      throw new Error(err || "OTP confirmation failed");
-    }
+    await confirmOtpApi({
+      mobile,
+      confirm_mobile_otp_code: code,
+    }).unwrap();
 
     // Cleanup pending + set confirmed
     dispatch(sellerConfirmOtpSuccess({ mobile_confirmed: true }));
