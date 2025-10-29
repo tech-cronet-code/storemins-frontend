@@ -13,6 +13,24 @@ import { useCustomerAuth } from "../../modules/customer/context/CustomerAuthCont
 /* ---------------- BASE_URL + slug helpers (match TopNav) ---------------- */
 const LS_SLUG_KEY = "last_store_slug";
 
+/** Route names we should NOT treat as a slug */
+const RESERVED_SEGMENTS = new Set([
+  "profile",
+  "checkout",
+  "orders",
+  "cart",
+  "wishlist",
+  "login",
+  "register",
+  "search",
+  "category",
+  "categories",
+  "p",
+  "c",
+  "admin",
+  "editor",
+]);
+
 function getBase() {
   return (import.meta.env.BASE_URL || "/").replace(/\/+$/, "");
 }
@@ -23,6 +41,8 @@ function getCurrentSlug(): string | null {
     if (base && path.startsWith(base)) path = path.slice(base.length);
     if (path.startsWith("/")) path = path.slice(1);
     const [first] = path.split("/").filter(Boolean);
+    if (!first) return null;
+    if (RESERVED_SEGMENTS.has(first.toLowerCase())) return null;
     return first || null;
   } catch {
     return null;
@@ -51,13 +71,13 @@ function rememberSlug() {
     /* empty */
   }
 }
-/** For full reloads (BASE_URL included) */
-// function buildHref(path: string, slug?: string | null) {
-//   const base = getBase();
-//   const clean = (path || "").replace(/^\/+/, "");
-//   const s = slug ?? getPreferredSlug();
-//   return `${base}${s ? `/${s}` : ""}/${clean}`.replace(/\/+$/, "");
-// }
+/** For hard reloads */
+export function buildHref(path: string, slug?: string | null) {
+  const base = getBase();
+  const clean = (path || "").replace(/^\/+/, "");
+  const s = slug ?? getPreferredSlug();
+  return `${base}${s ? `/${s}` : ""}/${clean}`.replace(/\/+$/, "");
+}
 /** For react-router navigate() (NO BASE_URL) */
 function buildRoute(path: string, slug?: string | null) {
   const clean = (path || "").replace(/^\/+/, "");
@@ -75,6 +95,13 @@ function isRouteActive(appRelative: string, slugAware = true) {
     .filter(Boolean)
     .join("/")}`;
   return cur === target;
+}
+/** Export for logout redirection usage elsewhere if needed */
+export function redirectToHomeWithSlug() {
+  const base = getBase();
+  const slug = getPreferredSlug();
+  const href = `${base}${slug ? `/${slug}` : ""}/`;
+  window.location.href = href;
 }
 
 /* ---------------- helpers ---------------- */
@@ -122,16 +149,16 @@ function useCartCount() {
   return count;
 }
 
-function useLockBodyScroll(active: boolean) {
-  useEffect(() => {
-    if (!active) return;
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = prev;
-    };
-  }, [active]);
-}
+// function useLockBodyScroll(active: boolean) {
+//   useEffect(() => {
+//     if (!active) return;
+//     const prev = document.body.style.overflow;
+//     document.body.style.overflow = "hidden";
+//     return () => {
+//       document.body.style.overflow = prev;
+//     };
+//   }, [active]);
+// }
 
 /* ---------------- icons ---------------- */
 function SvgIcon({
@@ -255,7 +282,6 @@ const SearchDialog: React.FC<{
   onClose: () => void;
   placeholder?: string;
 }> = ({ open, onClose, placeholder }) => {
-  useLockBodyScroll(open);
   const inputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
@@ -392,7 +418,6 @@ export default function BottomNav({
         key: "cart" as const,
         onClick: (): void => {
           navigate(buildRoute("checkout")); // basename-safe
-          // or: void navigate(buildRoute("checkout"));
         },
         isActive: (): boolean => false,
       },
