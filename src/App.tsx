@@ -40,7 +40,7 @@ import PublicStorefrontPage from "./modules/storefront/pages/PublicStorefrontPag
 import OrderDetailsPage from "./modules/seller/components/orders/OrderDetailsPage";
 
 const App = () => {
-  const basename = import.meta.env.DEV ? "/" : "/storemins-frontend";
+  const basename = import.meta.env.BASE_URL || "/";
 
   return (
     <BrowserRouter basename={basename}>
