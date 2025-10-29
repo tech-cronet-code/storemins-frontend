@@ -58,11 +58,29 @@ export type TopNavSettings = {
 /* ============================== BASE_URL + slug helpers ============================== */
 const LS_SLUG_KEY = "last_store_slug";
 
+/** Route names we should NOT treat as a slug */
+const RESERVED_SEGMENTS = new Set([
+  "profile",
+  "checkout",
+  "orders",
+  "cart",
+  "wishlist",
+  "login",
+  "register",
+  "search",
+  "category",
+  "categories",
+  "p",
+  "c",
+  "admin",
+  "editor",
+]);
+
 function getBase() {
   return (import.meta.env.BASE_URL || "/").replace(/\/+$/, "");
 }
 
-/** slug after trimming BASE_URL */
+/** slug (strict): first segment after BASE_URL, but NOT a reserved route name */
 function getCurrentSlug(): string | null {
   try {
     const base = getBase();
@@ -70,13 +88,15 @@ function getCurrentSlug(): string | null {
     if (base && path.startsWith(base)) path = path.slice(base.length);
     if (path.startsWith("/")) path = path.slice(1);
     const [first] = path.split("/").filter(Boolean);
-    return first || null;
+    if (!first) return null;
+    if (RESERVED_SEGMENTS.has(first.toLowerCase())) return null;
+    return first;
   } catch {
     return null;
   }
 }
 
-/** prefer current → session → local */
+/** prefer current → session → local (all slug-strict) */
 function getPreferredSlug(): string | null {
   const cur = getCurrentSlug();
   if (cur) return cur;
@@ -103,20 +123,29 @@ function rememberSlug() {
   }
 }
 
-/** HREF for full reloads (includes BASE_URL) */
-// function buildHref(path: string, slug?: string | null) {
-//   const base = getBase();
-//   const clean = (path || "").replace(/^\/+/, "");
-//   const s = slug ?? getPreferredSlug();
-//   return `${base}${s ? `/${s}` : ""}/${clean}`.replace(/\/+$/, "");
-// }
+/** For hard reloads: BASE_URL + /:slug + /clean */
+export function buildHref(path: string, slug?: string | null) {
+  const base = getBase();
+  const clean = (path || "").replace(/^\/+/, "");
+  const s = slug ?? getPreferredSlug();
+  return `${base}${s ? `/${s}` : ""}/${clean}`.replace(/\/+$/, "");
+}
 
-/** ROUTE for react-router navigate() (NO BASE_URL!) */
+/** For react-router navigate(): NO BASE_URL included */
 function buildRoute(path: string, slug?: string | null) {
   const clean = (path || "").replace(/^\/+/, "");
   const s = slug ?? getPreferredSlug();
   const parts = [s, clean].filter(Boolean).join("/");
   return `/${parts}`;
+}
+
+/** Exported helper for logout flows */
+export function redirectToHomeWithSlug() {
+  const base = getBase();
+  const slug = getPreferredSlug();
+  // Fallback to base/ (no slug) if we truly don't know it.
+  const href = `${base}${slug ? `/${slug}` : ""}/`;
+  window.location.href = href;
 }
 
 /* ============================== Misc utils ============================== */
@@ -496,7 +525,8 @@ export const TopNavBlock: React.FC<{ settings?: Partial<TopNavSettings> }> = ({
   useEffect(() => {
     if (authOpen && isLoggedIn) {
       setAuthOpen(false);
-      navigate(buildRoute("profile")); // basename-safe
+      // ✅ ensure slug-aware profile route
+      navigate(buildRoute("profile"));
     }
   }, [authOpen, isLoggedIn, navigate]);
 
@@ -581,7 +611,7 @@ export const TopNavBlock: React.FC<{ settings?: Partial<TopNavSettings> }> = ({
 
   const openSearch = () => setSearchOpen(true);
 
-  // --- IMPORTANT: clamp top to 0 while scrolling so header is flush to top
+  // --- clamp top to 0 while scrolling so header is flush to top
   const [dynamicTop, setDynamicTop] = useState<string>(
     "var(--annbar-offset, 0px)"
   );
@@ -599,7 +629,7 @@ export const TopNavBlock: React.FC<{ settings?: Partial<TopNavSettings> }> = ({
     update();
     window.addEventListener("scroll", update, { passive: true });
     window.addEventListener("resize", update);
-    const id = window.setInterval(update, 500); // defensive in case the var changes
+    const id = window.setInterval(update, 500);
     return () => {
       window.removeEventListener("scroll", update);
       window.removeEventListener("resize", update);
