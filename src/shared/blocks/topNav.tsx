@@ -1,4 +1,3 @@
-// shared/blocks/topNav.tsx
 import cn from "classnames";
 import React, {
   useEffect,
@@ -63,7 +62,7 @@ function getBase() {
   return (import.meta.env.BASE_URL || "/").replace(/\/+$/, "");
 }
 
-/** Only the slug part after trimming BASE_URL */
+/** slug after trimming BASE_URL */
 function getCurrentSlug(): string | null {
   try {
     const base = getBase();
@@ -77,37 +76,47 @@ function getCurrentSlug(): string | null {
   }
 }
 
-/** Sticky preference: current slug → session → local */
+/** prefer current → session → local */
 function getPreferredSlug(): string | null {
   const cur = getCurrentSlug();
   if (cur) return cur;
-  if (typeof window !== "undefined") {
-    const s =
-      sessionStorage.getItem(LS_SLUG_KEY) || localStorage.getItem(LS_SLUG_KEY);
-    return s || null;
+  try {
+    return (
+      sessionStorage.getItem(LS_SLUG_KEY) ||
+      localStorage.getItem(LS_SLUG_KEY) ||
+      null
+    );
+  } catch {
+    return null;
   }
-  return null;
 }
 
-/** Persist when we have a slug */
+/** persist when we have a slug */
 function rememberSlug() {
   const s = getCurrentSlug();
-  if (s && typeof window !== "undefined") {
-    try {
-      sessionStorage.setItem(LS_SLUG_KEY, s);
-      localStorage.setItem(LS_SLUG_KEY, s);
-    } catch {
-      /* empty */
-    }
+  if (!s) return;
+  try {
+    sessionStorage.setItem(LS_SLUG_KEY, s);
+    localStorage.setItem(LS_SLUG_KEY, s);
+  } catch {
+    /* ignore */
   }
 }
 
-/** Build "<BASE>/<slug>/<path>" (slug omitted if none) */
-function buildUrl(path: string, slug?: string | null) {
-  const base = getBase();
+/** HREF for full reloads (includes BASE_URL) */
+// function buildHref(path: string, slug?: string | null) {
+//   const base = getBase();
+//   const clean = (path || "").replace(/^\/+/, "");
+//   const s = slug ?? getPreferredSlug();
+//   return `${base}${s ? `/${s}` : ""}/${clean}`.replace(/\/+$/, "");
+// }
+
+/** ROUTE for react-router navigate() (NO BASE_URL!) */
+function buildRoute(path: string, slug?: string | null) {
   const clean = (path || "").replace(/^\/+/, "");
   const s = slug ?? getPreferredSlug();
-  return `${base}${s ? `/${s}` : ""}/${clean}`.replace(/\/+$/, "");
+  const parts = [s, clean].filter(Boolean).join("/");
+  return `/${parts}`;
 }
 
 /* ============================== Misc utils ============================== */
@@ -487,7 +496,7 @@ export const TopNavBlock: React.FC<{ settings?: Partial<TopNavSettings> }> = ({
   useEffect(() => {
     if (authOpen && isLoggedIn) {
       setAuthOpen(false);
-      navigate(buildUrl("profile")); // always BASE_URL + /:slug/profile when slug known
+      navigate(buildRoute("profile")); // basename-safe
     }
   }, [authOpen, isLoggedIn, navigate]);
 
@@ -504,8 +513,8 @@ export const TopNavBlock: React.FC<{ settings?: Partial<TopNavSettings> }> = ({
   const [menuOpen, setMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
 
-  // const showOnMobile = s.visibility !== "desktop";
-  // const showOnDesktop = s.visibility !== "mobile";
+  const showOnMobile = s.visibility !== "desktop";
+  const showOnDesktop = s.visibility !== "mobile";
 
   const desktopStickyOn = !!s.sticky_header;
   const desktopFixedOn = desktopStickyOn && isEditor;
@@ -560,6 +569,7 @@ export const TopNavBlock: React.FC<{ settings?: Partial<TopNavSettings> }> = ({
   const classes = cn(
     "w-full",
     visibilityClass(s.visibility),
+    // fixed on mobile, sticky/fixed on desktop depending on settings/editor
     "fixed top-0 left-0 right-0 z-[200] md:static md:top-auto md:left-auto md:right-auto md:z-auto",
     desktopStickyOn && !desktopFixedOn && "md:sticky md:top-0 md:z-[200]",
     desktopFixedOn && "md:fixed md:top-0 md:left-0 md:right-0 md:z-[200]"
@@ -571,7 +581,7 @@ export const TopNavBlock: React.FC<{ settings?: Partial<TopNavSettings> }> = ({
 
   const openSearch = () => setSearchOpen(true);
 
-  // --- clamp top while scrolling so header is flush to top
+  // --- IMPORTANT: clamp top to 0 while scrolling so header is flush to top
   const [dynamicTop, setDynamicTop] = useState<string>(
     "var(--annbar-offset, 0px)"
   );
@@ -589,7 +599,7 @@ export const TopNavBlock: React.FC<{ settings?: Partial<TopNavSettings> }> = ({
     update();
     window.addEventListener("scroll", update, { passive: true });
     window.addEventListener("resize", update);
-    const id = window.setInterval(update, 500);
+    const id = window.setInterval(update, 500); // defensive in case the var changes
     return () => {
       window.removeEventListener("scroll", update);
       window.removeEventListener("resize", update);
@@ -656,7 +666,8 @@ export const TopNavBlock: React.FC<{ settings?: Partial<TopNavSettings> }> = ({
                 color={textColor}
                 label="Cart/Wishlist"
                 onClick={() => {
-                  navigate(buildUrl("checkout"));
+                  // basename-safe client route
+                  navigate(buildRoute("checkout"));
                 }}
               >
                 <Icon.bagHeart size={bigIconSize} />
@@ -682,7 +693,7 @@ export const TopNavBlock: React.FC<{ settings?: Partial<TopNavSettings> }> = ({
                 label="Profile"
                 onClick={() => {
                   if (isLoggedIn) {
-                    navigate(buildUrl("profile"));
+                    navigate(buildRoute("profile"));
                   } else {
                     setAuthOpen(true);
                   }
@@ -715,14 +726,14 @@ export const TopNavBlock: React.FC<{ settings?: Partial<TopNavSettings> }> = ({
       </header>
 
       {/* Spacers for fixed header */}
-      {s.visibility !== "desktop" && (
+      {showOnMobile && (
         <div
           className="block md:hidden"
           style={{ height: headerH }}
           aria-hidden
         />
       )}
-      {s.visibility !== "mobile" && desktopFixedOn && (
+      {showOnDesktop && desktopFixedOn && (
         <div
           className="hidden md:block"
           style={{ height: headerH }}
