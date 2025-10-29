@@ -6,9 +6,9 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import CustomerLoginModal from "./CustomerLoginModal";
-import { useSellerAuth } from "../../modules/auth/contexts/SellerAuthContext";
+import { useCustomerAuth } from "../../modules/customer/context/CustomerAuthContext";
 
 /* ---------------- helpers ---------------- */
 
@@ -67,13 +67,45 @@ function useLockBodyScroll(active: boolean) {
   }, [active]);
 }
 
-/** Prefix a path with a slug if present */
-const withSlug = (path: string, slug?: string) =>
-  slug
-    ? `/${slug}${path.startsWith("/") ? path : `/${path}`}`
-    : path.startsWith("/")
-    ? path
-    : `/${path}`;
+/** BASE_URL-aware helpers (match TopNav) */
+function getBase() {
+  return (import.meta.env.BASE_URL || "/").replace(/\/+$/, ""); // e.g. "/storemins-frontend"
+}
+
+/** Get current slug from URL after removing BASE_URL */
+function getCurrentStoreSlug(): string | null {
+  try {
+    const base = getBase();
+    let path = window.location.pathname || "/";
+    if (base && path.startsWith(base)) path = path.slice(base.length);
+    if (path.startsWith("/")) path = path.slice(1);
+    const [first] = path.split("/").filter(Boolean);
+    return first || null;
+  } catch {
+    return null;
+  }
+}
+
+/** Build "<BASE_URL>/<slug>/<path>" (slug optional) */
+function buildUrl(path: string, slug?: string | null) {
+  const base = getBase();
+  const clean = (path || "").replace(/^\/+/, "");
+  const s = slug ?? getCurrentStoreSlug();
+  return `${base}${s ? `/${s}` : ""}/${clean}`.replace(/\/+$/, "");
+}
+
+/** Compare current path to an app-relative path for "active" checks */
+function isRouteActive(appRelative: string, slugAware = true) {
+  const base = getBase();
+  let cur = window.location.pathname || "/";
+  if (base && cur.startsWith(base)) cur = cur.slice(base.length);
+  if (!cur.startsWith("/")) cur = `/${cur}`;
+  const s = slugAware ? getCurrentStoreSlug() : null;
+  const target = `/${[s, appRelative.replace(/^\/+/, "")]
+    .filter(Boolean)
+    .join("/")}`;
+  return cur === target;
+}
 
 /* ---------------- icons ---------------- */
 
@@ -220,7 +252,6 @@ const SearchDialog: React.FC<{
       onTouchStart={onClose}
       aria-modal="true"
       role="dialog"
-      // ⬇️ MUST be higher than the checkout fixed bar (z-5000)
       style={{ zIndex: 8000 }}
     >
       <div
@@ -263,7 +294,6 @@ export default function BottomNav({
 }) {
   const s = settings || {};
   const navigate = useNavigate();
-  const { storeSlug } = useParams<{ storeSlug?: string }>();
 
   const {
     visibility = "all",
@@ -287,37 +317,42 @@ export default function BottomNav({
   const isMobile = useIsMobile();
   const cartCount = useCartCount();
   const navRef = useRef<HTMLDivElement | null>(null);
+  const [measuredH, setMeasuredH] = useState<number>(64); // fallback spacer
 
-  // auth
-  const auth = useSellerAuth();
-  const tokenLS =
+  // CUSTOMER auth (✔️ same as TopNav)
+  const auth = useCustomerAuth();
+  const tokenFromLS =
     (typeof window !== "undefined" &&
-      (localStorage.getItem("access_token") ||
+      (localStorage.getItem("customer_auth_token") ||
+        localStorage.getItem("customer_auth_user") ||
+        localStorage.getItem("access_token") ||
         localStorage.getItem("token"))) ||
     "";
-  const isLoggedIn = !!(auth.user || auth.userDetails || tokenLS);
+  const isLoggedIn = Boolean(auth?.user?.id || tokenFromLS);
+
   const [authOpen, setAuthOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+
+  // hide/disable bar while an overlay is open
+  const overlayActive = authOpen || searchOpen;
 
   // after login → go straight to slug-aware profile
   useEffect(() => {
     if (authOpen && isLoggedIn) {
       setAuthOpen(false);
-      navigate(withSlug("/profile", storeSlug));
+      navigate(buildUrl("profile")); // BASE_URL + /:slug/profile
     }
-  }, [authOpen, isLoggedIn, navigate, storeSlug]);
+  }, [authOpen, isLoggedIn, navigate]);
 
   const items = useMemo(
     () => [
       {
         key: "home" as const,
         onClick: (): void => {
-          window.location.href = storeSlug ? `/${storeSlug}` : "/";
+          const slug = getCurrentStoreSlug();
+          window.location.href = `${getBase()}${slug ? `/${slug}` : ""}/`;
         },
-        isActive: (): boolean => {
-          const p = window?.location?.pathname || "/";
-          return storeSlug ? p === `/${storeSlug}` : p === "/" || p === "/home";
-        },
+        isActive: (): boolean => isRouteActive("", true), // "/:slug"
       },
       {
         key: "search" as const,
@@ -327,7 +362,7 @@ export default function BottomNav({
       {
         key: "cart" as const,
         onClick: (): void => {
-          navigate(withSlug("/checkout", storeSlug));
+          navigate(buildUrl("checkout"));
         },
         isActive: (): boolean => false,
       },
@@ -335,18 +370,15 @@ export default function BottomNav({
         key: "account" as const,
         onClick: (): void => {
           if (isLoggedIn) {
-            navigate(withSlug("/profile", storeSlug));
+            navigate(buildUrl("profile"));
           } else {
             setAuthOpen(true);
           }
         },
-        isActive: (): boolean => {
-          const p = window?.location?.pathname || "/";
-          return p.endsWith("/profile") || p === "/profile";
-        },
+        isActive: (): boolean => isRouteActive("profile", true),
       },
     ],
-    [navigate, storeSlug, isLoggedIn]
+    [navigate, isLoggedIn]
   );
 
   useLayoutEffect(() => {
@@ -369,6 +401,7 @@ export default function BottomNav({
 
     const setPad = () => {
       const h = el.getBoundingClientRect().height || 0;
+      setMeasuredH(h || 64);
       document.documentElement.style.setProperty(
         "--bottom-nav-height",
         `${h}px`
@@ -403,13 +436,12 @@ export default function BottomNav({
     <nav
       ref={navRef}
       aria-label="Bottom navigation"
-      // prevent accidental click-through to underlying page (e.g. checkout)
       onMouseDown={(e) => e.stopPropagation()}
       onClick={(e) => e.stopPropagation()}
       onTouchStart={(e) => e.stopPropagation()}
       style={{
         position: "fixed",
-        zIndex: 2500, // below SearchDialog (8000), above page
+        zIndex: 2500, // below overlays, above page
         left: 0,
         right: 0,
         bottom: 0,
@@ -417,7 +449,8 @@ export default function BottomNav({
         borderTop: "1px solid rgba(100,116,139,0.15)",
         background: footer_background_color,
         WebkitTapHighlightColor: "transparent",
-        pointerEvents: "auto",
+        pointerEvents: overlayActive ? "none" : "auto",
+        visibility: overlayActive ? "hidden" : "visible",
       }}
     >
       <div
@@ -501,7 +534,7 @@ export default function BottomNav({
       {isMobile && (
         <div
           className="md:hidden"
-          style={{ height: "var(--bottom-nav-height)" }}
+          style={{ height: `var(--bottom-nav-height, ${measuredH}px)` }}
         />
       )}
 
