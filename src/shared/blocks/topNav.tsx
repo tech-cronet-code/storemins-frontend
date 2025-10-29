@@ -56,7 +56,61 @@ export type TopNavSettings = {
   hideMenuOnDetail?: boolean;
 };
 
-/* ============================== Utils / hooks ============================== */
+/* ============================== BASE_URL + slug helpers ============================== */
+const LS_SLUG_KEY = "last_store_slug";
+
+function getBase() {
+  return (import.meta.env.BASE_URL || "/").replace(/\/+$/, "");
+}
+
+/** Only the slug part after trimming BASE_URL */
+function getCurrentSlug(): string | null {
+  try {
+    const base = getBase();
+    let path = window.location.pathname || "/";
+    if (base && path.startsWith(base)) path = path.slice(base.length);
+    if (path.startsWith("/")) path = path.slice(1);
+    const [first] = path.split("/").filter(Boolean);
+    return first || null;
+  } catch {
+    return null;
+  }
+}
+
+/** Sticky preference: current slug → session → local */
+function getPreferredSlug(): string | null {
+  const cur = getCurrentSlug();
+  if (cur) return cur;
+  if (typeof window !== "undefined") {
+    const s =
+      sessionStorage.getItem(LS_SLUG_KEY) || localStorage.getItem(LS_SLUG_KEY);
+    return s || null;
+  }
+  return null;
+}
+
+/** Persist when we have a slug */
+function rememberSlug() {
+  const s = getCurrentSlug();
+  if (s && typeof window !== "undefined") {
+    try {
+      sessionStorage.setItem(LS_SLUG_KEY, s);
+      localStorage.setItem(LS_SLUG_KEY, s);
+    } catch {
+      /* empty */
+    }
+  }
+}
+
+/** Build "<BASE>/<slug>/<path>" (slug omitted if none) */
+function buildUrl(path: string, slug?: string | null) {
+  const base = getBase();
+  const clean = (path || "").replace(/^\/+/, "");
+  const s = slug ?? getPreferredSlug();
+  return `${base}${s ? `/${s}` : ""}/${clean}`.replace(/\/+$/, "");
+}
+
+/* ============================== Misc utils ============================== */
 const radiusClass: Record<
   NonNullable<TopNavSettings["desktop_search_bar_radius"]>,
   string
@@ -125,33 +179,6 @@ function useLockBodyScroll(active: boolean) {
       document.body.style.overflow = prev;
     };
   }, [active]);
-}
-
-/** Get current store slug from URL after removing Vite's BASE_URL (/storemins-frontend on GH Pages) */
-function getCurrentStoreSlug(): string | null {
-  try {
-    const base = (import.meta.env.BASE_URL || "/").replace(/\/+$/, ""); // e.g. "/storemins-frontend"
-    let path = window.location.pathname || "/";
-
-    // Remove the base prefix once, so we're left with "/:slug/..."
-    if (base && path.startsWith(base)) path = path.slice(base.length);
-    if (path.startsWith("/")) path = path.slice(1);
-
-    const [first] = path.split("/").filter(Boolean);
-    return first || null;
-  } catch {
-    return null;
-  }
-}
-
-/** Build a URL like "<BASE_URL>/<slug>/<path>" (slug omitted if not present) */
-function withSlug(path: string): string {
-  const base = (import.meta.env.BASE_URL || "/").replace(/\/+$/, ""); // "/storemins-frontend" in prod, "" in dev
-  const clean = (path || "").replace(/^\/+/, ""); // remove leading slash
-  const slug = getCurrentStoreSlug();
-
-  // Compose and normalize (avoid trailing "//")
-  return `${base}${slug ? `/${slug}` : ""}/${clean}`.replace(/\/+$/, "");
 }
 
 /** Read first defined localStorage key */
@@ -351,7 +378,7 @@ const SearchDialog: React.FC<{
 
   return (
     <div
-      className="fixed inset-0 z-[1000] bg-black/60 flex items-start justify-center p-3 sm:p-4 md:p-8"
+      className="fixed inset-0 z-[8000] bg-black/60 flex items-start justify-center p-3 sm:p-4 md:p-8"
       onMouseDown={onClose}
       aria-modal="true"
       role="dialog"
@@ -405,7 +432,7 @@ const Drawer: React.FC<
   if (!open) return null;
   return (
     <div
-      className="fixed inset-0 z-[1000] bg-black/60"
+      className="fixed inset-0 z-[7000] bg-black/60"
       onMouseDown={onClose}
       role="dialog"
       aria-modal="true"
@@ -440,6 +467,11 @@ export const TopNavBlock: React.FC<{ settings?: Partial<TopNavSettings> }> = ({
   const isEditor = useIsEditorPage();
   const navigate = useNavigate();
 
+  // Remember slug on mount
+  useEffect(() => {
+    rememberSlug();
+  }, []);
+
   // ---- AUTH
   const auth = useCustomerAuth();
   const tokenFromLS =
@@ -455,7 +487,7 @@ export const TopNavBlock: React.FC<{ settings?: Partial<TopNavSettings> }> = ({
   useEffect(() => {
     if (authOpen && isLoggedIn) {
       setAuthOpen(false);
-      navigate(withSlug("profile"));
+      navigate(buildUrl("profile")); // always BASE_URL + /:slug/profile when slug known
     }
   }, [authOpen, isLoggedIn, navigate]);
 
@@ -472,8 +504,8 @@ export const TopNavBlock: React.FC<{ settings?: Partial<TopNavSettings> }> = ({
   const [menuOpen, setMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
 
-  const showOnMobile = s.visibility !== "desktop";
-  const showOnDesktop = s.visibility !== "mobile";
+  // const showOnMobile = s.visibility !== "desktop";
+  // const showOnDesktop = s.visibility !== "mobile";
 
   const desktopStickyOn = !!s.sticky_header;
   const desktopFixedOn = desktopStickyOn && isEditor;
@@ -528,7 +560,6 @@ export const TopNavBlock: React.FC<{ settings?: Partial<TopNavSettings> }> = ({
   const classes = cn(
     "w-full",
     visibilityClass(s.visibility),
-    // fixed on mobile, sticky/fixed on desktop depending on settings/editor
     "fixed top-0 left-0 right-0 z-[200] md:static md:top-auto md:left-auto md:right-auto md:z-auto",
     desktopStickyOn && !desktopFixedOn && "md:sticky md:top-0 md:z-[200]",
     desktopFixedOn && "md:fixed md:top-0 md:left-0 md:right-0 md:z-[200]"
@@ -540,7 +571,7 @@ export const TopNavBlock: React.FC<{ settings?: Partial<TopNavSettings> }> = ({
 
   const openSearch = () => setSearchOpen(true);
 
-  // --- IMPORTANT: clamp top to 0 while scrolling so header is flush to top
+  // --- clamp top while scrolling so header is flush to top
   const [dynamicTop, setDynamicTop] = useState<string>(
     "var(--annbar-offset, 0px)"
   );
@@ -558,7 +589,7 @@ export const TopNavBlock: React.FC<{ settings?: Partial<TopNavSettings> }> = ({
     update();
     window.addEventListener("scroll", update, { passive: true });
     window.addEventListener("resize", update);
-    const id = window.setInterval(update, 500); // defensive in case the var changes
+    const id = window.setInterval(update, 500);
     return () => {
       window.removeEventListener("scroll", update);
       window.removeEventListener("resize", update);
@@ -625,7 +656,7 @@ export const TopNavBlock: React.FC<{ settings?: Partial<TopNavSettings> }> = ({
                 color={textColor}
                 label="Cart/Wishlist"
                 onClick={() => {
-                  navigate(withSlug("checkout"));
+                  navigate(buildUrl("checkout"));
                 }}
               >
                 <Icon.bagHeart size={bigIconSize} />
@@ -651,7 +682,7 @@ export const TopNavBlock: React.FC<{ settings?: Partial<TopNavSettings> }> = ({
                 label="Profile"
                 onClick={() => {
                   if (isLoggedIn) {
-                    navigate(withSlug("profile"));
+                    navigate(buildUrl("profile"));
                   } else {
                     setAuthOpen(true);
                   }
@@ -684,14 +715,14 @@ export const TopNavBlock: React.FC<{ settings?: Partial<TopNavSettings> }> = ({
       </header>
 
       {/* Spacers for fixed header */}
-      {showOnMobile && (
+      {s.visibility !== "desktop" && (
         <div
           className="block md:hidden"
           style={{ height: headerH }}
           aria-hidden
         />
       )}
-      {showOnDesktop && desktopFixedOn && (
+      {s.visibility !== "mobile" && desktopFixedOn && (
         <div
           className="hidden md:block"
           style={{ height: headerH }}
