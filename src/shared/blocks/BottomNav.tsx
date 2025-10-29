@@ -10,7 +10,7 @@ import { useNavigate } from "react-router-dom";
 import CustomerLoginModal from "./CustomerLoginModal";
 import { useCustomerAuth } from "../../modules/customer/context/CustomerAuthContext";
 
-/* ---------------- BASE_URL + slug helpers (same as TopNav) ---------------- */
+/* ---------------- BASE_URL + slug helpers (match TopNav) ---------------- */
 const LS_SLUG_KEY = "last_store_slug";
 
 function getBase() {
@@ -31,29 +31,39 @@ function getCurrentSlug(): string | null {
 function getPreferredSlug(): string | null {
   const cur = getCurrentSlug();
   if (cur) return cur;
-  if (typeof window !== "undefined") {
-    const s =
-      sessionStorage.getItem(LS_SLUG_KEY) || localStorage.getItem(LS_SLUG_KEY);
-    return s || null;
+  try {
+    return (
+      sessionStorage.getItem(LS_SLUG_KEY) ||
+      localStorage.getItem(LS_SLUG_KEY) ||
+      null
+    );
+  } catch {
+    return null;
   }
-  return null;
 }
 function rememberSlug() {
   const s = getCurrentSlug();
-  if (s && typeof window !== "undefined") {
-    try {
-      sessionStorage.setItem(LS_SLUG_KEY, s);
-      localStorage.setItem(LS_SLUG_KEY, s);
-    } catch {
-      /* empty */
-    }
+  if (!s) return;
+  try {
+    sessionStorage.setItem(LS_SLUG_KEY, s);
+    localStorage.setItem(LS_SLUG_KEY, s);
+  } catch {
+    /* empty */
   }
 }
-function buildUrl(path: string, slug?: string | null) {
-  const base = getBase();
+/** For full reloads (BASE_URL included) */
+// function buildHref(path: string, slug?: string | null) {
+//   const base = getBase();
+//   const clean = (path || "").replace(/^\/+/, "");
+//   const s = slug ?? getPreferredSlug();
+//   return `${base}${s ? `/${s}` : ""}/${clean}`.replace(/\/+$/, "");
+// }
+/** For react-router navigate() (NO BASE_URL) */
+function buildRoute(path: string, slug?: string | null) {
   const clean = (path || "").replace(/^\/+/, "");
   const s = slug ?? getPreferredSlug();
-  return `${base}${s ? `/${s}` : ""}/${clean}`.replace(/\/+$/, "");
+  const parts = [s, clean].filter(Boolean).join("/");
+  return `/${parts}`;
 }
 function isRouteActive(appRelative: string, slugAware = true) {
   const base = getBase();
@@ -357,7 +367,7 @@ export default function BottomNav({
   useEffect(() => {
     if (authOpen && isLoggedIn) {
       setAuthOpen(false);
-      navigate(buildUrl("profile"));
+      navigate(buildRoute("profile"));
     }
   }, [authOpen, isLoggedIn, navigate]);
 
@@ -381,8 +391,8 @@ export default function BottomNav({
       {
         key: "cart" as const,
         onClick: (): void => {
-          navigate(buildUrl("checkout")); // <-- wrapped so it returns void
-          // or: void navigate(buildUrl("checkout"));
+          navigate(buildRoute("checkout")); // basename-safe
+          // or: void navigate(buildRoute("checkout"));
         },
         isActive: (): boolean => false,
       },
@@ -390,7 +400,7 @@ export default function BottomNav({
         key: "account" as const,
         onClick: (): void => {
           if (isLoggedIn) {
-            navigate(buildUrl("profile")); // <-- same fix here
+            navigate(buildRoute("profile"));
           } else {
             setAuthOpen(true);
           }
