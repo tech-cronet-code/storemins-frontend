@@ -504,8 +504,8 @@ export const TopNavBlock: React.FC<{ settings?: Partial<TopNavSettings> }> = ({
   const [menuOpen, setMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
 
-  const showOnMobile = s.visibility !== "desktop";
-  const showOnDesktop = s.visibility !== "mobile";
+  // const showOnMobile = s.visibility !== "desktop";
+  // const showOnDesktop = s.visibility !== "mobile";
 
   const desktopStickyOn = !!s.sticky_header;
   const desktopFixedOn = desktopStickyOn && isEditor;
