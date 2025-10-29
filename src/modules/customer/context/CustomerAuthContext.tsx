@@ -44,7 +44,6 @@ interface CustomerAuthContextType {
   loading: boolean;
   error: string | null;
   userDetails: GetMyProfileDto | null;
-  /** Will be non-null only if bootstrap provided it */
   businessId: string;
 
   loginInit: (mobile: string) => Promise<{
@@ -99,6 +98,12 @@ function resolveStoreSlug(): string | null {
     if (v && v.trim()) return v.trim();
   }
 
+  // ✅ FIX: handle GitHub Pages base path
+  const base = (import.meta.env.BASE_URL || "/").replace(/\/$/, ""); // "/storemins-frontend"
+  const path = window.location.pathname.startsWith(base)
+    ? window.location.pathname.slice(base.length)
+    : window.location.pathname;
+
   const reserved = new Set([
     "home",
     "otp-verify",
@@ -112,7 +117,8 @@ function resolveStoreSlug(): string | null {
     "signup",
     "dashboard",
   ]);
-  const first = window.location.pathname.split("/").filter(Boolean)[0];
+
+  const first = path.split("/").filter(Boolean)[0];
   if (first && !reserved.has(first)) return first;
   return null;
 }
@@ -134,12 +140,12 @@ export const CustomerAuthProvider = ({ children }: { children: ReactNode }) => {
     (s: RootState) => s.customerAuth
   );
 
-  // Bootstrap once and derive businessId ONLY from settings (handles misspelling too)
   const slug = resolveStoreSlug();
   const { data: bootstrap } = useGetStorefrontBootstrapQuery(
     { slug: slug ?? "" },
     { skip: !slug }
   );
+
   const businessId: string =
     (bootstrap?.settings as any)?.businessId ??
     (bootstrap?.settings as any)?.bussinessId ??
@@ -177,7 +183,6 @@ export const CustomerAuthProvider = ({ children }: { children: ReactNode }) => {
       otpExpiresAt: res.otpExpiresAt ?? null,
       message: res.message,
     };
-    // businessId is needed for login-init
   };
 
   const register = async (payload: {
@@ -193,7 +198,7 @@ export const CustomerAuthProvider = ({ children }: { children: ReactNode }) => {
       mobile: payload.mobile,
       isTermAndPrivarcyEnable: payload.isTermAndPrivarcyEnable,
       email: payload.email,
-      businessId, // ✅ always the value from bootstrap (businessId | bussinessId)
+      businessId,
     }).unwrap();
 
     return {
@@ -216,7 +221,7 @@ export const CustomerAuthProvider = ({ children }: { children: ReactNode }) => {
     const res = await confirmOtpApi({
       mobile,
       confirm_mobile_otp_code: code,
-      businessId, // ✅ from bootstrap only
+      businessId,
     }).unwrap();
 
     const customerUser: CustomerUser = {
@@ -262,7 +267,7 @@ export const CustomerAuthProvider = ({ children }: { children: ReactNode }) => {
       loading,
       error,
       userDetails: myProfile ?? null,
-      businessId, // ✅ exposed (businessId or bussinessId)
+      businessId,
       loginInit,
       register,
       confirmOtp,
@@ -283,10 +288,9 @@ export const CustomerAuthProvider = ({ children }: { children: ReactNode }) => {
 
 export const useCustomerAuth = () => {
   const ctx = useContext(CustomerAuthContext);
-  if (!ctx) {
+  if (!ctx)
     throw new Error(
       "useCustomerAuth must be used within a CustomerAuthProvider"
     );
-  }
   return ctx;
 };
