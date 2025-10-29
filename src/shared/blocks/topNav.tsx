@@ -127,22 +127,31 @@ function useLockBodyScroll(active: boolean) {
   }, [active]);
 }
 
-/** Get current store slug from the URL: first non-empty path segment */
+/** Get current store slug from URL after removing Vite's BASE_URL (/storemins-frontend on GH Pages) */
 function getCurrentStoreSlug(): string | null {
   try {
-    const parts = (window.location.pathname || "/").split("/").filter(Boolean);
-    return parts.length ? parts[0] : null;
+    const base = (import.meta.env.BASE_URL || "/").replace(/\/+$/, ""); // e.g. "/storemins-frontend"
+    let path = window.location.pathname || "/";
+
+    // Remove the base prefix once, so we're left with "/:slug/..."
+    if (base && path.startsWith(base)) path = path.slice(base.length);
+    if (path.startsWith("/")) path = path.slice(1);
+
+    const [first] = path.split("/").filter(Boolean);
+    return first || null;
   } catch {
     return null;
   }
 }
 
-/** Prefix a path with the current slug when present; otherwise return the clean path */
+/** Build a URL like "<BASE_URL>/<slug>/<path>" (slug omitted if not present) */
 function withSlug(path: string): string {
-  const clean = path.startsWith("/") ? path : `/${path}`;
+  const base = (import.meta.env.BASE_URL || "/").replace(/\/+$/, ""); // "/storemins-frontend" in prod, "" in dev
+  const clean = (path || "").replace(/^\/+/, ""); // remove leading slash
   const slug = getCurrentStoreSlug();
-  if (!slug) return clean;
-  return `/${slug}${clean}`;
+
+  // Compose and normalize (avoid trailing "//")
+  return `${base}${slug ? `/${slug}` : ""}/${clean}`.replace(/\/+$/, "");
 }
 
 /** Read first defined localStorage key */
@@ -446,7 +455,7 @@ export const TopNavBlock: React.FC<{ settings?: Partial<TopNavSettings> }> = ({
   useEffect(() => {
     if (authOpen && isLoggedIn) {
       setAuthOpen(false);
-      navigate(withSlug("/profile"));
+      navigate(withSlug("profile"));
     }
   }, [authOpen, isLoggedIn, navigate]);
 
@@ -616,7 +625,7 @@ export const TopNavBlock: React.FC<{ settings?: Partial<TopNavSettings> }> = ({
                 color={textColor}
                 label="Cart/Wishlist"
                 onClick={() => {
-                  window.location.href = withSlug("/checkout");
+                  navigate(withSlug("checkout"));
                 }}
               >
                 <Icon.bagHeart size={bigIconSize} />
@@ -642,7 +651,7 @@ export const TopNavBlock: React.FC<{ settings?: Partial<TopNavSettings> }> = ({
                 label="Profile"
                 onClick={() => {
                   if (isLoggedIn) {
-                    navigate(withSlug("/profile"));
+                    navigate(withSlug("profile"));
                   } else {
                     setAuthOpen(true);
                   }
