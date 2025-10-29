@@ -10,8 +10,62 @@ import { useNavigate } from "react-router-dom";
 import CustomerLoginModal from "./CustomerLoginModal";
 import { useCustomerAuth } from "../../modules/customer/context/CustomerAuthContext";
 
-/* ---------------- helpers ---------------- */
+/* ---------------- BASE_URL + slug helpers (same as TopNav) ---------------- */
+const LS_SLUG_KEY = "last_store_slug";
 
+function getBase() {
+  return (import.meta.env.BASE_URL || "/").replace(/\/+$/, "");
+}
+function getCurrentSlug(): string | null {
+  try {
+    const base = getBase();
+    let path = window.location.pathname || "/";
+    if (base && path.startsWith(base)) path = path.slice(base.length);
+    if (path.startsWith("/")) path = path.slice(1);
+    const [first] = path.split("/").filter(Boolean);
+    return first || null;
+  } catch {
+    return null;
+  }
+}
+function getPreferredSlug(): string | null {
+  const cur = getCurrentSlug();
+  if (cur) return cur;
+  if (typeof window !== "undefined") {
+    const s =
+      sessionStorage.getItem(LS_SLUG_KEY) || localStorage.getItem(LS_SLUG_KEY);
+    return s || null;
+  }
+  return null;
+}
+function rememberSlug() {
+  const s = getCurrentSlug();
+  if (s && typeof window !== "undefined") {
+    try {
+      sessionStorage.setItem(LS_SLUG_KEY, s);
+      localStorage.setItem(LS_SLUG_KEY, s);
+    } catch {}
+  }
+}
+function buildUrl(path: string, slug?: string | null) {
+  const base = getBase();
+  const clean = (path || "").replace(/^\/+/, "");
+  const s = slug ?? getPreferredSlug();
+  return `${base}${s ? `/${s}` : ""}/${clean}`.replace(/\/+$/, "");
+}
+function isRouteActive(appRelative: string, slugAware = true) {
+  const base = getBase();
+  let cur = window.location.pathname || "/";
+  if (base && cur.startsWith(base)) cur = cur.slice(base.length);
+  if (!cur.startsWith("/")) cur = `/${cur}`;
+  const s = slugAware ? getPreferredSlug() : null;
+  const target = `/${[s, appRelative.replace(/^\/+/, "")]
+    .filter(Boolean)
+    .join("/")}`;
+  return cur === target;
+}
+
+/* ---------------- helpers ---------------- */
 function useIsMobile(breakpoint = 768) {
   const [isMobile, setIsMobile] = useState(
     typeof window !== "undefined" ? window.innerWidth < breakpoint : false
@@ -67,48 +121,7 @@ function useLockBodyScroll(active: boolean) {
   }, [active]);
 }
 
-/** BASE_URL-aware helpers (match TopNav) */
-function getBase() {
-  return (import.meta.env.BASE_URL || "/").replace(/\/+$/, ""); // e.g. "/storemins-frontend"
-}
-
-/** Get current slug from URL after removing BASE_URL */
-function getCurrentStoreSlug(): string | null {
-  try {
-    const base = getBase();
-    let path = window.location.pathname || "/";
-    if (base && path.startsWith(base)) path = path.slice(base.length);
-    if (path.startsWith("/")) path = path.slice(1);
-    const [first] = path.split("/").filter(Boolean);
-    return first || null;
-  } catch {
-    return null;
-  }
-}
-
-/** Build "<BASE_URL>/<slug>/<path>" (slug optional) */
-function buildUrl(path: string, slug?: string | null) {
-  const base = getBase();
-  const clean = (path || "").replace(/^\/+/, "");
-  const s = slug ?? getCurrentStoreSlug();
-  return `${base}${s ? `/${s}` : ""}/${clean}`.replace(/\/+$/, "");
-}
-
-/** Compare current path to an app-relative path for "active" checks */
-function isRouteActive(appRelative: string, slugAware = true) {
-  const base = getBase();
-  let cur = window.location.pathname || "/";
-  if (base && cur.startsWith(base)) cur = cur.slice(base.length);
-  if (!cur.startsWith("/")) cur = `/${cur}`;
-  const s = slugAware ? getCurrentStoreSlug() : null;
-  const target = `/${[s, appRelative.replace(/^\/+/, "")]
-    .filter(Boolean)
-    .join("/")}`;
-  return cur === target;
-}
-
 /* ---------------- icons ---------------- */
-
 function SvgIcon({
   id,
   className,
@@ -158,7 +171,6 @@ function SvgIcon({
 }
 
 /* ---------------- desktop links panel ---------------- */
-
 function LinksFooter({ s }: { s: any }) {
   const links = Array.isArray(s.desktop_footer_links)
     ? s.desktop_footer_links
@@ -226,7 +238,6 @@ function LinksFooter({ s }: { s: any }) {
 }
 
 /* ---------------- search dialog ---------------- */
-
 const SearchDialog: React.FC<{
   open: boolean;
   onClose: () => void;
@@ -286,7 +297,6 @@ const SearchDialog: React.FC<{
 };
 
 /* ---------------- main component ---------------- */
-
 export default function BottomNav({
   settings = {} as any,
 }: {
@@ -294,6 +304,11 @@ export default function BottomNav({
 }) {
   const s = settings || {};
   const navigate = useNavigate();
+
+  // remember slug on mount (keeps “sticky” after full reload)
+  useEffect(() => {
+    rememberSlug();
+  }, []);
 
   const {
     visibility = "all",
@@ -319,7 +334,7 @@ export default function BottomNav({
   const navRef = useRef<HTMLDivElement | null>(null);
   const [measuredH, setMeasuredH] = useState<number>(64); // fallback spacer
 
-  // CUSTOMER auth (✔️ same as TopNav)
+  // CUSTOMER auth (same as TopNav)
   const auth = useCustomerAuth();
   const tokenFromLS =
     (typeof window !== "undefined" &&
@@ -340,7 +355,7 @@ export default function BottomNav({
   useEffect(() => {
     if (authOpen && isLoggedIn) {
       setAuthOpen(false);
-      navigate(buildUrl("profile")); // BASE_URL + /:slug/profile
+      navigate(buildUrl("profile"));
     }
   }, [authOpen, isLoggedIn, navigate]);
 
@@ -349,10 +364,10 @@ export default function BottomNav({
       {
         key: "home" as const,
         onClick: (): void => {
-          const slug = getCurrentStoreSlug();
+          const slug = getPreferredSlug();
           window.location.href = `${getBase()}${slug ? `/${slug}` : ""}/`;
         },
-        isActive: (): boolean => isRouteActive("", true), // "/:slug"
+        isActive: (): boolean => isRouteActive("", true),
       },
       {
         key: "search" as const,
@@ -361,19 +376,14 @@ export default function BottomNav({
       },
       {
         key: "cart" as const,
-        onClick: (): void => {
-          navigate(buildUrl("checkout"));
-        },
+        onClick: (): void => navigate(buildUrl("checkout")),
         isActive: (): boolean => false,
       },
       {
         key: "account" as const,
         onClick: (): void => {
-          if (isLoggedIn) {
-            navigate(buildUrl("profile"));
-          } else {
-            setAuthOpen(true);
-          }
+          if (isLoggedIn) navigate(buildUrl("profile"));
+          else setAuthOpen(true);
         },
         isActive: (): boolean => isRouteActive("profile", true),
       },
