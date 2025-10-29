@@ -5,6 +5,7 @@ import React, {
   useMemo,
   useRef,
   useState,
+  useRef as useReactRef,
 } from "react";
 import { useNavigate } from "react-router-dom";
 import CustomerLoginModal from "./CustomerLoginModal";
@@ -12,8 +13,6 @@ import { useCustomerAuth } from "../../modules/customer/context/CustomerAuthCont
 
 /* ---------------- BASE_URL + slug helpers (match TopNav) ---------------- */
 const LS_SLUG_KEY = "last_store_slug";
-
-/** Route names we should NOT treat as a slug */
 const RESERVED_SEGMENTS = new Set([
   "profile",
   "checkout",
@@ -96,7 +95,6 @@ function isRouteActive(appRelative: string, slugAware = true) {
     .join("/")}`;
   return cur === target;
 }
-/** Export for logout redirection usage elsewhere if needed */
 export function redirectToHomeWithSlug() {
   const base = getBase();
   const slug = getPreferredSlug();
@@ -148,17 +146,6 @@ function useCartCount() {
   }, []);
   return count;
 }
-
-// function useLockBodyScroll(active: boolean) {
-//   useEffect(() => {
-//     if (!active) return;
-//     const prev = document.body.style.overflow;
-//     document.body.style.overflow = "hidden";
-//     return () => {
-//       document.body.style.overflow = prev;
-//     };
-//   }, [active]);
-// }
 
 /* ---------------- icons ---------------- */
 function SvgIcon({
@@ -383,6 +370,17 @@ export default function BottomNav({
     "";
   const isLoggedIn = Boolean(auth?.user?.id || tokenFromLS);
 
+  // logout watcher (like TopNav)
+  const prevLoggedRef = useReactRef(isLoggedIn);
+  useEffect(() => {
+    prevLoggedRef.current = isLoggedIn;
+  }, [isLoggedIn]);
+  useEffect(() => {
+    if (prevLoggedRef.current && !isLoggedIn) {
+      redirectToHomeWithSlug();
+    }
+  }, [isLoggedIn]);
+
   const [authOpen, setAuthOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
 
@@ -496,7 +494,7 @@ export default function BottomNav({
       onTouchStart={(e) => e.stopPropagation()}
       style={{
         position: "fixed",
-        zIndex: 2500, // below overlays, above page
+        zIndex: 2500,
         left: 0,
         right: 0,
         bottom: 0,
